@@ -11,6 +11,8 @@ type Props = {
   /** When set (Layout preview), skip live scan state and show these rewards. */
   previewMode?: boolean
   previewRewards?: RewardEval[]
+  /** Pretty hotkey label for empty-state CTA copy */
+  scanHotkey?: string
 }
 
 function ownershipLabel(reward: RewardEval) {
@@ -63,7 +65,13 @@ function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean
   )
 }
 
-export function RelicsPanel({ opacity, compact, previewMode, previewRewards }: Props) {
+export function RelicsPanel({
+  opacity,
+  compact,
+  previewMode,
+  previewRewards,
+  scanHotkey = 'Alt+Shift+F',
+}: Props) {
   const { state, scan, clear } = useRelicScan()
   const rewards = previewMode && previewRewards ? previewRewards : state.rewards
   const scanning = previewMode ? false : state.scanning
@@ -98,8 +106,7 @@ export function RelicsPanel({ opacity, compact, previewMode, previewRewards }: P
       <div className="mod-stack">
         {!previewMode && !state.inventoryLoaded ? (
           <p className="mod-empty">
-            Sync inventory in Settings for accurate owned counts. You can still scan rewards without
-            it.
+            Sync inventory in Settings for “needed for set” tags. Scanning still works without it.
           </p>
         ) : null}
 
@@ -108,16 +115,11 @@ export function RelicsPanel({ opacity, compact, previewMode, previewRewards }: P
         {rewards.length === 0 && !scanning ? (
           <div className="mod-stack">
             <p className="mod-empty">
-              At the fissure reward pick screen, press <strong>Alt+Shift+F</strong> (or your Scan
-              Relics hotkey). Auto-detect also watches EE.log for “Got rewards”.
+              On the fissure reward pick screen, press <strong>{scanHotkey}</strong>. EE.log
+              auto-detect also watches for “Got rewards”.
             </p>
-            <ul className="mod-bullets">
-              <li>Shows set name and part</li>
-              <li>Owned count from your inventory</li>
-              <li>Highlights parts you still need</li>
-            </ul>
             {!compact && !previewMode ? (
-              <button className="btn" disabled={scanning} onClick={() => void scan()}>
+              <button className="btn primary" disabled={scanning} onClick={() => void scan()}>
                 Scan reward screen
               </button>
             ) : null}

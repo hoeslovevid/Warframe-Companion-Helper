@@ -38,7 +38,12 @@ export function FissuresPanel({ fissures, tiers, opacity, compact }: Props) {
             <div className="mod-row__value">{formatCountdown(f.expiry, now)}</div>
           </li>
         ))}
-        {filtered.length === 0 ? <li className="mod-empty">No fissures for selected tiers</li> : null}
+        {filtered.length === 0 ? (
+          <li className="mod-empty">
+            No fissures for your selected tiers. Open <strong>Modules → Fissure filters</strong> to
+            enable Lith / Meso / Neo / Axi / Requiem, then refresh worldstate.
+          </li>
+        ) : null}
       </ul>
     </Panel>
   )

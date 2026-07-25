@@ -31,7 +31,12 @@ export function CyclesPanel({ cycles, opacity, compact }: Props) {
             </div>
           </li>
         ))}
-        {cycles.length === 0 ? <li className="mod-empty">No cycle data yet</li> : null}
+        {cycles.length === 0 ? (
+          <li className="mod-empty">
+            No cycle data yet — press <strong>Refresh worldstate</strong> on the dashboard, or check
+            your connection.
+          </li>
+        ) : null}
       </ul>
     </Panel>
   )

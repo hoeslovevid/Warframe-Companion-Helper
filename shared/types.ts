@@ -38,6 +38,16 @@ export type AppSettings = {
   layoutEditMode: boolean
   /** After the user has dragged a live overlay once, hide the move-hint chip. */
   overlayDragHintDismissed: boolean
+  /** First-run checklist + tour state */
+  onboarding: {
+    checklistDismissed: boolean
+    borderlessAck: boolean
+    modulesTouched: boolean
+    layoutVisited: boolean
+    inventoryTouched: boolean
+    tourCompleted: boolean
+    trayTipShown: boolean
+  }
 }
 
 export const MODULE_META: Record<
@@ -113,6 +123,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   overlayVisible: true,
   layoutEditMode: false,
   overlayDragHintDismissed: false,
+  onboarding: {
+    checklistDismissed: false,
+    borderlessAck: false,
+    modulesTouched: false,
+    layoutVisited: false,
+    inventoryTouched: false,
+    tourCompleted: false,
+    trayTipShown: false,
+  },
 }
 
 export type CycleInfo = {

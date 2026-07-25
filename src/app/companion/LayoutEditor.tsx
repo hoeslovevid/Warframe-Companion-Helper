@@ -8,6 +8,7 @@ import {
 } from '../../../shared/types'
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { ToggleRow } from '../../components/ToggleRow'
+import { LAYOUT_PRESETS, LayoutPresetId } from '../../lib/layoutPresets'
 import { buildPreviewWorldstate, MOCK_RELIC_REWARDS } from '../../lib/mockOverlayData'
 import '../../styles/overlay.css'
 
@@ -78,6 +79,10 @@ export function LayoutEditor({
     commit(next)
   }
 
+  const applyPreset = (id: LayoutPresetId) => {
+    commit(structuredClone(LAYOUT_PRESETS[id].anchors))
+  }
+
   return (
     <>
       <header className="page-header">
@@ -90,7 +95,17 @@ export function LayoutEditor({
         </p>
       </header>
 
-      <div className="toolbar">
+      <div className="toolbar" data-tour="layout-presets">
+        {(Object.keys(LAYOUT_PRESETS) as LayoutPresetId[]).map((id) => (
+          <button
+            key={id}
+            className="btn"
+            title={LAYOUT_PRESETS[id].description}
+            onClick={() => applyPreset(id)}
+          >
+            {LAYOUT_PRESETS[id].label}
+          </button>
+        ))}
         <button className="btn ghost" onClick={reset}>
           Reset positions
         </button>

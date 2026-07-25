@@ -33,6 +33,10 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
         ? Math.min(1.5, Math.max(0.75, raw.overlayScale))
         : base.overlayScale,
     overlayDragHintDismissed: raw.overlayDragHintDismissed ?? base.overlayDragHintDismissed,
+    onboarding: {
+      ...base.onboarding,
+      ...(raw.onboarding ?? {}),
+    },
   }
 }
 
@@ -71,6 +75,10 @@ export function updateSettings(partial: Partial<AppSettings>): AppSettings {
     modules: { ...current.modules, ...(partial.modules ?? {}) },
     panelAnchors: { ...current.panelAnchors, ...(partial.panelAnchors ?? {}) },
     hotkeys: { ...current.hotkeys, ...(partial.hotkeys ?? {}) },
+    onboarding: {
+      ...current.onboarding,
+      ...(partial.onboarding ?? {}),
+    },
   })
   return saveSettings(next)
 }

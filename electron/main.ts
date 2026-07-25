@@ -5,6 +5,7 @@ import {
   globalShortcut,
   ipcMain,
   Menu,
+  Notification,
   Tray,
   nativeImage,
 } from 'electron'
@@ -210,6 +211,24 @@ function createCompanionWindow() {
     }
   })
 
+  companionWindow.on('close', () => {
+    const current = loadSettings()
+    if (current.onboarding.trayTipShown) return
+    const next = updateSettings({
+      onboarding: { ...current.onboarding, trayTipShown: true },
+    })
+    broadcastSettings(next)
+    if (Notification.isSupported()) {
+      const openKey = current.hotkeys.openCompanion || 'Alt+Shift+C'
+      const tip = new Notification({
+        title: 'Everything Warframe is still running',
+        body: `Companion closed to the tray. Click the tray icon or press ${openKey} to reopen.`,
+      })
+      tip.on('click', () => createCompanionWindow())
+      tip.show()
+    }
+  })
+
   companionWindow.on('closed', () => {
     companionWindow = null
   })
@@ -401,7 +420,7 @@ function createTray() {
         },
       },
       {
-        label: 'Toggle Layout Edit',
+        label: 'Move / Lock Panels',
         click: () => toggleLayoutEditMode(),
       },
       { type: 'separator' },
