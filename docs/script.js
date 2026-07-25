@@ -4,14 +4,13 @@ const LATEST_PAGE = `https://github.com/${REPO}/releases/latest`
 
 function pickAsset(assets, kind) {
   if (!Array.isArray(assets)) return null
-  const names = assets.map((a) => a.name || '')
   if (kind === 'setup') {
     return assets.find((a) => /Setup.*\.exe$/i.test(a.name) && !/\.blockmap$/i.test(a.name))
   }
   if (kind === 'portable') {
     return assets.find((a) => /portable.*\.exe$/i.test(a.name))
   }
-  return names.length ? assets[0] : null
+  return null
 }
 
 function setHref(id, url) {
@@ -19,8 +18,43 @@ function setHref(id, url) {
   if (el && url) el.href = url
 }
 
+function formatBytes(bytes) {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) return null
+  const mb = bytes / (1024 * 1024)
+  return `${mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)} MB`
+}
+
+function formatDate(iso) {
+  if (!iso) return null
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(new Date(iso))
+  } catch {
+    return null
+  }
+}
+
+function extractDigest(asset) {
+  // GitHub may expose digest as "sha256:…" on newer API responses
+  const raw = asset?.digest || asset?.sha256 || ''
+  if (typeof raw !== 'string' || !raw) return null
+  const hex = raw.replace(/^sha256:/i, '').trim()
+  return hex || null
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id)
+  if (el && text) el.textContent = text
+}
+
 async function loadLatestRelease() {
   const versionLine = document.getElementById('version-line')
+  const meta = document.getElementById('download-meta')
+  const checksumLine = document.getElementById('checksum-line')
+
   try {
     const res = await fetch(LATEST_API, {
       headers: { Accept: 'application/vnd.github+json' },
@@ -30,6 +64,9 @@ async function loadLatestRelease() {
     const tag = data.tag_name || data.name || 'latest'
     const setup = pickAsset(data.assets, 'setup')
     const portable = pickAsset(data.assets, 'portable')
+    const published = formatDate(data.published_at)
+    const size = formatBytes(setup?.size)
+    const digest = extractDigest(setup)
 
     setHref('download-setup', setup?.browser_download_url || LATEST_PAGE)
     setHref('download-setup-2', setup?.browser_download_url || LATEST_PAGE)
@@ -37,7 +74,21 @@ async function loadLatestRelease() {
     setHref('download-portable-2', portable?.browser_download_url || LATEST_PAGE)
 
     if (versionLine) {
-      versionLine.innerHTML = `Latest release <strong>${tag}</strong> · Windows x64`
+      const bits = [`Latest <strong>${tag}</strong>`, 'Windows x64']
+      if (published) bits.push(published)
+      versionLine.innerHTML = bits.join(' · ')
+    }
+
+    if (meta) {
+      setText('meta-version', tag)
+      setText('meta-date', published || '—')
+      setText('meta-size', size || '—')
+      meta.hidden = false
+    }
+
+    if (checksumLine && digest) {
+      checksumLine.hidden = false
+      checksumLine.textContent = `SHA-256 (Setup): ${digest}`
     }
   } catch {
     setHref('download-setup', LATEST_PAGE)
@@ -51,7 +102,9 @@ async function loadLatestRelease() {
 }
 
 function setupReveal() {
-  const nodes = document.querySelectorAll('.section-inner, .feature-block, .steps li')
+  const nodes = document.querySelectorAll(
+    '.section-inner, .feature-block, .steps li, .trust-list li, .faq-item, .trust-bar__inner',
+  )
   nodes.forEach((el) => el.classList.add('reveal'))
 
   if (!('IntersectionObserver' in window)) {
