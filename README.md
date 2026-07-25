@@ -2,6 +2,7 @@
 
 Windows companion + transparent overlay for Warframe: worldstate panels, Baro inventory, account inventory sync, and relic reward scanning.
 
+**Website:** [hoeslovevid.github.io/Warframe-Companion-Helper](https://hoeslovevid.github.io/Warframe-Companion-Helper/)  
 **Downloads:** [GitHub Releases](https://github.com/hoeslovevid/Warframe-Companion-Helper/releases)
 
 ## Requirements

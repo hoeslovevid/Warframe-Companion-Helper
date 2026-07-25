@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Everything Warframe</title>
+    <meta
+      name="description"
+      content="Windows companion overlay for Warframe — worldstate, relic rewards, inventory sync, and layout editing."
+    />
+    <meta property="og:title" content="Everything Warframe" />
+    <meta
+      property="og:description"
+      content="Worldstate overlays, relic reward scanning, and inventory-aware picks — without leaving the game."
+    />
+    <meta property="og:image" content="assets/icon-256.png" />
+    <link rel="icon" href="assets/tray.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Sora:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-nav">
+      <a class="nav-brand" href="#top">
+        <img src="assets/tray.png" alt="" width="28" height="28" />
+        <span>Everything Warframe</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#download">Download</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-visual" aria-hidden="true">
+          <div class="hero-orb"></div>
+          <img class="hero-mark" src="assets/icon.png" alt="" />
+        </div>
+        <div class="hero-copy">
+          <p class="brand">Everything Warframe</p>
+          <h1>Stay in the fight. Keep the intel.</h1>
+          <p class="lede">
+            A Windows companion overlay for cycles, fissures, Baro, relic picks, and inventory-aware
+            set tracking.
+          </p>
+          <div class="cta-row">
+            <a
+              id="download-setup"
+              class="btn primary"
+              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+            >
+              Download for Windows
+            </a>
+            <a
+              id="download-portable"
+              class="btn ghost"
+              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+            >
+              Portable build
+            </a>
+          </div>
+          <p class="version-line" id="version-line">Fetching latest release…</p>
+        </div>
+      </section>
+
+      <section id="how" class="section section-how">
+        <div class="section-inner">
+          <h2>How it works</h2>
+          <p class="section-lede">
+            Run beside Warframe in Borderless Windowed. Panels sit above the game and stay
+            click-through until you unlock them.
+          </p>
+          <ol class="steps">
+            <li>
+              <span class="step-num">01</span>
+              <div>
+                <h3>Install &amp; launch</h3>
+                <p>Use the Setup installer, or run the portable build. Open the companion window.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">02</span>
+              <div>
+                <h3>Enable what you need</h3>
+                <p>Toggle cycles, fissures, Baro, relics, and more. Arrange them on the Layout tab.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">03</span>
+              <div>
+                <h3>Play with intel on-screen</h3>
+                <p>
+                  Hotkeys toggle the overlay and unlock drag. Relic scans fire from the reward screen.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="features" class="section section-features">
+        <div class="section-inner">
+          <h2>Built for the session</h2>
+          <p class="section-lede">One job per panel — live worldstate, reward picks, and local inventory.</p>
+
+          <div class="feature-block">
+            <h3>Live worldstate</h3>
+            <p>
+              Cetus, Vallis, Cambion, fissures, Baro Ki’Teer, Nightwave, and arbitration timers with
+              real countdowns.
+            </p>
+          </div>
+          <div class="feature-block">
+            <h3>Relic reward overlay</h3>
+            <p>
+              Scan the fissure reward screen (hotkey or EE.log). See set names, owned counts, and
+              parts you still need.
+            </p>
+          </div>
+          <div class="feature-block">
+            <h3>Layout your way</h3>
+            <p>
+              Drag every panel on a mock monitor in the app — or unlock in-game with Ctrl+Tab and
+              reposition on the fly.
+            </p>
+          </div>
+          <div class="feature-block">
+            <h3>Inventory stays local</h3>
+            <p>
+              Optional sync via warframe-api-helper or AlecaFrame exports. Data never leaves your PC
+              for “needed for set” tags.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" class="section section-download">
+        <div class="section-inner">
+          <h2>Download</h2>
+          <p class="section-lede">
+            Windows 10/11 (x64). Keep Warframe in <strong>Borderless Windowed</strong> so the overlay
+            can sit above the game.
+          </p>
+          <div class="cta-row">
+            <a
+              id="download-setup-2"
+              class="btn primary"
+              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+            >
+              Download Setup
+            </a>
+            <a
+              id="download-portable-2"
+              class="btn ghost"
+              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+            >
+              Portable
+            </a>
+            <a
+              class="btn ghost"
+              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases"
+              target="_blank"
+              rel="noreferrer"
+            >
+              All releases
+            </a>
+          </div>
+          <p class="muted" id="asset-note">
+            Installers update via GitHub Releases. SmartScreen may warn on first run (unsigned
+            builds).
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <p>
+          <strong>Everything Warframe</strong> — unofficial fan project, not affiliated with Digital
+          Extremes.
+        </p>
+        <p>
+          <a
+            href="https://github.com/hoeslovevid/Warframe-Companion-Helper"
+            target="_blank"
+            rel="noreferrer"
+            >Source on GitHub</a
+          >
+          ·
+          <a
+            href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases"
+            target="_blank"
+            rel="noreferrer"
+            >Releases</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

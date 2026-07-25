@@ -11,7 +11,7 @@
     "type": "git",
     "url": "https://github.com/hoeslovevid/Warframe-Companion-Helper.git"
   },
-  "homepage": "https://github.com/hoeslovevid/Warframe-Companion-Helper",
+  "homepage": "https://hoeslovevid.github.io/Warframe-Companion-Helper/",
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run build:electron",
