@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { HotkeyRegistration, MODULE_META, ModuleId } from '../../../shared/types'
+import {
+  COLOR_THEME_META,
+  ColorThemeId,
+  HotkeyRegistration,
+  MODULE_META,
+  ModuleId,
+} from '../../../shared/types'
+import { themeIdsByMode } from '../../lib/theme'
+import { useColorTheme } from '../../hooks/useColorTheme'
 import { Panel } from '../../components/Panel'
 import { ToggleRow } from '../../components/ToggleRow'
 import { InventorySettings } from '../../components/InventorySettings'
@@ -25,12 +33,13 @@ import { InvasionsPanel } from '../../modules/invasions/InvasionsPanel'
 import { ArchonPanel } from '../../modules/archon/ArchonPanel'
 import { DeepArchimedeaPanel } from '../../modules/deepArchimedea/DeepArchimedeaPanel'
 import { RivenPanel } from '../../modules/rivens/RivenPanel'
+import { FoundryPage } from '../../modules/foundry/FoundryPage'
 import { LayoutEditor } from './LayoutEditor'
 import { prettyHotkey } from '../../lib/hotkey'
 import '../../styles/companion.css'
 import '../../modules/cycles/module.css'
 
-type Tab = 'dashboard' | 'modules' | 'layout' | 'settings' | 'help'
+type Tab = 'dashboard' | 'modules' | 'foundry' | 'layout' | 'settings' | 'help'
 
 const TIER_OPTIONS = ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem']
 
@@ -57,6 +66,12 @@ const TOUR_STEPS: TourStep[] = [
     tab: 'modules',
     title: 'Modules',
     body: 'Turn panels on or off. Only enabled modules appear in the overlay and on this dashboard.',
+  },
+  {
+    target: 'nav-foundry',
+    tab: 'foundry',
+    title: 'Foundry',
+    body: 'Browse craftable gear, check ready-to-build status, and expand crafting trees against your synced inventory.',
   },
   {
     target: 'nav-layout',
@@ -108,6 +123,7 @@ export function CompanionApp() {
   const { data, loading, error, refresh } = useWorldstate()
   const { status: inventory } = useInventory()
   const { state: relicScan, ackCelebration } = useRelicScan()
+  useColorTheme(settings.colorTheme)
 
   const enabledIds = useMemo(
     () => (Object.keys(settings.modules) as ModuleId[]).filter((id) => settings.modules[id]),
@@ -242,6 +258,7 @@ export function CompanionApp() {
               </div>
             </div>
             <p className="brand-sub">Cycles, relics, Baro, inventory, and more — in one overlay.</p>
+            <div className="nav-section">Overview</div>
             <button
               className={`nav-btn ${tab === 'dashboard' ? 'active' : ''}`}
               data-tour="nav-dashboard"
@@ -258,6 +275,15 @@ export function CompanionApp() {
             >
               Modules
             </button>
+            <div className="nav-section">Tools</div>
+            <button
+              className={`nav-btn ${tab === 'foundry' ? 'active' : ''}`}
+              data-tour="nav-foundry"
+              title="Crafting trees and build readiness"
+              onClick={() => goTab('foundry')}
+            >
+              Foundry
+            </button>
             <button
               className={`nav-btn ${tab === 'layout' ? 'active' : ''}`}
               data-tour="nav-layout"
@@ -266,6 +292,7 @@ export function CompanionApp() {
             >
               Layout
             </button>
+            <div className="nav-section">System</div>
             <button
               className={`nav-btn ${tab === 'settings' ? 'active' : ''}`}
               data-tour="nav-settings"
@@ -455,8 +482,8 @@ export function CompanionApp() {
                   <h2 className="page-title">Modules</h2>
                   <div className="page-title-rule" />
                   <p className="page-desc">
-                    Choose what appears in the overlay and dashboard. Relic scanning and inventory
-                    tags are live; arbitration analytics come later.
+                    Choose what appears in the overlay and dashboard. Foundry Planner is companion-only
+                    (no overlay panel). Relic / riven scanning and inventory tags are live.
                   </p>
                 </header>
                 <Panel title="Toggleable modules">
@@ -524,6 +551,13 @@ export function CompanionApp() {
               </>
             ) : null}
 
+            {tab === 'foundry' ? (
+              <FoundryPage
+                enabled={settings.modules.foundry}
+                onOpenSettings={() => goTab('settings')}
+              />
+            ) : null}
+
             {tab === 'layout' ? (
               <LayoutEditor
                 settingsModules={settings.modules}
@@ -552,53 +586,101 @@ export function CompanionApp() {
                   </p>
                 </header>
 
+                <Panel
+                  title="Appearance"
+                  subtitle="Theme applies to the companion and overlay panels"
+                >
+                  <p className="theme-group-label">Dark palettes</p>
+                  <div className="theme-grid">
+                    {themeIdsByMode('dark').map((id) => {
+                      const meta = COLOR_THEME_META[id]
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`theme-card ${settings.colorTheme === id ? 'is-selected' : ''}`}
+                          onClick={() => void updateSettings({ colorTheme: id as ColorThemeId })}
+                        >
+                          <div className="theme-card__swatches" aria-hidden>
+                            {meta.swatches.map((c) => (
+                              <span key={c} style={{ background: c }} />
+                            ))}
+                          </div>
+                          <div className="theme-card__label">{meta.label}</div>
+                          <div className="theme-card__meta">{meta.description}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="theme-group-label">Light palettes</p>
+                  <div className="theme-grid">
+                    {themeIdsByMode('light').map((id) => {
+                      const meta = COLOR_THEME_META[id]
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`theme-card ${settings.colorTheme === id ? 'is-selected' : ''}`}
+                          onClick={() => void updateSettings({ colorTheme: id as ColorThemeId })}
+                        >
+                          <div className="theme-card__swatches" aria-hidden>
+                            {meta.swatches.map((c) => (
+                              <span key={c} style={{ background: c }} />
+                            ))}
+                          </div>
+                          <div className="theme-card__label">{meta.label}</div>
+                          <div className="theme-card__meta">{meta.description}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="field" style={{ marginTop: 16 }}>
+                    <label htmlFor="opacity">
+                      Overlay opacity ({settings.opacity.toFixed(2)})
+                    </label>
+                    <input
+                      id="opacity"
+                      type="range"
+                      min={0.4}
+                      max={1}
+                      step={0.01}
+                      value={settings.opacity}
+                      onChange={(e) => void updateSettings({ opacity: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="overlay-scale">
+                      Overlay scale ({settings.overlayScale.toFixed(2)}×)
+                    </label>
+                    <input
+                      id="overlay-scale"
+                      type="range"
+                      min={0.75}
+                      max={1.5}
+                      step={0.05}
+                      value={settings.overlayScale}
+                      onChange={(e) =>
+                        void updateSettings({ overlayScale: Number(e.target.value) })
+                      }
+                    />
+                  </div>
+                  <ToggleRow
+                    label="Overlay visible"
+                    description="Global hotkey also toggles this"
+                    checked={settings.overlayVisible}
+                    onChange={(enabled) => void updateSettings({ overlayVisible: enabled })}
+                  />
+                  <ToggleRow
+                    label="Move panels (in-game)"
+                    description={`${prettyHotkey(settings.hotkeys.editLayout)} unlocks click-through so you can drag. Prefer Layout for a mock preview.`}
+                    checked={settings.layoutEditMode}
+                    onChange={(enabled) => void updateSettings({ layoutEditMode: enabled })}
+                  />
+                </Panel>
+
+                <div className="section-gap" />
+
                 <div className="grid-2">
-                  <Panel title="Appearance">
-                    <div className="field">
-                      <label htmlFor="opacity">
-                        Overlay opacity ({settings.opacity.toFixed(2)})
-                      </label>
-                      <input
-                        id="opacity"
-                        type="range"
-                        min={0.4}
-                        max={1}
-                        step={0.01}
-                        value={settings.opacity}
-                        onChange={(e) =>
-                          void updateSettings({ opacity: Number(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="overlay-scale">
-                        Overlay scale ({settings.overlayScale.toFixed(2)}×)
-                      </label>
-                      <input
-                        id="overlay-scale"
-                        type="range"
-                        min={0.75}
-                        max={1.5}
-                        step={0.05}
-                        value={settings.overlayScale}
-                        onChange={(e) =>
-                          void updateSettings({ overlayScale: Number(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <ToggleRow
-                      label="Overlay visible"
-                      description="Global hotkey also toggles this"
-                      checked={settings.overlayVisible}
-                      onChange={(enabled) => void updateSettings({ overlayVisible: enabled })}
-                    />
-                    <ToggleRow
-                      label="Move panels (in-game)"
-                      description={`${prettyHotkey(settings.hotkeys.editLayout)} unlocks click-through so you can drag. Prefer Layout for a mock preview.`}
-                      checked={settings.layoutEditMode}
-                      onChange={(enabled) => void updateSettings({ layoutEditMode: enabled })}
-                    />
-                  </Panel>
 
                   <Panel title="Companion">
                     <ToggleRow

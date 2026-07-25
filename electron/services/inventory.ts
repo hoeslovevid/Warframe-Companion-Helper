@@ -11,6 +11,8 @@ import {
   InventorySource,
   InventoryStatus,
   InventorySyncResult,
+  MasteryEntry,
+  MasteryIndex,
 } from '../../shared/types'
 import { loadSettings, updateSettings } from '../settings'
 
@@ -48,7 +50,29 @@ const INVENTORY_ARRAY_KEYS = [
   'MechSuits',
 ]
 
+const GEAR_MASTERY_KEYS = new Set([
+  'Suits',
+  'Pistols',
+  'LongGuns',
+  'Melee',
+  'SpaceSuits',
+  'SpaceGuns',
+  'SpaceMelee',
+  'Sentinels',
+  'SentinelWeapons',
+  'KubrowPets',
+  'Cats',
+  'MoaPets',
+  'Horses',
+  'SpecialItems',
+  'OperatorAmps',
+  'MechSuits',
+])
+
+const MAX_RANK = 30
+
 let cachedIndex: InventoryIndex = {}
+let cachedMastery: MasteryIndex = {}
 let cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
 const listeners = new Set<(status: InventoryStatus) => void>()
 
@@ -171,10 +195,62 @@ function addCount(index: InventoryIndex, key: string, count: number) {
   if (base && base !== key) index[base] = (index[base] || 0) + count
 }
 
-export function parseInventoryJson(raw: unknown): { index: InventoryIndex; itemCount: number } {
+function setMastery(
+  mastery: MasteryIndex,
+  key: string,
+  ownedDelta: number,
+  xpLevel: number | null,
+  hasXpSignal: boolean,
+) {
+  if (!key) return
+  const apply = (k: string) => {
+    const prev = mastery[k] || { owned: 0, xpLevel: null, mastered: null }
+    const nextOwned = prev.owned + ownedDelta
+    let nextLevel = prev.xpLevel
+    if (xpLevel != null) {
+      nextLevel = prev.xpLevel == null ? xpLevel : Math.max(prev.xpLevel, xpLevel)
+    }
+    let mastered: boolean | null = prev.mastered
+    if (hasXpSignal && nextLevel != null) {
+      mastered = nextLevel >= MAX_RANK
+    } else if (hasXpSignal && mastered == null) {
+      mastered = false
+    }
+    mastery[k] = { owned: nextOwned, xpLevel: nextLevel, mastered }
+  }
+  apply(key)
+  const base = key.split('/').pop()
+  if (base && base !== key) apply(base)
+}
+
+function readXpLevel(row: Record<string, unknown>): { level: number | null; hasSignal: boolean } {
+  if (typeof row.XPLevel === 'number' && Number.isFinite(row.XPLevel)) {
+    return { level: row.XPLevel, hasSignal: true }
+  }
+  if (typeof row.Level === 'number' && Number.isFinite(row.Level)) {
+    return { level: row.Level, hasSignal: true }
+  }
+  if (typeof row.Rank === 'number' && Number.isFinite(row.Rank)) {
+    return { level: row.Rank, hasSignal: true }
+  }
+  // Affinity-only rows: treat as owned with unknown mastery unless clearly maxed via huge XP
+  if (typeof row.XP === 'number' && Number.isFinite(row.XP)) {
+    // Rank 30 affinity thresholds vary; ~1.6M+ is a common warframe max ballpark
+    if (row.XP >= 1_600_000) return { level: MAX_RANK, hasSignal: true }
+    return { level: null, hasSignal: true }
+  }
+  return { level: null, hasSignal: false }
+}
+
+export function parseInventoryJson(raw: unknown): {
+  index: InventoryIndex
+  mastery: MasteryIndex
+  itemCount: number
+} {
   const index: InventoryIndex = {}
+  const mastery: MasteryIndex = {}
   let itemCount = 0
-  if (!raw || typeof raw !== 'object') return { index, itemCount }
+  if (!raw || typeof raw !== 'object') return { index, mastery, itemCount }
 
   const root = raw as Record<string, unknown>
 
@@ -189,6 +265,28 @@ export function parseInventoryJson(raw: unknown): { index: InventoryIndex; itemC
       if (!type) continue
       addCount(index, type, count)
       itemCount += count
+      if (GEAR_MASTERY_KEYS.has(key)) {
+        const { level, hasSignal } = readXpLevel(row)
+        setMastery(mastery, type, count, level, hasSignal)
+      }
+    }
+  }
+
+  // XPInfo often lists mastered / leveled gear even if not currently owned
+  const xpInfo = root.XPInfo
+  if (Array.isArray(xpInfo)) {
+    for (const entry of xpInfo) {
+      if (!entry || typeof entry !== 'object') continue
+      const row = entry as Record<string, unknown>
+      const type = String(row.ItemType || row.uniqueName || '')
+      if (!type) continue
+      const { level, hasSignal } = readXpLevel(row)
+      const prev = mastery[type]
+      if (!prev) {
+        setMastery(mastery, type, 0, level, hasSignal || level != null)
+      } else if (hasSignal || level != null) {
+        setMastery(mastery, type, 0, level, true)
+      }
     }
   }
 
@@ -197,7 +295,7 @@ export function parseInventoryJson(raw: unknown): { index: InventoryIndex; itemC
     return parseInventoryJson(root.Inventory)
   }
 
-  return { index, itemCount }
+  return { index, mastery, itemCount }
 }
 
 export function decryptAlecaFrameDat(filePath: string): unknown {
@@ -221,16 +319,38 @@ function loadJsonFile(filePath: string): unknown {
 
 export function loadInventoryFromPath(filePath: string): {
   index: InventoryIndex
+  mastery: MasteryIndex
   itemCount: number
   uniqueCount: number
 } {
   const raw = loadJsonFile(filePath)
-  const { index, itemCount } = parseInventoryJson(raw)
-  return { index, itemCount, uniqueCount: Object.keys(index).length }
+  const { index, mastery, itemCount } = parseInventoryJson(raw)
+  return { index, mastery, itemCount, uniqueCount: Object.keys(index).length }
 }
 
 export function getInventoryIndex(): InventoryIndex {
   return { ...cachedIndex }
+}
+
+export function getMasteryIndex(): MasteryIndex {
+  return { ...cachedMastery }
+}
+
+export function ownedCountFor(uniqueName: string, index: InventoryIndex = cachedIndex): number {
+  if (!uniqueName) return 0
+  if (index[uniqueName] != null) return index[uniqueName]
+  const base = uniqueName.split('/').pop()
+  if (base && index[base] != null) return index[base]
+  return 0
+}
+
+export function masteryFor(uniqueName: string): MasteryEntry | null {
+  if (!uniqueName) return null
+  return (
+    cachedMastery[uniqueName] ||
+    cachedMastery[uniqueName.split('/').pop() || ''] ||
+    null
+  )
 }
 
 function downloadFile(url: string, dest: string): Promise<void> {
@@ -399,6 +519,7 @@ export function useInventoryFile(
 
     const loaded = loadInventoryFromPath(finalPath)
     cachedIndex = loaded.index
+    cachedMastery = loaded.mastery
     cachedMeta = {
       path: finalPath,
       itemCount: loaded.itemCount,
@@ -433,12 +554,14 @@ export function reloadConfiguredInventory(): void {
   const settings = loadSettings()
   if (!settings.inventoryPath || !fs.existsSync(settings.inventoryPath)) {
     cachedIndex = {}
+    cachedMastery = {}
     cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
     return
   }
   try {
     const loaded = loadInventoryFromPath(settings.inventoryPath)
     cachedIndex = loaded.index
+    cachedMastery = loaded.mastery
     cachedMeta = {
       path: settings.inventoryPath,
       itemCount: loaded.itemCount,
@@ -451,6 +574,7 @@ export function reloadConfiguredInventory(): void {
 
 export function clearInventoryData(): InventoryStatus {
   cachedIndex = {}
+  cachedMastery = {}
   cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
   updateSettings({
     inventoryPath: '',

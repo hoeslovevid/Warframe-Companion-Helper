@@ -75,6 +75,14 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
             Dismiss with <strong>{prettyHotkey(hk.dismissRivens)}</strong>.
           </p>
         </div>
+        <div className="help-block">
+          <h3>6. Foundry planner</h3>
+          <p>
+            Open the <strong>Foundry</strong> tab in the companion (not an overlay). Sync inventory,
+            then browse recipes, filter ready-to-build items, and expand crafting trees to see missing
+            resources and blueprints.
+          </p>
+        </div>
       </Panel>
 
       <div className="section-gap" />

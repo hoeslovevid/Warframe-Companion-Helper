@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
   AppUpdateStatus,
+  FoundryListFilters,
   HotkeyRegistration,
   InventoryStatus,
   ModuleId,
@@ -39,6 +40,8 @@ const api: VoidLensApi = {
   getRivenScan: () => ipcRenderer.invoke('rivens:get'),
   scanRivens: () => ipcRenderer.invoke('rivens:scan'),
   clearRivenScan: () => ipcRenderer.invoke('rivens:clear'),
+  getFoundryItems: (filters?: FoundryListFilters) => ipcRenderer.invoke('foundry:list', filters),
+  getFoundryTree: (uniqueName: string) => ipcRenderer.invoke('foundry:tree', uniqueName),
   getHotkeyStatus: () => ipcRenderer.invoke('hotkeys:status') as Promise<HotkeyRegistration[]>,
   getAppVersion: () => ipcRenderer.invoke('app:version') as Promise<string>,
   getUpdateStatus: () => ipcRenderer.invoke('update:status'),

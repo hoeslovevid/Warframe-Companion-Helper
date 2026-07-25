@@ -42,6 +42,7 @@ import {
   onRivenScanUpdated,
   scanRivens,
 } from './services/riven-scanner'
+import { getFoundryTree, listFoundryItems } from './services/foundry'
 import { isWarframeForeground, isWarframeRunning } from './services/warframe-process'
 import {
   checkForAppUpdates,
@@ -49,7 +50,13 @@ import {
   initAutoUpdater,
   quitAndInstallUpdate,
 } from './services/updater'
-import { AppSettings, HotkeyRegistration, ModuleId, WorldstateSnapshot } from '../shared/types'
+import {
+  AppSettings,
+  FoundryListFilters,
+  HotkeyRegistration,
+  ModuleId,
+  WorldstateSnapshot,
+} from '../shared/types'
 
 // Ensure Chromium's optional FPS HUD is not enabled
 try {
@@ -647,6 +654,10 @@ function registerIpc() {
   ipcMain.handle('rivens:get', () => getRivenScanState())
   ipcMain.handle('rivens:scan', async () => runRivenScan('manual'))
   ipcMain.handle('rivens:clear', () => dismissRivenPopup())
+  ipcMain.handle('foundry:list', async (_e, filters?: FoundryListFilters) =>
+    listFoundryItems(filters || {}),
+  )
+  ipcMain.handle('foundry:tree', async (_e, uniqueName: string) => getFoundryTree(uniqueName || ''))
   ipcMain.handle('hotkeys:status', () => lastHotkeyStatus)
   ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('update:status', () => getUpdateStatus())

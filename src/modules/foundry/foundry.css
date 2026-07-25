@@ -1,0 +1,208 @@
+.foundry-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: 16px;
+  min-height: 520px;
+  align-items: stretch;
+}
+
+.foundry-sidebar,
+.foundry-detail {
+  border: 1px solid var(--vl-panel-border);
+  border-radius: var(--vl-radius);
+  background: var(--vl-panel);
+  box-shadow: var(--vl-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px) saturate(1.1);
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.foundry-sidebar::before,
+.foundry-detail::before {
+  content: '';
+  display: block;
+  height: 2px;
+  background: linear-gradient(90deg, var(--vl-gold), var(--vl-teal-bright), transparent 75%);
+  background-size: 200% 100%;
+  animation: vlShimmer 8s linear infinite alternate;
+}
+
+.foundry-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+.foundry-sidebar__filters {
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--vl-surface-border);
+  display: grid;
+  gap: 10px;
+}
+
+.foundry-search {
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: var(--vl-radius-sm);
+  border: 1px solid var(--vl-input-border);
+  background: var(--vl-input-bg);
+  color: var(--vl-frost);
+  font: inherit;
+}
+
+.foundry-search:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--vl-teal-bright) 55%, transparent);
+  box-shadow: 0 0 0 3px var(--vl-teal-dim);
+}
+
+.foundry-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.foundry-chip {
+  padding: 5px 9px;
+  border-radius: var(--vl-radius-sm);
+  border: 1px solid var(--vl-surface-border);
+  background: transparent;
+  color: var(--vl-mist);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 140ms var(--vl-ease),
+    background 140ms var(--vl-ease),
+    color 140ms var(--vl-ease);
+}
+
+.foundry-chip.is-on {
+  border-color: color-mix(in srgb, var(--vl-teal-bright) 50%, transparent);
+  color: var(--vl-frost);
+  background: var(--vl-teal-dim);
+}
+
+.foundry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  flex: 1;
+}
+
+.foundry-list li button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--vl-surface-border);
+  background: transparent;
+  color: inherit;
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+  transition: background 140ms var(--vl-ease);
+}
+
+.foundry-list li button:hover,
+.foundry-list li button.is-selected {
+  background: var(--vl-teal-dim);
+}
+
+.foundry-list li button.is-selected {
+  box-shadow: inset 3px 0 0 var(--vl-teal-bright);
+}
+
+.foundry-list__name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--vl-frost);
+  margin-bottom: 4px;
+}
+
+.foundry-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.foundry-detail {
+  padding: 0 18px 18px;
+  overflow: auto;
+}
+
+.foundry-detail h3 {
+  margin: 14px 0 6px;
+  font-family: var(--vl-font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vl-gold-soft);
+}
+
+.foundry-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 12px 0 18px;
+  color: var(--vl-mist);
+  font-size: 0.85rem;
+}
+
+.foundry-stats strong {
+  color: var(--vl-frost);
+  font-weight: 600;
+}
+
+.foundry-section-title {
+  margin: 18px 0 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vl-mist-dim);
+}
+
+.foundry-tree,
+.foundry-totals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.foundry-tree ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding-left: 14px;
+  border-left: 1px solid var(--vl-surface-border);
+}
+
+.foundry-tree li,
+.foundry-totals li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 0.86rem;
+  color: var(--vl-frost);
+}
+
+.foundry-tree .is-missing,
+.foundry-totals .is-missing {
+  color: var(--vl-danger);
+}
+
+.foundry-tree .is-ok,
+.foundry-totals .is-ok {
+  color: var(--vl-ok);
+}
+
+@media (max-width: 960px) {
+  .foundry-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .foundry-sidebar {
+    max-height: 320px;
+  }
+}

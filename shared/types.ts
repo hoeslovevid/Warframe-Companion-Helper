@@ -9,6 +9,7 @@ export type ModuleId =
   | 'archon'
   | 'deepArchimedea'
   | 'rivens'
+  | 'foundry'
 
 export type PanelAnchor = {
   x: number
@@ -63,12 +64,79 @@ export type InventorySource = 'none' | 'manual' | 'detected' | 'helper' | 'aleca
 
 export type FissureSort = 'eta' | 'tier'
 
+/** App + overlay color themes (4 dark, 4 light). */
+export type ColorThemeId =
+  | 'void'
+  | 'ember'
+  | 'glacier'
+  | 'obsidian'
+  | 'snow'
+  | 'parchment'
+  | 'mist'
+  | 'harbor'
+
+export const COLOR_THEME_META: Record<
+  ColorThemeId,
+  { label: string; mode: 'dark' | 'light'; description: string; swatches: [string, string, string] }
+> = {
+  void: {
+    label: 'Void',
+    mode: 'dark',
+    description: 'Default night void with gold and teal',
+    swatches: ['#060a0e', '#c9b07a', '#4ab5ac'],
+  },
+  ember: {
+    label: 'Ember',
+    mode: 'dark',
+    description: 'Warm forge tones — copper on charcoal',
+    swatches: ['#120a08', '#d4956a', '#e8c4a0'],
+  },
+  glacier: {
+    label: 'Glacier',
+    mode: 'dark',
+    description: 'Cool steel and ice on deep navy',
+    swatches: ['#071018', '#8eb6c9', '#5ec4d4'],
+  },
+  obsidian: {
+    label: 'Obsidian',
+    mode: 'dark',
+    description: 'Near-black with muted silver accents',
+    swatches: ['#010101', '#9aa0a6', '#6e7a84'],
+  },
+  snow: {
+    label: 'Snow',
+    mode: 'light',
+    description: 'Clean cool light with teal accents',
+    swatches: ['#f3f6f8', '#1a6b66', '#2a3540'],
+  },
+  parchment: {
+    label: 'Parchment',
+    mode: 'light',
+    description: 'Soft warm paper with ink and brass',
+    swatches: ['#f2efe8', '#8a6a32', '#2c2924'],
+  },
+  mist: {
+    label: 'Mist',
+    mode: 'light',
+    description: 'Airy blue-gray with muted gold',
+    swatches: ['#eef2f5', '#9a8048', '#243040'],
+  },
+  harbor: {
+    label: 'Harbor',
+    mode: 'light',
+    description: 'Bright coastal white with seafoam accents',
+    swatches: ['#f7fbfb', '#2a8f86', '#1e3338'],
+  },
+}
+
 export type AppSettings = {
   modules: Record<ModuleId, boolean>
   panelAnchors: Partial<Record<ModuleId, PanelAnchor>>
   opacity: number
   /** Visual scale for overlay panels (WFHelper-style). */
   overlayScale: number
+  /** Companion + overlay color palette. */
+  colorTheme: ColorThemeId
   hotkeys: HotkeyConfig
   eeLogPath: string
   inventoryPath: string
@@ -164,6 +232,12 @@ export const MODULE_META: Record<
       'Popup while rerolling: grades current vs new roll and recommends which to keep',
     phase: 2,
   },
+  foundry: {
+    label: 'Foundry Planner',
+    description:
+      'Companion crafting planner: browse recipes, owned/mastered status, and crafting trees',
+    phase: 2,
+  },
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -178,6 +252,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     archon: true,
     deepArchimedea: false,
     rivens: true,
+    foundry: true,
   },
   panelAnchors: {
     cycles: { x: 24, y: 24 },
@@ -193,6 +268,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   opacity: 0.92,
   overlayScale: 1,
+  colorTheme: 'void',
   hotkeys: {
     toggleOverlay: 'Alt+Shift+V',
     openCompanion: 'Alt+Shift+C',
@@ -337,6 +413,102 @@ export type WorldstateSnapshot = {
 
 export type InventoryIndex = Record<string, number>
 
+/** Per-item mastery/owned info from inventory export (may be incomplete). */
+export type MasteryEntry = {
+  owned: number
+  xpLevel: number | null
+  /** null = unknown (export lacked XP data) */
+  mastered: boolean | null
+}
+
+export type MasteryIndex = Record<string, MasteryEntry>
+
+export type FoundryCategory =
+  | 'warframe'
+  | 'primary'
+  | 'secondary'
+  | 'melee'
+  | 'companion'
+  | 'archwing'
+  | 'other'
+
+export type RecipeComponent = {
+  name: string
+  uniqueName: string
+  itemCount: number
+  /** Nested recipe when present on the API payload. */
+  components?: RecipeComponent[]
+}
+
+export type RecipeItem = {
+  uniqueName: string
+  name: string
+  category: FoundryCategory
+  masteryReq: number | null
+  buildPrice: number | null
+  buildTime: number | null
+  vaulted: boolean | null
+  isPrime: boolean
+  components: RecipeComponent[]
+}
+
+export type FoundryOwnedFilter = 'any' | 'owned' | 'unowned'
+export type FoundryMasteryFilter = 'any' | 'mastered' | 'unmastered' | 'unknown'
+export type FoundryReadyFilter = 'any' | 'ready' | 'not_ready'
+export type FoundryPrimeFilter = 'any' | 'prime' | 'normal'
+export type FoundryVaultedFilter = 'any' | 'vaulted' | 'unvaulted'
+
+export type FoundryListFilters = {
+  search?: string
+  category?: FoundryCategory | 'all'
+  prime?: FoundryPrimeFilter
+  owned?: FoundryOwnedFilter
+  mastery?: FoundryMasteryFilter
+  ready?: FoundryReadyFilter
+  vaulted?: FoundryVaultedFilter
+}
+
+export type FoundryListItem = {
+  uniqueName: string
+  name: string
+  category: FoundryCategory
+  masteryReq: number | null
+  buildPrice: number | null
+  buildTime: number | null
+  vaulted: boolean | null
+  isPrime: boolean
+  owned: boolean
+  ownedCount: number
+  mastered: boolean | null
+  readyToBuild: boolean
+  missingDirect: number
+}
+
+export type FoundryTreeNode = {
+  name: string
+  uniqueName: string
+  required: number
+  owned: number
+  missing: number
+  children: FoundryTreeNode[]
+}
+
+export type FoundryTotalLine = {
+  name: string
+  uniqueName: string
+  required: number
+  owned: number
+  missing: number
+}
+
+export type FoundryTreeResult = {
+  item: FoundryListItem | null
+  tree: FoundryTreeNode | null
+  totals: FoundryTotalLine[]
+  inventoryLoaded: boolean
+  error: string | null
+}
+
 export type InventoryCandidate = {
   path: string
   label: string
@@ -457,6 +629,8 @@ export type VoidLensApi = {
   getRivenScan: () => Promise<RivenScanState>
   scanRivens: () => Promise<RivenScanState>
   clearRivenScan: () => Promise<RivenScanState>
+  getFoundryItems: (filters?: FoundryListFilters) => Promise<FoundryListItem[]>
+  getFoundryTree: (uniqueName: string) => Promise<FoundryTreeResult>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>
   getAppVersion: () => Promise<string>
   getUpdateStatus: () => Promise<AppUpdateStatus>

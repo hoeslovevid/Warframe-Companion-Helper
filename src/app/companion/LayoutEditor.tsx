@@ -28,7 +28,8 @@ const FALLBACK_DISPLAY: PrimaryDisplayInfo = {
   scaleFactor: 1,
 }
 
-const ALL_MODULES = Object.keys(MODULE_META) as ModuleId[]
+/** Companion-only modules are excluded from overlay layout placement. */
+const ALL_MODULES = (Object.keys(MODULE_META) as ModuleId[]).filter((id) => id !== 'foundry')
 
 type Props = {
   settingsModules: Record<ModuleId, boolean>

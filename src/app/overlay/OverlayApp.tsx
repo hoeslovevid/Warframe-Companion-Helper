@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ModuleId, PanelAnchor } from '../../../shared/types'
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { NowProvider } from '../../hooks/NowContext'
+import { useColorTheme } from '../../hooks/useColorTheme'
 import { useRelicScan } from '../../hooks/useRelicScan'
 import { useRivenScan } from '../../hooks/useRivenScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
@@ -13,6 +14,7 @@ export function OverlayApp() {
   const { data } = useWorldstate()
   const { state: relicScan } = useRelicScan()
   const { state: rivenScan } = useRivenScan()
+  useColorTheme(settings.colorTheme)
   const [anchors, setAnchors] = useState<Partial<Record<ModuleId, PanelAnchor>>>(
     settings.panelAnchors,
   )
@@ -24,7 +26,8 @@ export function OverlayApp() {
   // Relics / Rivens are transient popups (AlecaFrame-style), not always-on panels.
   const modules = useMemo(() => {
     const enabled = (Object.keys(settings.modules) as ModuleId[]).filter(
-      (id) => settings.modules[id] && id !== 'relics' && id !== 'rivens',
+      (id) =>
+        settings.modules[id] && id !== 'relics' && id !== 'rivens' && id !== 'foundry',
     )
     const next = [...enabled]
     if (settings.modules.relics && relicScan.active) next.push('relics')

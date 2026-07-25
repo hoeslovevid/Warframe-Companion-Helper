@@ -1,7 +1,18 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
-import { AppSettings, DEFAULT_SETTINGS, ModuleId } from '../shared/types'
+import { AppSettings, ColorThemeId, DEFAULT_SETTINGS, ModuleId } from '../shared/types'
+
+const COLOR_THEMES: ColorThemeId[] = [
+  'void',
+  'ember',
+  'glacier',
+  'obsidian',
+  'snow',
+  'parchment',
+  'mist',
+  'harbor',
+]
 
 let cache: AppSettings | null = null
 
@@ -37,6 +48,10 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       typeof raw.overlayScale === 'number' && Number.isFinite(raw.overlayScale)
         ? Math.min(1.5, Math.max(0.75, raw.overlayScale))
         : base.overlayScale,
+    colorTheme:
+      raw.colorTheme && COLOR_THEMES.includes(raw.colorTheme as ColorThemeId)
+        ? (raw.colorTheme as ColorThemeId)
+        : base.colorTheme,
     overlayDragHintDismissed: raw.overlayDragHintDismissed ?? base.overlayDragHintDismissed,
     baroWishlist: Array.isArray(raw.baroWishlist) ? raw.baroWishlist : base.baroWishlist,
     nightwaveDoneIds: Array.isArray(raw.nightwaveDoneIds)

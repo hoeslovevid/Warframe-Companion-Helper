@@ -19,6 +19,12 @@ export const WHATS_NEW: Record<string, string[]> = {
     'EE.log best-effort auto-detect for Kuva Cycle screens',
     'Layout preview + presets include the riven compare panel',
   ],
+  '0.9.0': [
+    'Foundry Planner tab: browse recipes with owned / ready / vaulted filters',
+    'Recursive crafting trees with leaf material totals vs local inventory',
+    'Eight color themes (4 dark, 4 light) for companion and overlay',
+    'Visual polish: nav sections, status pills, and clearer empty states',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

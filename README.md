@@ -81,6 +81,8 @@ Everything Warframe runs at below-normal process priority, pauses overlay clocks
 - **Nightwave** — season / phase
 - **Relics** — OCR reward overlay with set + owned counts
 - **Riven Grader** — OCR current vs reroll, tier grades, keep/take recommendation
+- **Foundry Planner** — companion crafting trees, ready-to-build checks, material totals
+- **Themes** — 4 dark + 4 light palettes for companion and overlay (Settings → Appearance)
 - **Arbitration** — schedule now; run analytics later
 
 ## Inventory
@@ -106,6 +108,13 @@ Data stays on your PC.
 2. On the Kuva Cycle compare screen (current vs new), press **Alt+Shift+G**
 3. The overlay grades both rolls and recommends keep / take / similar
 4. EE.log may auto-detect; the hotkey is the reliable path. Dismiss with **Alt+Shift+H**
+
+## Foundry planner
+
+1. Sync inventory under **Settings → Inventory**
+2. Open the companion **Foundry** tab (companion-only — no overlay panel)
+3. Search/filter craftable warframes and weapons
+4. Select an item to expand its crafting tree and see missing leaf materials
 
 ## Publishing a new release (maintainers)
 
