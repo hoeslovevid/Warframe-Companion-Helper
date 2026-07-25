@@ -80,10 +80,31 @@ export function warframeProtonPrefix(): string | null {
   return null
 }
 
-/** Candidate EE.log paths inside Proton prefixes. */
-export function warframeProtonEeLogCandidates(): string[] {
+function eeLogsUnderUsersBase(usersBase: string, out: string[]) {
   const users = ['steamuser', os.userInfo().username, 'User']
+  for (const user of users) {
+    out.push(path.join(usersBase, user, 'AppData', 'Local', 'Warframe', 'EE.log'))
+  }
+  try {
+    for (const entry of fs.readdirSync(usersBase, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      out.push(path.join(usersBase, entry.name, 'AppData', 'Local', 'Warframe', 'EE.log'))
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** Candidate EE.log paths inside Proton / Wine prefixes. */
+export function warframeProtonEeLogCandidates(): string[] {
   const out: string[] = []
+
+  // Most reliable while Steam is launching / has launched Warframe via Proton.
+  const compat = process.env.STEAM_COMPAT_DATA_PATH
+  if (compat) {
+    eeLogsUnderUsersBase(path.join(compat, 'pfx', 'drive_c', 'users'), out)
+  }
+
   for (const root of steamRoots()) {
     const base = path.join(
       root,
@@ -94,21 +115,24 @@ export function warframeProtonEeLogCandidates(): string[] {
       'drive_c',
       'users',
     )
-    for (const user of users) {
-      out.push(path.join(base, user, 'AppData', 'Local', 'Warframe', 'EE.log'))
-    }
-    // Also scan users/* if present (custom Wine username)
-    try {
-      for (const entry of fs.readdirSync(base, { withFileTypes: true })) {
-        if (!entry.isDirectory()) continue
-        out.push(
-          path.join(base, entry.name, 'AppData', 'Local', 'Warframe', 'EE.log'),
-        )
-      }
-    } catch {
-      // ignore
-    }
+    eeLogsUnderUsersBase(base, out)
   }
+
+  // Heroic / Lutris / custom Wine prefixes (common layouts).
+  const home = os.homedir()
+  for (const pfx of [
+    process.env.WINEPREFIX,
+    path.join(home, 'Games', 'Heroic', 'Prefixes', 'default', 'Warframe'),
+    path.join(home, 'Games', 'warframe'),
+    path.join(home, '.local', 'share', 'Steam', 'steamapps', 'compatdata', WARFRAME_STEAM_APP_ID),
+  ]) {
+    if (!pfx) continue
+    const usersBase = fs.existsSync(path.join(pfx, 'pfx', 'drive_c', 'users'))
+      ? path.join(pfx, 'pfx', 'drive_c', 'users')
+      : path.join(pfx, 'drive_c', 'users')
+    if (fs.existsSync(usersBase)) eeLogsUnderUsersBase(usersBase, out)
+  }
+
   return [...new Set(out)]
 }
 

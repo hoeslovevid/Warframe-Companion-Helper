@@ -11,6 +11,7 @@ import {
   screen,
   shell,
 } from 'electron'
+import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { getAppIcon, getTrayIcon } from './app-icon'
@@ -903,10 +904,25 @@ app.whenReady().then(async () => {
   onRelicScanUpdated(() => broadcastRelicScan())
   onRivenScanUpdated(() => broadcastRivenScan())
 
-  const eePath = loadSettings().eeLogPath || detectEeLogPath()
-  if (eePath) {
-    if (!loadSettings().eeLogPath) updateSettings({ eeLogPath: eePath })
-    logWatcher.setPath(eePath)
+  const bindEeLog = (reason: string) => {
+    const eePath = loadSettings().eeLogPath || detectEeLogPath()
+    if (eePath) {
+      if (!loadSettings().eeLogPath) updateSettings({ eeLogPath: eePath })
+      logWatcher.setPath(eePath)
+      console.info(`[Everything Warframe] EE.log watcher bound (${reason}): ${eePath}`)
+      return true
+    }
+    logWatcher.setPath(null)
+    console.warn(`[Everything Warframe] EE.log watcher unbound (${reason}) — auto-scan off`)
+    return false
+  }
+  bindEeLog('startup')
+  // Proton prefixes appear after the first launch; keep trying on Linux.
+  if (process.platform === 'linux') {
+    setInterval(() => {
+      if (loadSettings().eeLogPath && fs.existsSync(loadSettings().eeLogPath)) return
+      bindEeLog('periodic-redetect')
+    }, 45_000)
   }
   logWatcher.on('event', (event) => {
     if (event.type === 'relic_rewards') {
@@ -933,7 +949,8 @@ app.whenReady().then(async () => {
       dismissRivenPopup()
     }
   })
-  logWatcher.start(1500)
+  // Faster poll on Linux — Wine/Proton log flushes are bursty around reward screens.
+  logWatcher.start(process.platform === 'linux' ? 800 : 1500)
 
   preferLowerProcessPriority()
   registerHotkeys()

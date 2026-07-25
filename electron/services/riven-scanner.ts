@@ -112,13 +112,17 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
   try {
     if (trigger === 'log') {
       // Compare UI animates in after kuva confirm / PleaseWait.
-      await new Promise((r) => setTimeout(r, 1400))
+      // Proton/DXVK first paint is slower — wait longer on Linux.
+      const animDelay = process.platform === 'linux' ? 2200 : 1400
+      await new Promise((r) => setTimeout(r, animDelay))
     }
 
     const capture = await captureRivenCompare()
     if (!capture || capture.crops.length < 2) {
       throw new Error(
-        'Could not capture riven cards. Use Borderless Windowed (Linux/Proton: X11 or XWayland).',
+        process.platform === 'linux'
+          ? 'Could not capture riven cards. Allow the screen-share dialog once and leave it on, then scan again (Borderless Windowed).'
+          : 'Could not capture riven cards. Use Borderless Windowed, then scan again.',
       )
     }
     let crops = capture.crops
@@ -145,14 +149,16 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
           : ''),
     )
 
-    // Keep debug frames when a side looks incomplete (typical riven has 3–4 lines).
-    if (!leftOk || !rightOk || left.stats.length < 3 || right.stats.length < 3) {
+    const weakRead =
+      !leftOk || !rightOk || left.stats.length < 3 || right.stats.length < 3
+    if (weakRead) {
       saveRivenDebugCrops(crops, 'weak', capture.fullPng)
     }
 
-    // Retry once after a short beat — UI may still be animating.
-    if ((!leftOk || !rightOk) && trigger === 'log') {
-      await new Promise((r) => setTimeout(r, 900))
+    // Retry on empty OR partial reads (1–2 stats) — common when UI is still animating.
+    if (weakRead) {
+      const retryDelay = process.platform === 'linux' ? 1100 : 900
+      await new Promise((r) => setTimeout(r, retryDelay))
       const retry = await captureRivenCompare()
       if (retry && retry.crops.length >= 2) {
         const retryTexts = await recognizeRivenBlocks(retry.crops)
@@ -172,7 +178,9 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
         rightOk = right.stats.length > 0
         texts = retryTexts
         crops = retry.crops
-        if (!leftOk || !rightOk) saveRivenDebugCrops(retry.crops, 'retry', retry.fullPng)
+        if (!leftOk || !rightOk || left.stats.length < 3 || right.stats.length < 3) {
+          saveRivenDebugCrops(retry.crops, 'retry', retry.fullPng)
+        }
       }
     }
 

@@ -103,6 +103,35 @@ async function getTessWorker(): Promise<Worker> {
   return tessLoading
 }
 
+/**
+ * Grayscale + contrast without sharp (Linux packages sometimes lack a matching
+ * sharp native binary). Improves OCR of light UI text on dark mesh.
+ */
+function nativeContrastPrep(png: Buffer, opts: { scale: number; harsh?: boolean }): Buffer {
+  const img = nativeImage.createFromBuffer(png)
+  const { width, height } = img.getSize()
+  if (width < 8 || height < 8) return png
+  const bitmap = Buffer.from(img.toBitmap())
+  const harsh = Boolean(opts.harsh)
+  const scaleLin = harsh ? 1.85 : 1.45
+  const bias = harsh ? -40 : -22
+  const threshold = harsh ? 118 : 0
+  for (let i = 0; i + 3 < bitmap.length; i += 4) {
+    const b = bitmap[i]
+    const g = bitmap[i + 1]
+    const r = bitmap[i + 2]
+    let gray = (r * 299 + g * 587 + b * 114) / 1000
+    gray = Math.max(0, Math.min(255, gray * scaleLin + bias))
+    if (threshold > 0) gray = gray >= threshold ? 255 : 0
+    bitmap[i] = bitmap[i + 1] = bitmap[i + 2] = Math.round(gray)
+    bitmap[i + 3] = 255
+  }
+  const out = nativeImage.createFromBitmap(bitmap, { width, height })
+  const tw = Math.max(640, Math.round(width * opts.scale))
+  const th = Math.max(8, Math.round((height * tw) / width))
+  return out.resize({ width: tw, height: th, quality: 'best' }).toPNG()
+}
+
 /** Prep a single riven card crop: boost light UI text on dark mesh, pad, upscale. */
 async function prepareRivenCard(png: Buffer, mode: 'normal' | 'harsh' = 'normal'): Promise<Buffer> {
   try {
@@ -128,17 +157,12 @@ async function prepareRivenCard(png: Buffer, mode: 'normal' | 'harsh' = 'normal'
       .resize({ width: targetW, kernel: 'lanczos3' })
       .png()
       .toBuffer()
-  } catch {
-    const img = nativeImage.createFromBuffer(png)
-    const { width, height } = img.getSize()
-    if (width < 8 || height < 8) return png
-    return img
-      .resize({
-        width: Math.round(width * 2.6),
-        height: Math.round(height * 2.6),
-        quality: 'best',
-      })
-      .toPNG()
+  } catch (err) {
+    console.warn(
+      '[Everything Warframe] sharp unavailable for riven prep — using native contrast fallback',
+      err instanceof Error ? err.message : err,
+    )
+    return nativeContrastPrep(png, { scale: 2.6, harsh: mode === 'harsh' })
   }
 }
 
@@ -168,17 +192,12 @@ async function prepareRelicPng(png: Buffer, scale: number): Promise<Buffer> {
       })
       .png()
       .toBuffer()
-  } catch {
-    const img = nativeImage.createFromBuffer(png)
-    const { width, height } = img.getSize()
-    if (width < 8 || height < 8 || scale === 1) return png
-    return img
-      .resize({
-        width: Math.round(width * scale),
-        height: Math.round(height * scale),
-        quality: 'best',
-      })
-      .toPNG()
+  } catch (err) {
+    console.warn(
+      '[Everything Warframe] sharp unavailable for relic prep — using native contrast fallback',
+      err instanceof Error ? err.message : err,
+    )
+    return nativeContrastPrep(png, { scale: Math.max(1, scale) })
   }
 }
 

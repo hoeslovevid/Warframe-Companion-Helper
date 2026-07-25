@@ -126,7 +126,8 @@ npm run build:riven-prefs
 4. Overlay + OCR need **X11 / XWayland** above Warframe — the app forces XWayland when a Wayland session is detected (pure Wayland cannot pin always-on-top). Override with `ELECTRON_OZONE_PLATFORM_HINT=wayland` only if you know you need it
 5. Toggle overlay (`Alt+Shift+V` by default) plays a system beep and shows a desktop notification plus tray tooltip (`Overlay ON/OFF`) so state is clear even if panels are hard to see
 6. On **Wayland**, grant screen share once when prompted — Everything Warframe keeps that capture session open for relic/riven OCR so you are not asked again each scan
-7. Inventory sync from the game runs the Windows helper via Proton’s wine inside the Warframe prefix (or import `inventory.json` manually)
+7. EE.log is auto-detected from Steam/Proton (`compatdata/230410`); if auto-scan never fires, set the path under Settings after launching Warframe once
+8. Inventory sync from the game runs the Windows helper via Proton’s wine inside the Warframe prefix (or import `inventory.json` manually)
 
 ## Foundry planner
 

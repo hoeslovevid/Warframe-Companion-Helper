@@ -11,12 +11,16 @@ export type LogEvent = {
 const REWARD_START_PATTERNS = [
   /ProjectionRewardChoice\.lua:\s*Relic rewards initialized/i,
   /Relic rewards initialized/i,
-  /ProjectionRewardChoice/i,
+  // WFInfo / older builds — "Got rewards" without "screen closed"
+  /Got rewards(?!\s+screen\s+closed)/i,
+  /ProjectionRewardChoice\.lua/i,
+  /Script \[Info\]:.*ProjectionRewardChoice/i,
 ]
 
 const REWARD_END_PATTERNS = [
   /ProjectionRewardChoice\.lua:.*(?:Selected|Choice made|Closing|closed|Select)/i,
-  /EndOfMatch\.lua/i,
+  // Avoid bare EndOfMatch.lua (can appear during mission init under Wine timing)
+  /EndOfMatch\.lua:.*(?:initialized|started|begin|completed|destroyed|closed)/i,
   /Got rewards screen closed/i,
   /Script \[Info\]:.*Reward.*(?:closed|dismiss|selected)/i,
 ]
@@ -63,6 +67,7 @@ export class LogWatcher extends EventEmitter {
   private squadMembers = new Set<string>()
   private squadSizeHint: number | null = null
   private voidProjectionCount = 0
+  private missedTicks = 0
 
   /** Latest best-guess squad size for relic OCR (1–4), or null. */
   getSquadSizeHint(): number | null {
@@ -134,7 +139,21 @@ export class LogWatcher extends EventEmitter {
   }
 
   private tick() {
-    if (!this.path || !fs.existsSync(this.path)) return
+    if (!this.path) {
+      if (++this.missedTicks % 40 === 1) {
+        console.warn(
+          '[Everything Warframe] EE.log path not set — log-based relic/riven auto-scan disabled',
+        )
+      }
+      return
+    }
+    if (!fs.existsSync(this.path)) {
+      if (++this.missedTicks % 40 === 1) {
+        console.warn(`[Everything Warframe] EE.log missing at ${this.path}`)
+      }
+      return
+    }
+    this.missedTicks = 0
     try {
       const stat = fs.statSync(this.path)
       if (stat.size < this.offset) this.offset = 0

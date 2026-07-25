@@ -33,9 +33,8 @@ export function invalidateCaptureCache() {
 async function withOverlayPaused<T>(fn: () => Promise<T>): Promise<T> {
   const resume = pauseOverlayForCapture?.()
   try {
-    // Overlay is opacity-0 + moved off-screen; brief settle is enough.
-    // Persistent stream path needs less compositor settle time.
-    const settleMs = isPersistentCaptureLive() ? 60 : process.platform === 'linux' ? 120 : 100
+    // Overlay hide is async on Wayland/XWayland — give the compositor time.
+    const settleMs = isPersistentCaptureLive() ? 80 : process.platform === 'linux' ? 220 : 100
     await new Promise((r) => setTimeout(r, settleMs))
     return await fn()
   } finally {
@@ -112,15 +111,28 @@ async function captureViaDesktopCapturer(preferred?: Electron.Display): Promise<
     ...sources.filter((s) => s.display_id !== preferredId),
   ].filter(Boolean) as Electron.DesktopCapturerSource[]
 
+  let emptyThumbs = 0
   for (const source of ordered) {
     const png = source.thumbnail.toPNG()
-    if (!png?.length) continue
+    if (!png?.length) {
+      emptyThumbs++
+      continue
+    }
     const img = nativeImage.createFromBuffer(png)
     const size = img.getSize()
-    if (size.width < 16 || size.height < 16) continue
+    if (size.width < 16 || size.height < 16) {
+      emptyThumbs++
+      continue
+    }
     const result = { png, width: size.width, height: size.height }
     thumbCache = { at: now, displayId: target.id, ...result }
     return result
+  }
+  if (sources.length) {
+    console.warn(
+      `[Everything Warframe] desktopCapturer: ${sources.length} source(s), ${emptyThumbs} empty thumb(s)` +
+        ` — persistentLive=${isPersistentCaptureLive()}`,
+    )
   }
   return null
 }
@@ -136,9 +148,24 @@ async function captureDisplay(display: Electron.Display): Promise<{
 } | null> {
   if (process.platform === 'linux') {
     const persistent = await grabPersistentFrame()
-    if (persistent?.png?.length) return persistent
+    if (persistent?.png?.length) {
+      console.info(
+        `[Everything Warframe] Capture via persistent stream ${persistent.width}×${persistent.height}`,
+      )
+      return persistent
+    }
   }
-  return captureViaDesktopCapturer(display)
+  const shot = await captureViaDesktopCapturer(display)
+  if (shot) {
+    console.info(
+      `[Everything Warframe] Capture via desktopCapturer ${shot.width}×${shot.height}`,
+    )
+  } else {
+    console.warn(
+      '[Everything Warframe] Screen capture failed — on Linux grant the screen-share dialog once and leave it on',
+    )
+  }
+  return shot
 }
 
 export async function capturePrimaryDisplay(): Promise<{

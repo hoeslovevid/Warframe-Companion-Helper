@@ -168,60 +168,78 @@ export async function scanRelicRewards(
   try {
     await ensureItemCatalog()
     if (trigger === 'log') {
-      await new Promise((r) => setTimeout(r, 1200))
+      // Wine/Proton often buffers EE.log; UI may still be animating after the marker.
+      const delay = process.platform === 'linux' ? 1800 : 1200
+      await new Promise((r) => setTimeout(r, delay))
     }
 
-    const crops = await captureRewardRegionPngs()
-    if (crops.length < 4) {
-      throw new Error(
-        'Could not capture the reward screen. Is Warframe borderless on a captured display?',
-      )
-    }
-
-    const ocrNames = await recognizeRewardNames(crops)
-    let rewards: RewardEval[] = ocrNames.map((ocrText, slot) => {
-      const cleaned = ocrText.replace(/\b(OWNED|CRAFTED|UNRANKED)\b/gi, '').replace(/\s+/g, ' ').trim()
-      const matched = matchCatalogItem(cleaned)
-      const name = matched?.item.name || cleaned || `Reward ${slot + 1}`
-      const uniqueName = matched?.item.uniqueName || null
-      const setName = matched?.item.setName || null
-      const partName = matched?.item.partName || null
-      const owned = ownedCount(uniqueName, name)
-      const { setParts, setOwnedParts, setTotalParts } = buildSetParts(setName)
-      // Confidence 0–1; unmatched OCR text stays low so the UI can warn.
-      const matchScore = matched?.score ?? (cleaned.length > 2 ? 0.2 : 0)
-
-      return {
-        slot,
-        ocrText: cleaned,
-        name,
-        uniqueName,
-        setName,
-        partName,
-        owned,
-        needed: owned <= 0 && Boolean(setName),
-        setOwnedParts,
-        setTotalParts,
-        setParts,
-        matchScore,
-        ducats: matched?.item.ducats ?? null,
-        platinum: null,
-        volume: null,
-        bestPick: false,
+    const buildRewards = async (): Promise<RewardEval[]> => {
+      const crops = await captureRewardRegionPngs()
+      if (crops.length < 4) {
+        throw new Error(
+          process.platform === 'linux'
+            ? 'Could not capture the reward screen. Allow screen share once and use Borderless Windowed.'
+            : 'Could not capture the reward screen. Is Warframe borderless on a captured display?',
+        )
       }
-    })
 
-    // Drop blank / HUD-noise slots; keep at most squadSize when EE.log hints it.
-    rewards = rewards.filter((r) => r.ocrText.trim().length > 2 || r.matchScore >= 0.5)
-    if (squadSize != null && rewards.length > squadSize) {
-      rewards = [...rewards]
-        .sort((a, b) => b.matchScore - a.matchScore)
-        .slice(0, squadSize)
-        .sort((a, b) => a.slot - b.slot)
-        .map((r, i) => ({ ...r, slot: i }))
+      const ocrNames = await recognizeRewardNames(crops)
+      let next: RewardEval[] = ocrNames.map((ocrText, slot) => {
+        const cleaned = ocrText
+          .replace(/\b(OWNED|CRAFTED|UNRANKED)\b/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+        const matched = matchCatalogItem(cleaned)
+        const name = matched?.item.name || cleaned || `Reward ${slot + 1}`
+        const uniqueName = matched?.item.uniqueName || null
+        const setName = matched?.item.setName || null
+        const partName = matched?.item.partName || null
+        const owned = ownedCount(uniqueName, name)
+        const { setParts, setOwnedParts, setTotalParts } = buildSetParts(setName)
+        const matchScore = matched?.score ?? (cleaned.length > 2 ? 0.2 : 0)
+
+        return {
+          slot,
+          ocrText: cleaned,
+          name,
+          uniqueName,
+          setName,
+          partName,
+          owned,
+          needed: owned <= 0 && Boolean(setName),
+          setOwnedParts,
+          setTotalParts,
+          setParts,
+          matchScore,
+          ducats: matched?.item.ducats ?? null,
+          platinum: null,
+          volume: null,
+          bestPick: false,
+        }
+      })
+
+      next = next.filter((r) => r.ocrText.trim().length > 2 || r.matchScore >= 0.5)
+      if (squadSize != null && next.length > squadSize) {
+        next = [...next]
+          .sort((a, b) => b.matchScore - a.matchScore)
+          .slice(0, squadSize)
+          .sort((a, b) => a.slot - b.slot)
+          .map((r, i) => ({ ...r, slot: i }))
+      }
+      return next
     }
 
-    const useful = rewards.some((r) => r.matchScore >= 0.45 || r.ocrText.trim().length > 3)
+    let rewards = await buildRewards()
+    let useful = rewards.some((r) => r.matchScore >= 0.45 || r.ocrText.trim().length > 3)
+
+    // Proton log flush / UI paint can lag — one retry when the first pass is empty.
+    if (!useful) {
+      console.info('[Everything Warframe] Relic OCR weak — retrying capture…')
+      await new Promise((r) => setTimeout(r, process.platform === 'linux' ? 1400 : 1000))
+      rewards = await buildRewards()
+      useful = rewards.some((r) => r.matchScore >= 0.45 || r.ocrText.trim().length > 3)
+    }
+
     if (!useful) {
       throw new Error('No reward names detected. Open the fissure pick screen, then scan again.')
     }
