@@ -7,6 +7,8 @@ import './baro.css'
 
 type Props = {
   baro: BaroInfo | null
+  wishlist?: string[]
+  onToggleWish?: (item: string) => void
   opacity?: number
   compact?: boolean
 }
@@ -36,10 +38,16 @@ function resolveBaro(baro: BaroInfo, now: number) {
   }
 }
 
-export function BaroPanel({ baro, opacity, compact }: Props) {
+function isWished(item: string, wishlist: string[]) {
+  const n = item.toLowerCase()
+  return wishlist.some((w) => n.includes(w.toLowerCase()) || w.toLowerCase().includes(n))
+}
+
+export function BaroPanel({ baro, wishlist = [], onToggleWish, opacity, compact }: Props) {
   const now = useNow()
   const resolved = baro ? resolveBaro(baro, now) : null
   const inventory = baro?.inventory ?? []
+  const wishedLive = inventory.filter((i) => isWished(i.item, wishlist))
   const visibleItems = compact ? inventory.slice(0, 6) : inventory
   const hiddenCount = Math.max(0, inventory.length - visibleItems.length)
 
@@ -47,12 +55,10 @@ export function BaroPanel({ baro, opacity, compact }: Props) {
     <Panel
       title="Baro Ki'Teer"
       subtitle={
-        compact
-          ? inventory.length
-            ? `${inventory.length} items`
-            : 'Void Trader'
+        wishedLive.length
+          ? `${wishedLive.length} wishlist hit${wishedLive.length > 1 ? 's' : ''}`
           : inventory.length
-            ? `${inventory.length} items in inventory`
+            ? `${inventory.length} items`
             : 'Void Trader'
       }
       opacity={opacity}
@@ -62,6 +68,11 @@ export function BaroPanel({ baro, opacity, compact }: Props) {
         <p className="mod-empty">No trader data</p>
       ) : (
         <div className="mod-stack">
+          {wishedLive.length && resolved.active ? (
+            <p className="mod-empty" style={{ color: 'var(--vl-gold-soft)' }}>
+              Wishlist in stock: {wishedLive.map((i) => i.item).join(', ')}
+            </p>
+          ) : null}
           <div className="mod-stat">
             <span className="mod-stat__label">Status</span>
             <span className={`mod-stat__value ${resolved.active ? 'is-ok' : ''}`}>
@@ -97,15 +108,34 @@ export function BaroPanel({ baro, opacity, compact }: Props) {
                 <span>Credits</span>
               </div>
               <ul className="baro-inv__list">
-                {visibleItems.map((entry) => (
-                  <li key={entry.uniqueName || entry.item} className="baro-inv__row">
-                    <span className="baro-inv__name" title={entry.item}>
-                      {entry.item}
-                    </span>
-                    <span className="baro-inv__ducats">{entry.ducats}</span>
-                    <span className="baro-inv__credits">{formatCredits(entry.credits)}</span>
-                  </li>
-                ))}
+                {visibleItems.map((entry) => {
+                  const wished = isWished(entry.item, wishlist)
+                  return (
+                    <li
+                      key={entry.uniqueName || entry.item}
+                      className="baro-inv__row"
+                      style={wished ? { color: 'var(--vl-gold-soft)' } : undefined}
+                    >
+                      <span className="baro-inv__name" title={entry.item}>
+                        {onToggleWish && !compact ? (
+                          <button
+                            className="btn ghost"
+                            style={{ marginRight: 6, padding: '0 6px', fontSize: '0.75rem' }}
+                            onClick={() => onToggleWish(entry.item)}
+                            title={wished ? 'Remove from wishlist' : 'Add to wishlist'}
+                          >
+                            {wished ? '★' : '☆'}
+                          </button>
+                        ) : wished ? (
+                          '★ '
+                        ) : null}
+                        {entry.item}
+                      </span>
+                      <span className="baro-inv__ducats">{entry.ducats}</span>
+                      <span className="baro-inv__credits">{formatCredits(entry.credits)}</span>
+                    </li>
+                  )
+                })}
               </ul>
               {hiddenCount > 0 ? (
                 <p className="baro-inv__more">+{hiddenCount} more in companion</p>

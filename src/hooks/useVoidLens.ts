@@ -8,11 +8,16 @@ import {
 
 const emptyWorldstate: WorldstateSnapshot = {
   fetchedAt: '',
+  error: null,
+  stale: false,
   cycles: [],
   fissures: [],
   baro: null,
   nightwave: null,
   arbitration: null,
+  invasions: [],
+  archonHunt: null,
+  deepArchimedea: null,
 }
 
 function api() {

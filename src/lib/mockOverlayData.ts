@@ -121,6 +121,9 @@ export const MOCK_RELIC_REWARDS: RewardEval[] = [
     setParts: [],
     matchScore: 1,
     ducats: 65,
+    platinum: 42,
+    volume: 18,
+    bestPick: true,
   },
   {
     slot: 1,
@@ -136,6 +139,9 @@ export const MOCK_RELIC_REWARDS: RewardEval[] = [
     setParts: [],
     matchScore: 1,
     ducats: null,
+    platinum: null,
+    volume: null,
+    bestPick: false,
   },
   {
     slot: 2,
@@ -151,6 +157,9 @@ export const MOCK_RELIC_REWARDS: RewardEval[] = [
     setParts: [],
     matchScore: 1,
     ducats: 45,
+    platinum: 12,
+    volume: 40,
+    bestPick: false,
   },
   {
     slot: 3,
@@ -166,16 +175,24 @@ export const MOCK_RELIC_REWARDS: RewardEval[] = [
     setParts: [],
     matchScore: 0.8,
     ducats: null,
+    platinum: null,
+    volume: null,
+    bestPick: false,
   },
 ]
 
 export function buildPreviewWorldstate(live: WorldstateSnapshot): WorldstateSnapshot {
   return {
     fetchedAt: live.fetchedAt || new Date().toISOString(),
+    error: live.error ?? null,
+    stale: live.stale ?? false,
     cycles: live.cycles.length ? live.cycles : MOCK_CYCLES,
     fissures: live.fissures.length ? live.fissures : MOCK_FISSURES,
     baro: live.baro ?? MOCK_BARO,
     nightwave: live.nightwave ?? MOCK_NIGHTWAVE,
     arbitration: live.arbitration ?? MOCK_ARBITRATION,
+    invasions: live.invasions?.length ? live.invasions : [],
+    archonHunt: live.archonHunt,
+    deepArchimedea: live.deepArchimedea,
   }
 }

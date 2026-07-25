@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  FissureSort,
   MODULE_META,
   ModuleId,
   PanelAnchor,
@@ -31,6 +32,10 @@ type Props = {
   opacity: number
   overlayScale: number
   fissureTiers: string[]
+  fissureShowSteelPath?: boolean
+  fissureSort?: FissureSort
+  baroWishlist?: string[]
+  nightwaveDoneIds?: string[]
   interactionHotkey: string
   liveData: WorldstateSnapshot
   onSaveAnchors: (anchors: Partial<Record<ModuleId, PanelAnchor>>) => void
@@ -42,6 +47,10 @@ export function LayoutEditor({
   opacity,
   overlayScale,
   fissureTiers,
+  fissureShowSteelPath = true,
+  fissureSort = 'eta',
+  baroWishlist = [],
+  nightwaveDoneIds = [],
   interactionHotkey,
   liveData,
   onSaveAnchors,
@@ -200,6 +209,10 @@ export function LayoutEditor({
               opacity={opacity}
               overlayScale={overlayScale}
               fissureTiers={fissureTiers}
+              fissureShowSteelPath={fissureShowSteelPath}
+              fissureSort={fissureSort}
+              baroWishlist={baroWishlist}
+              nightwaveDoneIds={nightwaveDoneIds}
               designWidth={designW}
               designHeight={designH}
               relicPreviewRewards={MOCK_RELIC_REWARDS}

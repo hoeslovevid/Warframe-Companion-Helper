@@ -5,6 +5,9 @@ export type ModuleId =
   | 'nightwave'
   | 'relics'
   | 'arbitration'
+  | 'invasions'
+  | 'archon'
+  | 'deepArchimedea'
 
 export type PanelAnchor = {
   x: number
@@ -16,10 +19,13 @@ export type HotkeyConfig = {
   openCompanion: string
   refreshWorldstate: string
   scanRelics: string
+  dismissRelics: string
   editLayout: string
 }
 
 export type InventorySource = 'none' | 'manual' | 'detected' | 'helper' | 'alecaframe'
+
+export type FissureSort = 'eta' | 'tier'
 
 export type AppSettings = {
   modules: Record<ModuleId, boolean>
@@ -34,10 +40,25 @@ export type AppSettings = {
   inventoryConsent: boolean
   inventoryLastSynced: string
   fissureTiers: string[]
+  /** When false, hide Steel Path fissures. */
+  fissureShowSteelPath: boolean
+  fissureSort: FissureSort
   overlayVisible: boolean
   layoutEditMode: boolean
   /** After the user has dragged a live overlay once, hide the move-hint chip. */
   overlayDragHintDismissed: boolean
+  /** Starred Baro item names (case-insensitive match). */
+  baroWishlist: string[]
+  /** Locally completed Nightwave challenge ids. */
+  nightwaveDoneIds: string[]
+  /** Soft chime when relic popup appears. */
+  relicSoundEnabled: boolean
+  /** After first-run checklist, minimize companion to tray on launch. */
+  quietMode: boolean
+  /** Auto-resync inventory while Warframe is running. */
+  inventoryAutoSync: boolean
+  /** Last app version for which “What’s new” was dismissed. */
+  lastSeenVersion: string
   /** First-run checklist + tour state */
   onboarding: {
     checklistDismissed: boolean
@@ -47,6 +68,7 @@ export type AppSettings = {
     inventoryTouched: boolean
     tourCompleted: boolean
     trayTipShown: boolean
+    firstRelicSuccessAck: boolean
   }
 }
 
@@ -66,7 +88,7 @@ export const MODULE_META: Record<
   },
   baro: {
     label: "Baro Ki'Teer",
-    description: 'Arrival status and next visit countdown',
+    description: 'Arrival status, shop inventory, and wishlist alerts',
     phase: 1,
   },
   nightwave: {
@@ -85,6 +107,21 @@ export const MODULE_META: Record<
     description: 'Current Arbitration node and countdown when one is active',
     phase: 1,
   },
+  invasions: {
+    label: 'Invasions',
+    description: 'Active invasions and progress',
+    phase: 1,
+  },
+  archon: {
+    label: 'Archon Hunt',
+    description: 'Weekly Archon Hunt boss and missions',
+    phase: 1,
+  },
+  deepArchimedea: {
+    label: 'Deep Archimedea',
+    description: 'Current Deep Archimedea missions and modifiers',
+    phase: 1,
+  },
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -95,25 +132,29 @@ export const DEFAULT_SETTINGS: AppSettings = {
     nightwave: true,
     relics: true,
     arbitration: true,
+    invasions: false,
+    archon: true,
+    deepArchimedea: false,
   },
   panelAnchors: {
     cycles: { x: 24, y: 24 },
     fissures: { x: 24, y: 280 },
     baro: { x: 24, y: 560 },
     nightwave: { x: 320, y: 24 },
-    // Horizontal strip under the four fissure reward cards (1920×1080)
     relics: { x: 410, y: 640 },
     arbitration: { x: 420, y: 420 },
+    invasions: { x: 720, y: 24 },
+    archon: { x: 720, y: 320 },
+    deepArchimedea: { x: 720, y: 560 },
   },
   opacity: 0.92,
   overlayScale: 1,
   hotkeys: {
-    // Alt+Shift avoids common browser/IDE grabs (Ctrl+Shift+C/O/R)
     toggleOverlay: 'Alt+Shift+V',
     openCompanion: 'Alt+Shift+C',
     refreshWorldstate: 'Alt+Shift+R',
     scanRelics: 'Alt+Shift+F',
-    // Matches WFHelper interaction unlock
+    dismissRelics: 'Alt+Shift+D',
     editLayout: 'Control+Tab',
   },
   eeLogPath: '',
@@ -122,9 +163,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
   inventoryConsent: false,
   inventoryLastSynced: '',
   fissureTiers: ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem'],
+  fissureShowSteelPath: true,
+  fissureSort: 'eta',
   overlayVisible: true,
   layoutEditMode: false,
   overlayDragHintDismissed: false,
+  baroWishlist: [],
+  nightwaveDoneIds: [],
+  relicSoundEnabled: false,
+  quietMode: false,
+  inventoryAutoSync: true,
+  lastSeenVersion: '',
   onboarding: {
     checklistDismissed: false,
     borderlessAck: false,
@@ -133,6 +182,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     inventoryTouched: false,
     tourCompleted: false,
     trayTipShown: false,
+    firstRelicSuccessAck: false,
   },
 }
 
@@ -198,13 +248,45 @@ export type ArbitrationInfo = {
   eta: string
 }
 
+export type InvasionInfo = {
+  id: string
+  node: string
+  desc: string
+  attacker: string
+  defender: string
+  completion: number
+  eta: string
+  expiry: string
+}
+
+export type ArchonHuntInfo = {
+  boss: string
+  faction: string
+  expiry: string
+  eta: string
+  missions: Array<{ node: string; type: string }>
+}
+
+export type DeepArchimedeaInfo = {
+  id: string
+  expiry: string
+  eta: string
+  missions: Array<{ node: string; type: string }>
+  riskVariables: string[]
+}
+
 export type WorldstateSnapshot = {
   fetchedAt: string
+  error: string | null
+  stale: boolean
   cycles: CycleInfo[]
   fissures: FissureInfo[]
   baro: BaroInfo | null
   nightwave: NightwaveInfo | null
   arbitration: ArbitrationInfo | null
+  invasions: InvasionInfo[]
+  archonHunt: ArchonHuntInfo | null
+  deepArchimedea: DeepArchimedeaInfo | null
 }
 
 export type InventoryIndex = Record<string, number>
@@ -259,6 +341,11 @@ export type RewardEval = {
   setParts: SetPartOwned[]
   matchScore: number
   ducats: number | null
+  /** Median warframe.market platinum (sell orders), if available. */
+  platinum: number | null
+  volume: number | null
+  /** Best overall pick among the four rewards. */
+  bestPick: boolean
 }
 
 export type RelicScanState = {
@@ -269,6 +356,7 @@ export type RelicScanState = {
   error: string | null
   rewards: RewardEval[]
   inventoryLoaded: boolean
+  celebration: boolean
 }
 
 export type AppUpdateStatus = {
@@ -288,6 +376,13 @@ export type PrimaryDisplayInfo = {
   width: number
   height: number
   scaleFactor: number
+}
+
+export type HotkeyRegistration = {
+  id: keyof HotkeyConfig
+  requested: string
+  registered: string | null
+  ok: boolean
 }
 
 export type VoidLensApi = {
@@ -312,6 +407,9 @@ export type VoidLensApi = {
   getRelicScan: () => Promise<RelicScanState>
   scanRelicRewards: () => Promise<RelicScanState>
   clearRelicScan: () => Promise<RelicScanState>
+  ackRelicCelebration: () => Promise<RelicScanState>
+  getHotkeyStatus: () => Promise<HotkeyRegistration[]>
+  getAppVersion: () => Promise<string>
   getUpdateStatus: () => Promise<AppUpdateStatus>
   checkForUpdates: () => Promise<AppUpdateStatus>
   installUpdate: () => Promise<boolean>
@@ -321,4 +419,5 @@ export type VoidLensApi = {
   onInventoryUpdated: (cb: (status: InventoryStatus) => void) => () => void
   onRelicScanUpdated: (cb: (state: RelicScanState) => void) => () => void
   onUpdateStatus: (cb: (status: AppUpdateStatus) => void) => () => void
+  onRelicSound: (cb: () => void) => () => void
 }

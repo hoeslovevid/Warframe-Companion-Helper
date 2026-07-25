@@ -9,6 +9,7 @@ const empty: RelicScanState = {
   error: null,
   rewards: [],
   inventoryLoaded: false,
+  celebration: false,
 }
 
 function api() {
@@ -43,5 +44,11 @@ export function useRelicScan() {
     setState(next)
   }, [])
 
-  return { state, scan, clear }
+  const ackCelebration = useCallback(async () => {
+    if (!api()?.ackRelicCelebration) return
+    const next = await api().ackRelicCelebration()
+    setState(next)
+  }, [])
+
+  return { state, scan, clear, ackCelebration }
 }

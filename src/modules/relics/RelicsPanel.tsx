@@ -5,19 +5,16 @@ import '../cycles/module.css'
 import '../baro/baro.css'
 import './relics.css'
 
-/** Design-space strip width at 1920px wide (~under four reward cards). */
 const STRIP_DESIGN_WIDTH = 1100
 const STRIP_DESIGN_REF = 1920
 
 type Props = {
   opacity?: number
   compact?: boolean
-  /** When set (Layout preview), skip live scan state and show these rewards. */
   previewMode?: boolean
   previewRewards?: RewardEval[]
-  /** Pretty hotkey label for empty-state CTA copy */
   scanHotkey?: string
-  /** Preview canvas / monitor width — scales the horizontal strip. */
+  dismissHotkey?: string
   layoutWidth?: number
 }
 
@@ -39,8 +36,14 @@ function ownershipLabel(reward: RewardEval, compact?: boolean) {
 
 function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean }) {
   const needed = reward.needed
+  const lowConf = reward.matchScore > 0 && reward.matchScore < 0.55
   return (
-    <li className={`relic-card ${needed ? 'is-needed' : ''}`}>
+    <li
+      className={`relic-card ${needed ? 'is-needed' : ''} ${reward.bestPick ? 'is-best' : ''} ${
+        lowConf ? 'is-low-conf' : ''
+      }`}
+    >
+      {reward.bestPick ? <div className="relic-card__badge">Best</div> : null}
       {!compact ? <div className="relic-card__slot">Slot {reward.slot + 1}</div> : null}
       <div className="relic-card__name">{reward.name || 'Unknown'}</div>
       {reward.setName ? (
@@ -54,35 +57,24 @@ function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean
       <div className={`relic-card__owned ${needed ? 'is-needed' : ''}`}>
         {ownershipLabel(reward, compact)}
       </div>
+      {reward.platinum != null ? (
+        <div className="relic-card__meta">
+          ~{reward.platinum}p{reward.volume != null ? ` · ${reward.volume} sells` : ''}
+        </div>
+      ) : reward.ducats != null ? (
+        <div className="relic-card__meta">{reward.ducats} ducats</div>
+      ) : null}
+      {lowConf ? <div className="relic-card__meta">Low OCR confidence</div> : null}
       {!compact && reward.setTotalParts > 0 ? (
         <div className="relic-card__progress">
           Set parts owned {reward.setOwnedParts}/{reward.setTotalParts}
         </div>
       ) : null}
-      {!compact && reward.setParts.length > 0 ? (
-        <ul className="relic-card__parts">
-          {reward.setParts.map((p) => (
-            <li key={p.itemName}>
-              <span>{p.partName}</span>
-              <span className={p.owned > 0 ? 'has' : 'miss'}>×{p.owned}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {reward.ducats != null ? (
-        <div className="relic-card__meta">{reward.ducats} ducats</div>
-      ) : null}
     </li>
   )
 }
 
-function RewardRow({
-  rewards,
-  compact,
-}: {
-  rewards: RewardEval[]
-  compact?: boolean
-}) {
+function RewardRow({ rewards, compact }: { rewards: RewardEval[]; compact?: boolean }) {
   return (
     <ul className={`relic-grid ${compact ? 'is-strip' : 'is-dashboard'}`}>
       {rewards.map((reward) => (
@@ -98,6 +90,7 @@ export function RelicsPanel({
   previewMode,
   previewRewards,
   scanHotkey = 'Alt+Shift+F',
+  dismissHotkey = 'Alt+Shift+D',
   layoutWidth,
 }: Props) {
   const { state, scan, clear } = useRelicScan()
@@ -105,14 +98,9 @@ export function RelicsPanel({
   const scanning = previewMode ? false : state.scanning
   const stripW = stripWidthPx(layoutWidth)
 
-  // Overlay / Layout: horizontal strip meant to sit under the four reward cards
   if (compact || previewMode) {
     return (
-      <div
-        className="relic-strip"
-        style={{ opacity, width: stripW }}
-        data-relic-strip
-      >
+      <div className="relic-strip" style={{ opacity, width: stripW }} data-relic-strip>
         {scanning ? <p className="relic-strip__status">Scanning reward screen…</p> : null}
         {!previewMode && state.error ? (
           <p className="relic-strip__error">{state.error}</p>
@@ -133,7 +121,7 @@ export function RelicsPanel({
         scanning
           ? 'Scanning reward screen…'
           : rewards.length
-            ? `${rewards.length} rewards · ${state.trigger}`
+            ? `${rewards.length} rewards · market prices`
             : 'Waiting for reward screen'
       }
       opacity={opacity}
@@ -155,14 +143,12 @@ export function RelicsPanel({
             Sync inventory in Settings for “needed for set” tags. Scanning still works without it.
           </p>
         ) : null}
-
         {state.error ? <p className="mod-empty">Error: {state.error}</p> : null}
-
         {rewards.length === 0 && !scanning ? (
           <div className="mod-stack">
             <p className="mod-empty">
-              Overlay popup is a horizontal strip under the four reward cards. Place it in{' '}
-              <strong>Layout</strong>. Auto-detect via EE.log, or press <strong>{scanHotkey}</strong>.
+              Popup appears on fissure reward detect. Scan: <strong>{scanHotkey}</strong> · Dismiss:{' '}
+              <strong>{dismissHotkey}</strong>. Place the strip in Layout.
             </p>
             <button className="btn primary" disabled={scanning} onClick={() => void scan()}>
               Scan reward screen

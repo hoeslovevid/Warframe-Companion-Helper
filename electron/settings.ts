@@ -22,9 +22,12 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       ...base.hotkeys,
       ...(raw.hotkeys ?? {}),
       scanRelics: raw.hotkeys?.scanRelics || base.hotkeys.scanRelics,
+      dismissRelics: raw.hotkeys?.dismissRelics || base.hotkeys.dismissRelics,
       editLayout: raw.hotkeys?.editLayout || base.hotkeys.editLayout,
     },
     fissureTiers: raw.fissureTiers ?? base.fissureTiers,
+    fissureShowSteelPath: raw.fissureShowSteelPath ?? base.fissureShowSteelPath,
+    fissureSort: raw.fissureSort ?? base.fissureSort,
     inventorySource: raw.inventorySource ?? base.inventorySource,
     inventoryConsent: raw.inventoryConsent ?? base.inventoryConsent,
     inventoryLastSynced: raw.inventoryLastSynced ?? base.inventoryLastSynced,
@@ -33,6 +36,14 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
         ? Math.min(1.5, Math.max(0.75, raw.overlayScale))
         : base.overlayScale,
     overlayDragHintDismissed: raw.overlayDragHintDismissed ?? base.overlayDragHintDismissed,
+    baroWishlist: Array.isArray(raw.baroWishlist) ? raw.baroWishlist : base.baroWishlist,
+    nightwaveDoneIds: Array.isArray(raw.nightwaveDoneIds)
+      ? raw.nightwaveDoneIds
+      : base.nightwaveDoneIds,
+    relicSoundEnabled: raw.relicSoundEnabled ?? base.relicSoundEnabled,
+    quietMode: raw.quietMode ?? base.quietMode,
+    inventoryAutoSync: raw.inventoryAutoSync ?? base.inventoryAutoSync,
+    lastSeenVersion: raw.lastSeenVersion ?? base.lastSeenVersion,
     onboarding: {
       ...base.onboarding,
       ...(raw.onboarding ?? {}),

@@ -8,8 +8,8 @@ export type CaptureRegion = {
 }
 
 /**
- * Four reward-name bands on a typical fissure pick screen (1080p-scaled).
- * Tuned for the item-name strip on each card, not the full art.
+ * Four reward-name bands on a typical fissure pick screen.
+ * Also used by the overlay strip to size/gap labels under cards.
  */
 export function relicRewardRegions(width: number, height: number): CaptureRegion[] {
   const slots = 4
@@ -28,12 +28,25 @@ export function relicRewardRegions(width: number, height: number): CaptureRegion
   }))
 }
 
-export async function capturePrimaryDisplay(): Promise<{
+/** Strip geometry as fractions of display size (for overlay alignment). */
+export function relicStripLayout(width: number, height: number) {
+  const regions = relicRewardRegions(width, height)
+  const left = regions[0]?.x ?? 0
+  const right = (regions[3]?.x ?? 0) + (regions[3]?.width ?? 0)
+  return {
+    x: left,
+    y: Math.round(height * 0.58),
+    width: right - left,
+    gap: regions.length > 1 ? regions[1].x - (regions[0].x + regions[0].width) : 0,
+    cardWidth: regions[0]?.width ?? Math.round(width * 0.155),
+  }
+}
+
+async function captureDisplay(display: Electron.Display): Promise<{
   png: Buffer
   width: number
   height: number
 } | null> {
-  const display = screen.getPrimaryDisplay()
   const { width, height } = display.size
   const scale = display.scaleFactor || 1
   const thumbW = Math.round(width * scale)
@@ -54,10 +67,38 @@ export async function capturePrimaryDisplay(): Promise<{
   const png = source.thumbnail.toPNG()
   if (!png?.length) return null
 
-  // thumbnail is in physical pixels; crop math uses that size
   const img = nativeImage.createFromBuffer(png)
   const size = img.getSize()
   return { png, width: size.width, height: size.height }
+}
+
+export async function capturePrimaryDisplay(): Promise<{
+  png: Buffer
+  width: number
+  height: number
+} | null> {
+  return captureDisplay(screen.getPrimaryDisplay())
+}
+
+/** Prefer primary; if needed callers can iterate — we capture largest display as fallback. */
+export async function captureBestDisplay(): Promise<{
+  png: Buffer
+  width: number
+  height: number
+} | null> {
+  const displays = screen.getAllDisplays()
+  const ordered = [
+    screen.getPrimaryDisplay(),
+    ...displays.sort((a, b) => b.size.width * b.size.height - a.size.width * a.size.height),
+  ]
+  const seen = new Set<number>()
+  for (const d of ordered) {
+    if (seen.has(d.id)) continue
+    seen.add(d.id)
+    const shot = await captureDisplay(d)
+    if (shot) return shot
+  }
+  return null
 }
 
 export function cropPng(png: Buffer, region: CaptureRegion): Buffer {
@@ -71,7 +112,7 @@ export function cropPng(png: Buffer, region: CaptureRegion): Buffer {
 }
 
 export async function captureRewardRegionPngs(): Promise<Buffer[]> {
-  const shot = await capturePrimaryDisplay()
+  const shot = await captureBestDisplay()
   if (!shot) return []
   const regions = relicRewardRegions(shot.width, shot.height)
   return regions.map((region) => cropPng(shot.png, region))

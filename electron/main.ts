@@ -30,18 +30,20 @@ import {
 } from './services/inventory'
 import { LogWatcher } from './services/log-watcher'
 import {
+  ackRelicCelebration,
   clearRelicScan,
   getRelicScanState,
   onRelicScanUpdated,
   scanRelicRewards,
 } from './services/relic-scanner'
+import { isWarframeForeground, isWarframeRunning } from './services/warframe-process'
 import {
   checkForAppUpdates,
   getUpdateStatus,
   initAutoUpdater,
   quitAndInstallUpdate,
 } from './services/updater'
-import { AppSettings, ModuleId, WorldstateSnapshot } from '../shared/types'
+import { AppSettings, HotkeyRegistration, ModuleId, WorldstateSnapshot } from '../shared/types'
 
 // Ensure Chromium's optional FPS HUD is not enabled
 try {
@@ -64,7 +66,9 @@ let tray: Tray | null = null
 let worldstateCache: WorldstateSnapshot | null = null
 let worldstateTimer: NodeJS.Timeout | null = null
 let expiryTimer: NodeJS.Timeout | null = null
+let inventorySyncTimer: NodeJS.Timeout | null = null
 let lastExpiryRefresh = 0
+let lastHotkeyStatus: HotkeyRegistration[] = []
 const logWatcher = new LogWatcher()
 
 function preferLowerProcessPriority() {
@@ -84,12 +88,17 @@ function applyOverlayPerformanceMode(visible: boolean) {
 
 async function runRelicScan(trigger: 'manual' | 'log') {
   const settings = loadSettings()
-  // Feature must be enabled (module toggle). Manual hotkey still works when on.
   if (!settings.modules.relics) {
     console.info('[Everything Warframe] Relic scan skipped — Relics module disabled')
     return getRelicScanState()
   }
-  // Popup needs the overlay window visible; do not permanently force the relics panel on
+  if (trigger === 'log') {
+    const fg = await isWarframeForeground()
+    if (!fg) {
+      console.info('[Everything Warframe] Relic auto-scan skipped — Warframe not focused')
+      return getRelicScanState()
+    }
+  }
   if (!settings.overlayVisible) {
     const next = updateSettings({ overlayVisible: true })
     applyOverlayVisibility(true)
@@ -97,6 +106,16 @@ async function runRelicScan(trigger: 'manual' | 'log') {
   }
   const state = await scanRelicRewards(trigger)
   broadcastRelicScan()
+  if (state.rewards.length && !state.error) {
+    if (settings.relicSoundEnabled) {
+      for (const win of BrowserWindow.getAllWindows()) {
+        win.webContents.send('relics:sound')
+      }
+    }
+    if (!settings.onboarding.firstRelicSuccessAck) {
+      // celebration flag already on RelicScanState; companion listens
+    }
+  }
   return state
 }
 
@@ -143,7 +162,33 @@ async function refreshWorldstate(force = false): Promise<WorldstateSnapshot> {
     const age = Date.now() - new Date(worldstateCache.fetchedAt).getTime()
     if (age < 15_000) return worldstateCache
   }
-  worldstateCache = await fetchWorldstate()
+  try {
+    worldstateCache = await fetchWorldstate()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Worldstate request failed'
+    console.error('[Everything Warframe] Worldstate fetch failed', err)
+    if (worldstateCache) {
+      worldstateCache = {
+        ...worldstateCache,
+        error: message,
+        stale: true,
+      }
+    } else {
+      worldstateCache = {
+        fetchedAt: '',
+        error: message,
+        stale: true,
+        cycles: [],
+        fissures: [],
+        baro: null,
+        nightwave: null,
+        arbitration: null,
+        invasions: [],
+        archonHunt: null,
+        deepArchimedea: null,
+      }
+    }
+  }
   broadcastWorldstate(worldstateCache)
   return worldstateCache
 }
@@ -203,7 +248,12 @@ function createCompanionWindow() {
   loadCompanionContent(companionWindow)
 
   companionWindow.once('ready-to-show', () => {
-    raiseCompanion()
+    const settings = loadSettings()
+    if (settings.quietMode && settings.onboarding.checklistDismissed) {
+      companionWindow?.hide()
+    } else {
+      raiseCompanion()
+    }
   })
 
   companionWindow.on('focus', () => {
@@ -285,7 +335,7 @@ const HOTKEY_FALLBACKS: Record<keyof AppSettings['hotkeys'], string[]> = {
   openCompanion: ['Alt+Shift+C', 'Alt+Shift+L', 'F9', 'CommandOrControl+Alt+C'],
   refreshWorldstate: ['Alt+Shift+R', 'F10', 'CommandOrControl+Alt+R'],
   scanRelics: ['Alt+Shift+F', 'F2', 'CommandOrControl+Alt+F'],
-  // WFHelper uses Control+Tab to unlock overlay interaction
+  dismissRelics: ['Alt+Shift+D', 'Alt+Shift+G', 'F3'],
   editLayout: ['Control+Tab', 'Alt+Shift+E', 'Alt+Shift+X', 'F7'],
 }
 
@@ -330,73 +380,44 @@ function registerHotkeys() {
   const settings = loadSettings()
   const nextHotkeys = { ...settings.hotkeys }
   let changed = false
+  const status: HotkeyRegistration[] = []
 
-  const toggle = registerOneHotkey(
-    settings.hotkeys.toggleOverlay,
-    HOTKEY_FALLBACKS.toggleOverlay,
-    () => {
-      const next = updateSettings({ overlayVisible: !loadSettings().overlayVisible })
-      applyOverlayVisibility(next.overlayVisible)
-      broadcastSettings(next)
-    },
-    'toggleOverlay',
-  )
-  if (toggle && toggle !== settings.hotkeys.toggleOverlay) {
-    nextHotkeys.toggleOverlay = toggle
-    changed = true
+  const bind = (
+    id: keyof AppSettings['hotkeys'],
+    handler: () => void,
+  ) => {
+    const requested = settings.hotkeys[id]
+    const registered = registerOneHotkey(requested, HOTKEY_FALLBACKS[id], handler, id)
+    status.push({ id, requested, registered, ok: Boolean(registered) })
+    if (registered && registered !== requested) {
+      nextHotkeys[id] = registered
+      changed = true
+    }
+    return registered
   }
 
-  const companion = registerOneHotkey(
-    settings.hotkeys.openCompanion,
-    HOTKEY_FALLBACKS.openCompanion,
-    () => {
-      createCompanionWindow()
-    },
-    'openCompanion',
-  )
-  if (companion && companion !== settings.hotkeys.openCompanion) {
-    nextHotkeys.openCompanion = companion
-    changed = true
-  }
+  bind('toggleOverlay', () => {
+    const next = updateSettings({ overlayVisible: !loadSettings().overlayVisible })
+    applyOverlayVisibility(next.overlayVisible)
+    broadcastSettings(next)
+  })
+  bind('openCompanion', () => {
+    createCompanionWindow()
+  })
+  bind('refreshWorldstate', () => {
+    void refreshWorldstate(true)
+  })
+  bind('scanRelics', () => {
+    void runRelicScan('manual')
+  })
+  bind('dismissRelics', () => {
+    dismissRelicPopup()
+  })
+  bind('editLayout', () => {
+    toggleLayoutEditMode()
+  })
 
-  const refresh = registerOneHotkey(
-    settings.hotkeys.refreshWorldstate,
-    HOTKEY_FALLBACKS.refreshWorldstate,
-    () => {
-      void refreshWorldstate(true)
-    },
-    'refreshWorldstate',
-  )
-  if (refresh && refresh !== settings.hotkeys.refreshWorldstate) {
-    nextHotkeys.refreshWorldstate = refresh
-    changed = true
-  }
-
-  const scan = registerOneHotkey(
-    settings.hotkeys.scanRelics,
-    HOTKEY_FALLBACKS.scanRelics,
-    () => {
-      void runRelicScan('manual')
-    },
-    'scanRelics',
-  )
-  if (scan && scan !== settings.hotkeys.scanRelics) {
-    nextHotkeys.scanRelics = scan
-    changed = true
-  }
-
-  const editLayout = registerOneHotkey(
-    settings.hotkeys.editLayout,
-    HOTKEY_FALLBACKS.editLayout,
-    () => {
-      toggleLayoutEditMode()
-    },
-    'editLayout',
-  )
-  if (editLayout && editLayout !== settings.hotkeys.editLayout) {
-    nextHotkeys.editLayout = editLayout
-    changed = true
-  }
+  lastHotkeyStatus = status
 
   if (changed) {
     const next = updateSettings({ hotkeys: nextHotkeys })
@@ -561,6 +582,20 @@ function registerIpc() {
   ipcMain.handle('relics:get', () => getRelicScanState())
   ipcMain.handle('relics:scan', async () => runRelicScan('manual'))
   ipcMain.handle('relics:clear', () => dismissRelicPopup())
+  ipcMain.handle('relics:ackCelebration', () => {
+    const state = ackRelicCelebration()
+    broadcastRelicScan()
+    const settings = loadSettings()
+    if (!settings.onboarding.firstRelicSuccessAck) {
+      const next = updateSettings({
+        onboarding: { ...settings.onboarding, firstRelicSuccessAck: true },
+      })
+      broadcastSettings(next)
+    }
+    return state
+  })
+  ipcMain.handle('hotkeys:status', () => lastHotkeyStatus)
+  ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('update:status', () => getUpdateStatus())
   ipcMain.handle('update:check', async () => checkForAppUpdates())
   ipcMain.handle('update:install', () => quitAndInstallUpdate())
@@ -627,6 +662,22 @@ app.whenReady().then(async () => {
 
   expiryTimer = setInterval(() => checkWorldstateExpiries(), 2000)
 
+  inventorySyncTimer = setInterval(() => {
+    void (async () => {
+      const settings = loadSettings()
+      if (!settings.inventoryAutoSync || !settings.inventoryConsent) return
+      const running = await isWarframeRunning()
+      if (!running) return
+      try {
+        await syncInventoryFromGame()
+        broadcastInventory()
+        broadcastSettings(loadSettings())
+      } catch {
+        // quiet
+      }
+    })()
+  }, 10 * 60_000)
+
   applyOverlayPerformanceMode(loadSettings().overlayVisible)
 
   app.on('activate', () => {
@@ -638,6 +689,7 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   logWatcher.stop()
   if (worldstateTimer) clearInterval(worldstateTimer)
+  if (inventorySyncTimer) clearInterval(inventorySyncTimer)
   if (expiryTimer) clearInterval(expiryTimer)
 })
 

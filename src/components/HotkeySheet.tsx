@@ -16,6 +16,7 @@ export function HotkeySheet({ open, hotkeys, onClose }: Props) {
     { label: 'Open companion', key: hotkeys.openCompanion },
     { label: 'Refresh worldstate', key: hotkeys.refreshWorldstate },
     { label: 'Scan relic rewards', key: hotkeys.scanRelics },
+    { label: 'Dismiss relic popup', key: hotkeys.dismissRelics },
     { label: 'Move panels (unlock drag)', key: hotkeys.editLayout },
   ]
 

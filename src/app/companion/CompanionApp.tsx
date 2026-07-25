@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { MODULE_META, ModuleId } from '../../../shared/types'
+import { HotkeyRegistration, MODULE_META, ModuleId } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { ToggleRow } from '../../components/ToggleRow'
 import { InventorySettings } from '../../components/InventorySettings'
@@ -9,15 +9,21 @@ import { AppTour, TourStep } from '../../components/AppTour'
 import { StatusStrip } from '../../components/StatusStrip'
 import { HotkeySheet } from '../../components/HotkeySheet'
 import { HelpPage } from '../../components/HelpPage'
+import { WhatsNew } from '../../components/WhatsNew'
 import { NowProvider } from '../../hooks/NowContext'
 import { useInventory } from '../../hooks/useInventory'
+import { useRelicScan } from '../../hooks/useRelicScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
+import { PLAY_PROFILES, applyPlayProfile } from '../../lib/playProfiles'
 import { CyclesPanel } from '../../modules/cycles/CyclesPanel'
 import { FissuresPanel } from '../../modules/fissures/FissuresPanel'
 import { BaroPanel } from '../../modules/baro/BaroPanel'
 import { NightwavePanel } from '../../modules/nightwave/NightwavePanel'
 import { RelicsPanel } from '../../modules/relics/RelicsPanel'
 import { ArbitrationPanel } from '../../modules/arbitration/ArbitrationPanel'
+import { InvasionsPanel } from '../../modules/invasions/InvasionsPanel'
+import { ArchonPanel } from '../../modules/archon/ArchonPanel'
+import { DeepArchimedeaPanel } from '../../modules/deepArchimedea/DeepArchimedeaPanel'
 import { LayoutEditor } from './LayoutEditor'
 import { prettyHotkey } from '../../lib/hotkey'
 import '../../styles/companion.css'
@@ -26,6 +32,15 @@ import '../../modules/cycles/module.css'
 type Tab = 'dashboard' | 'modules' | 'layout' | 'settings' | 'help'
 
 const TIER_OPTIONS = ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem']
+
+const HOTKEY_LABELS: Record<HotkeyRegistration['id'], string> = {
+  toggleOverlay: 'Toggle overlay',
+  openCompanion: 'Open companion',
+  refreshWorldstate: 'Refresh worldstate',
+  scanRelics: 'Scan relic rewards',
+  dismissRelics: 'Dismiss relic popup',
+  editLayout: 'Move panels (unlock drag)',
+}
 
 const TOUR_STEPS: TourStep[] = [
   {
@@ -60,18 +75,50 @@ const TOUR_STEPS: TourStep[] = [
   },
 ]
 
+function playRelicChime() {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = 784
+    gain.gain.value = 0.035
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18)
+    osc.stop(ctx.currentTime + 0.18)
+    void ctx.close()
+  } catch {
+    // Audio may be blocked until user gesture
+  }
+}
+
 export function CompanionApp() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [tourOpen, setTourOpen] = useState(false)
   const [hotkeysOpen, setHotkeysOpen] = useState(false)
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
+  const [hotkeyStatus, setHotkeyStatus] = useState<HotkeyRegistration[]>([])
   const { settings, ready, updateSettings, setModuleEnabled } = useSettings()
   const { data, loading, error, refresh } = useWorldstate()
   const { status: inventory } = useInventory()
+  const { state: relicScan, ackCelebration } = useRelicScan()
 
   const enabledIds = useMemo(
     () => (Object.keys(settings.modules) as ModuleId[]).filter((id) => settings.modules[id]),
     [settings.modules],
   )
+
+  const showWorldstateBanner = Boolean(data.stale || data.error || error)
+  const worldstateBannerMessage = error
+    ? `Worldstate error: ${error}`
+    : data.error
+      ? `Worldstate error: ${data.error}`
+      : data.stale
+        ? 'Worldstate data is stale — refresh to fetch the latest.'
+        : null
 
   const patchOnboarding = useCallback(
     (partial: Partial<typeof settings.onboarding>) => {
@@ -95,6 +142,37 @@ export function CompanionApp() {
     [settings.onboarding, patchOnboarding],
   )
 
+  const toggleBaroWish = useCallback(
+    (item: string) => {
+      const lower = item.toLowerCase()
+      const existing = settings.baroWishlist.find(
+        (w) => lower.includes(w.toLowerCase()) || w.toLowerCase().includes(lower),
+      )
+      const next = existing
+        ? settings.baroWishlist.filter((w) => w !== existing)
+        : [...settings.baroWishlist, item]
+      void updateSettings({ baroWishlist: next })
+    },
+    [settings.baroWishlist, updateSettings],
+  )
+
+  const toggleNightwaveDone = useCallback(
+    (id: string) => {
+      const next = settings.nightwaveDoneIds.includes(id)
+        ? settings.nightwaveDoneIds.filter((x) => x !== id)
+        : [...settings.nightwaveDoneIds, id]
+      void updateSettings({ nightwaveDoneIds: next })
+    },
+    [settings.nightwaveDoneIds, updateSettings],
+  )
+
+  const dismissWhatsNew = useCallback(() => {
+    setWhatsNewOpen(false)
+    if (appVersion) {
+      void updateSettings({ lastSeenVersion: appVersion })
+    }
+  }, [appVersion, updateSettings])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName
@@ -109,6 +187,32 @@ export function CompanionApp() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    const boot = async () => {
+      if (!window.voidlens?.getHotkeyStatus) return
+      setHotkeyStatus(await window.voidlens.getHotkeyStatus())
+    }
+    void boot()
+  }, [])
+
+  useEffect(() => {
+    if (!ready) return
+    const boot = async () => {
+      if (!window.voidlens?.getAppVersion) return
+      const version = await window.voidlens.getAppVersion()
+      setAppVersion(version)
+      if (version && version !== settings.lastSeenVersion) {
+        setWhatsNewOpen(true)
+      }
+    }
+    void boot()
+  }, [ready, settings.lastSeenVersion])
+
+  useEffect(() => {
+    if (!window.voidlens?.onRelicSound) return
+    return window.voidlens.onRelicSound(playRelicChime)
   }, [])
 
   if (!ready) {
@@ -201,10 +305,32 @@ export function CompanionApp() {
                   onStartTour={() => setTourOpen(true)}
                 />
 
+                {relicScan.celebration && !settings.onboarding.firstRelicSuccessAck ? (
+                  <section className="getting-started" style={{ marginBottom: 16 }}>
+                    <div className="getting-started__header">
+                      <div>
+                        <h3 className="getting-started__title">First relic scan worked!</h3>
+                        <p className="getting-started__sub">
+                          Relic rewards are showing in the overlay. Sync inventory in Settings for
+                          needed-part tags.
+                        </p>
+                      </div>
+                      <button className="btn ghost" onClick={() => void ackCelebration()}>
+                        Dismiss
+                      </button>
+                    </div>
+                  </section>
+                ) : null}
+
                 <StatusStrip
                   settings={settings}
                   inventory={inventory}
                   worldstateOk={Boolean(data.fetchedAt) && !error}
+                  worldstateStale={data.stale}
+                  onToggleOverlay={() => void window.voidlens?.toggleOverlay()}
+                  onDetectEeLog={() => void window.voidlens?.detectEeLogPath()}
+                  onRefreshWorldstate={() => void refresh()}
+                  onGoSettings={() => goTab('settings')}
                 />
 
                 <div className="toolbar" data-tour="toolbar-hotkeys">
@@ -228,6 +354,16 @@ export function CompanionApp() {
                   <button className="btn ghost" onClick={() => setHotkeysOpen(true)}>
                     Hotkeys (?)
                   </button>
+                  {PLAY_PROFILES.map((profile) => (
+                    <button
+                      key={profile.id}
+                      className="btn ghost"
+                      title={profile.description}
+                      onClick={() => void updateSettings(applyPlayProfile(settings, profile.id))}
+                    >
+                      {profile.label}
+                    </button>
+                  ))}
                   <span className="pill muted">
                     {loading
                       ? 'Updating…'
@@ -236,7 +372,14 @@ export function CompanionApp() {
                         : 'No data yet'}
                   </span>
                 </div>
-                {error ? <p className="muted">Worldstate error: {error}</p> : null}
+
+                {showWorldstateBanner && worldstateBannerMessage ? (
+                  <section className="getting-started" style={{ marginBottom: 16, padding: '12px 16px' }}>
+                    <p className="getting-started__sub" style={{ margin: 0 }}>
+                      {worldstateBannerMessage}
+                    </p>
+                  </section>
+                ) : null}
 
                 <Panel
                   title="Seeing FPS / Frame Time?"
@@ -254,17 +397,44 @@ export function CompanionApp() {
                 <div className="grid-2">
                   {enabledIds.includes('cycles') ? <CyclesPanel cycles={data.cycles} /> : null}
                   {enabledIds.includes('fissures') ? (
-                    <FissuresPanel fissures={data.fissures} tiers={settings.fissureTiers} />
+                    <FissuresPanel
+                      fissures={data.fissures}
+                      tiers={settings.fissureTiers}
+                      showSteelPath={settings.fissureShowSteelPath}
+                      sort={settings.fissureSort}
+                    />
                   ) : null}
-                  {enabledIds.includes('baro') ? <BaroPanel baro={data.baro} /> : null}
+                  {enabledIds.includes('baro') ? (
+                    <BaroPanel
+                      baro={data.baro}
+                      wishlist={settings.baroWishlist}
+                      onToggleWish={toggleBaroWish}
+                    />
+                  ) : null}
                   {enabledIds.includes('nightwave') ? (
-                    <NightwavePanel nightwave={data.nightwave} />
+                    <NightwavePanel
+                      nightwave={data.nightwave}
+                      doneIds={settings.nightwaveDoneIds}
+                      onToggleDone={toggleNightwaveDone}
+                    />
                   ) : null}
                   {enabledIds.includes('relics') ? (
-                    <RelicsPanel scanHotkey={prettyHotkey(settings.hotkeys.scanRelics)} />
+                    <RelicsPanel
+                      scanHotkey={prettyHotkey(settings.hotkeys.scanRelics)}
+                      dismissHotkey={prettyHotkey(settings.hotkeys.dismissRelics)}
+                    />
                   ) : null}
                   {enabledIds.includes('arbitration') ? (
                     <ArbitrationPanel arbitration={data.arbitration} />
+                  ) : null}
+                  {enabledIds.includes('invasions') ? (
+                    <InvasionsPanel invasions={data.invasions} />
+                  ) : null}
+                  {enabledIds.includes('archon') ? (
+                    <ArchonPanel archonHunt={data.archonHunt} />
+                  ) : null}
+                  {enabledIds.includes('deepArchimedea') ? (
+                    <DeepArchimedeaPanel deepArchimedea={data.deepArchimedea} />
                   ) : null}
                 </div>
               </>
@@ -321,6 +491,26 @@ export function CompanionApp() {
                       )
                     })}
                   </div>
+                  <ToggleRow
+                    label="Show Steel Path fissures"
+                    description="Include Steel Path (hard mode) fissures in the list"
+                    checked={settings.fissureShowSteelPath}
+                    onChange={(enabled) => void updateSettings({ fissureShowSteelPath: enabled })}
+                  />
+                  <div className="toolbar" style={{ marginTop: 8 }}>
+                    <button
+                      className={`btn ${settings.fissureSort === 'eta' ? 'primary' : 'ghost'}`}
+                      onClick={() => void updateSettings({ fissureSort: 'eta' })}
+                    >
+                      Sort by ETA
+                    </button>
+                    <button
+                      className={`btn ${settings.fissureSort === 'tier' ? 'primary' : 'ghost'}`}
+                      onClick={() => void updateSettings({ fissureSort: 'tier' })}
+                    >
+                      Sort by Tier
+                    </button>
+                  </div>
                 </Panel>
               </>
             ) : null}
@@ -332,6 +522,10 @@ export function CompanionApp() {
                 opacity={settings.opacity}
                 overlayScale={settings.overlayScale}
                 fissureTiers={settings.fissureTiers}
+                fissureShowSteelPath={settings.fissureShowSteelPath}
+                fissureSort={settings.fissureSort}
+                baroWishlist={settings.baroWishlist}
+                nightwaveDoneIds={settings.nightwaveDoneIds}
                 interactionHotkey={prettyHotkey(settings.hotkeys.editLayout)}
                 liveData={data}
                 onSaveAnchors={(panelAnchors) => void updateSettings({ panelAnchors })}
@@ -397,6 +591,27 @@ export function CompanionApp() {
                     />
                   </Panel>
 
+                  <Panel title="Companion">
+                    <ToggleRow
+                      label="Quiet mode"
+                      description="After first-run checklist, start minimized to the tray"
+                      checked={settings.quietMode}
+                      onChange={(enabled) => void updateSettings({ quietMode: enabled })}
+                    />
+                    <ToggleRow
+                      label="Relic scan chime"
+                      description="Play a soft sound when relic rewards appear"
+                      checked={settings.relicSoundEnabled}
+                      onChange={(enabled) => void updateSettings({ relicSoundEnabled: enabled })}
+                    />
+                    <ToggleRow
+                      label="Auto-sync inventory"
+                      description="Resync inventory while Warframe is running"
+                      checked={settings.inventoryAutoSync}
+                      onChange={(enabled) => void updateSettings({ inventoryAutoSync: enabled })}
+                    />
+                  </Panel>
+
                   <Panel title="Hotkeys">
                     <div className="field">
                       <label htmlFor="hk-overlay">Toggle overlay</label>
@@ -447,6 +662,18 @@ export function CompanionApp() {
                       />
                     </div>
                     <div className="field">
+                      <label htmlFor="hk-dismiss-relics">Dismiss relic popup</label>
+                      <input
+                        id="hk-dismiss-relics"
+                        value={settings.hotkeys.dismissRelics}
+                        onChange={(e) =>
+                          void updateSettings({
+                            hotkeys: { ...settings.hotkeys, dismissRelics: e.target.value },
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="field">
                       <label htmlFor="hk-layout">Move panels (unlock drag)</label>
                       <input
                         id="hk-layout"
@@ -458,6 +685,28 @@ export function CompanionApp() {
                         }
                       />
                     </div>
+                    {hotkeyStatus.length > 0 ? (
+                      <div className="mod-stack" style={{ marginTop: 12 }}>
+                        <p className="muted" style={{ margin: 0 }}>
+                          Registration status
+                        </p>
+                        <ul className="mod-list">
+                          {hotkeyStatus.map((hk) => (
+                            <li key={hk.id} className="mod-row">
+                              <div>
+                                <div className="mod-row__title">{HOTKEY_LABELS[hk.id]}</div>
+                                <div className="mod-row__meta">{prettyHotkey(hk.requested)}</div>
+                              </div>
+                              <div className={`mod-row__value ${hk.ok ? 'is-ok' : ''}`}>
+                                {hk.ok && hk.registered
+                                  ? prettyHotkey(hk.registered)
+                                  : 'Not registered'}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     <p className="muted">
                       Press <strong>?</strong> for the cheat sheet. Defaults: overlay Alt+Shift+V,
                       move panels Ctrl+Tab, relics Alt+Shift+F
@@ -538,6 +787,8 @@ export function CompanionApp() {
         hotkeys={settings.hotkeys}
         onClose={() => setHotkeysOpen(false)}
       />
+
+      <WhatsNew version={appVersion} open={whatsNewOpen} onDismiss={dismissWhatsNew} />
     </NowProvider>
   )
 }

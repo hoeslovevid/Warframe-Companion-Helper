@@ -1,0 +1,121 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { app } from 'electron'
+
+type PriceHit = { platinum: number; volume: number; fetchedAt: number }
+
+const cache = new Map<string, PriceHit>()
+const TTL_MS = 30 * 60_000
+const MAX_CONCURRENT = 2
+
+function cachePath() {
+  return path.join(app.getPath('userData'), 'cache', 'market-prices.json')
+}
+
+function slugifyItemName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+}
+
+function loadDiskCache() {
+  try {
+    const file = cachePath()
+    if (!fs.existsSync(file)) return
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, PriceHit>
+    for (const [k, v] of Object.entries(raw)) {
+      if (v?.platinum != null) cache.set(k, v)
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function saveDiskCache() {
+  try {
+    fs.mkdirSync(path.dirname(cachePath()), { recursive: true })
+    const obj: Record<string, PriceHit> = {}
+    for (const [k, v] of cache.entries()) obj[k] = v
+    fs.writeFileSync(cachePath(), JSON.stringify(obj), 'utf8')
+  } catch {
+    // ignore
+  }
+}
+
+let diskLoaded = false
+
+async function fetchOne(name: string): Promise<PriceHit | null> {
+  const slug = slugifyItemName(name)
+  if (!slug || slug.includes('forma') || slug.includes('relic')) return null
+
+  try {
+    const res = await fetch(`https://api.warframe.market/v1/items/${slug}/orders?include=item`, {
+      headers: {
+        Accept: 'application/json',
+        Platform: 'pc',
+        Language: 'en',
+      },
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as {
+      payload?: {
+        orders?: Array<{ order_type?: string; platinum?: number; visible?: boolean }>
+      }
+    }
+    const sells = (json.payload?.orders || [])
+      .filter((o) => o.order_type === 'sell' && o.visible !== false && typeof o.platinum === 'number')
+      .map((o) => o.platinum as number)
+      .sort((a, b) => a - b)
+    if (!sells.length) return null
+    const mid = sells[Math.floor(sells.length / 2)]
+    return { platinum: mid, volume: sells.length, fetchedAt: Date.now() }
+  } catch {
+    return null
+  }
+}
+
+/** Lookup median sell platinum for item display names (rate-limited + cached). */
+export async function lookupMarketPrices(
+  names: string[],
+): Promise<Map<string, { platinum: number; volume: number }>> {
+  if (!diskLoaded) {
+    loadDiskCache()
+    diskLoaded = true
+  }
+
+  const out = new Map<string, { platinum: number; volume: number }>()
+  const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))]
+  const missing: string[] = []
+
+  for (const name of unique) {
+    const hit = cache.get(slugifyItemName(name))
+    if (hit && Date.now() - hit.fetchedAt < TTL_MS) {
+      out.set(name, { platinum: hit.platinum, volume: hit.volume })
+    } else {
+      missing.push(name)
+    }
+  }
+
+  for (let i = 0; i < missing.length; i += MAX_CONCURRENT) {
+    const batch = missing.slice(i, i + MAX_CONCURRENT)
+    const results = await Promise.all(
+      batch.map(async (name) => {
+        const hit = await fetchOne(name)
+        return { name, hit }
+      }),
+    )
+    for (const { name, hit } of results) {
+      if (!hit) continue
+      cache.set(slugifyItemName(name), hit)
+      out.set(name, { platinum: hit.platinum, volume: hit.volume })
+    }
+    if (i + MAX_CONCURRENT < missing.length) {
+      await new Promise((r) => setTimeout(r, 350))
+    }
+  }
+
+  if (missing.length) saveDiskCache()
+  return out
+}

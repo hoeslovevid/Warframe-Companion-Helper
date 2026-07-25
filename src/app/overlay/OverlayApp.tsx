@@ -65,6 +65,10 @@ export function OverlayApp() {
         opacity={settings.opacity}
         overlayScale={settings.overlayScale}
         fissureTiers={settings.fissureTiers}
+        fissureShowSteelPath={settings.fissureShowSteelPath}
+        fissureSort={settings.fissureSort}
+        baroWishlist={settings.baroWishlist}
+        nightwaveDoneIds={settings.nightwaveDoneIds}
         dragHint={dragHint}
         hint={
           settings.layoutEditMode

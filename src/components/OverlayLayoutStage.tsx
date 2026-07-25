@@ -1,5 +1,6 @@
 import { PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  FissureSort,
   ModuleId,
   PanelAnchor,
   RewardEval,
@@ -11,6 +12,9 @@ import { BaroPanel } from '../modules/baro/BaroPanel'
 import { NightwavePanel } from '../modules/nightwave/NightwavePanel'
 import { RelicsPanel } from '../modules/relics/RelicsPanel'
 import { ArbitrationPanel } from '../modules/arbitration/ArbitrationPanel'
+import { InvasionsPanel } from '../modules/invasions/InvasionsPanel'
+import { ArchonPanel } from '../modules/archon/ArchonPanel'
+import { DeepArchimedeaPanel } from '../modules/deepArchimedea/DeepArchimedeaPanel'
 import '../styles/overlay.css'
 import './OverlayLayoutStage.css'
 
@@ -21,6 +25,10 @@ export type OverlayLayoutStageProps = {
   opacity: number
   overlayScale?: number
   fissureTiers: string[]
+  fissureShowSteelPath?: boolean
+  fissureSort?: FissureSort
+  baroWishlist?: string[]
+  nightwaveDoneIds?: string[]
   editable: boolean
   /** live = fullscreen overlay; preview = scaled mock monitor */
   mode: 'live' | 'preview'
@@ -65,6 +73,10 @@ export function OverlayLayoutStage({
   opacity,
   overlayScale = 1,
   fissureTiers,
+  fissureShowSteelPath = true,
+  fissureSort = 'eta',
+  baroWishlist = [],
+  nightwaveDoneIds = [],
   editable,
   mode,
   designWidth = 1920,
@@ -230,15 +242,29 @@ export function OverlayLayoutStage({
             <FissuresPanel
               fissures={data.fissures}
               tiers={fissureTiers}
+              showSteelPath={fissureShowSteelPath}
+              sort={fissureSort}
               opacity={opacity}
               compact
             />
           )
         case 'baro':
-          return <BaroPanel baro={data.baro} opacity={opacity} compact />
+          return (
+            <BaroPanel
+              baro={data.baro}
+              wishlist={baroWishlist}
+              opacity={opacity}
+              compact
+            />
+          )
         case 'nightwave':
           return (
-            <NightwavePanel nightwave={data.nightwave} opacity={opacity} compact />
+            <NightwavePanel
+              nightwave={data.nightwave}
+              doneIds={nightwaveDoneIds}
+              opacity={opacity}
+              compact
+            />
           )
         case 'relics':
           return (
@@ -252,12 +278,35 @@ export function OverlayLayoutStage({
           )
         case 'arbitration':
           return <ArbitrationPanel arbitration={data.arbitration} opacity={opacity} />
+        case 'invasions':
+          return <InvasionsPanel invasions={data.invasions} opacity={opacity} compact />
+        case 'archon':
+          return <ArchonPanel archonHunt={data.archonHunt} opacity={opacity} compact />
+        case 'deepArchimedea':
+          return (
+            <DeepArchimedeaPanel
+              deepArchimedea={data.deepArchimedea}
+              opacity={opacity}
+              compact
+            />
+          )
         default:
           return null
       }
     }
     return render
-  }, [data, opacity, fissureTiers, mode, relicPreviewRewards, designWidth])
+  }, [
+    data,
+    opacity,
+    fissureTiers,
+    fissureShowSteelPath,
+    fissureSort,
+    baroWishlist,
+    nightwaveDoneIds,
+    mode,
+    relicPreviewRewards,
+    designWidth,
+  ])
 
   const stageStyle =
     mode === 'preview'

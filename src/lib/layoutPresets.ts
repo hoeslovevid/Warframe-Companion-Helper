@@ -2,10 +2,8 @@ import { DEFAULT_SETTINGS, ModuleId, PanelAnchor } from '../../shared/types'
 
 export type LayoutPresetId = 'left-stack' | 'corners' | 'right-rail'
 
-/** Canonical design size presets are authored against. */
 export const LAYOUT_DESIGN = { width: 1920, height: 1080 } as const
 
-/** Design-space under-card strip (centered under four reward cards @ 1080p). */
 const RELIC_STRIP: PanelAnchor = { x: 410, y: 640 }
 
 type PresetDef = {
@@ -25,6 +23,9 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       nightwave: { x: 24, y: 760 },
       relics: { ...RELIC_STRIP },
       arbitration: { x: 320, y: 520 },
+      invasions: { x: 320, y: 24 },
+      archon: { x: 320, y: 280 },
+      deepArchimedea: { x: 320, y: 520 },
     },
   },
   corners: {
@@ -37,6 +38,9 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       nightwave: { x: 1500, y: 280 },
       relics: { ...RELIC_STRIP },
       arbitration: { x: 1500, y: 720 },
+      invasions: { x: 700, y: 24 },
+      archon: { x: 700, y: 280 },
+      deepArchimedea: { x: 700, y: 520 },
     },
   },
   'right-rail': {
@@ -49,11 +53,13 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       nightwave: { x: 1520, y: 780 },
       relics: { ...RELIC_STRIP },
       arbitration: { x: 640, y: 420 },
+      invasions: { x: 24, y: 24 },
+      archon: { x: 24, y: 320 },
+      deepArchimedea: { x: 24, y: 560 },
     },
   },
 }
 
-/** UI metadata (labels) — anchors are built per display via helpers below. */
 export const LAYOUT_PRESETS: Record<
   LayoutPresetId,
   { label: string; description: string }

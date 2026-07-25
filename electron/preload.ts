@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
   AppUpdateStatus,
+  HotkeyRegistration,
   InventoryStatus,
   ModuleId,
   PrimaryDisplayInfo,
@@ -33,6 +34,9 @@ const api: VoidLensApi = {
   getRelicScan: () => ipcRenderer.invoke('relics:get'),
   scanRelicRewards: () => ipcRenderer.invoke('relics:scan'),
   clearRelicScan: () => ipcRenderer.invoke('relics:clear'),
+  ackRelicCelebration: () => ipcRenderer.invoke('relics:ackCelebration'),
+  getHotkeyStatus: () => ipcRenderer.invoke('hotkeys:status') as Promise<HotkeyRegistration[]>,
+  getAppVersion: () => ipcRenderer.invoke('app:version') as Promise<string>,
   getUpdateStatus: () => ipcRenderer.invoke('update:status'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
@@ -65,6 +69,11 @@ const api: VoidLensApi = {
     const listener = (_: Electron.IpcRendererEvent, status: AppUpdateStatus) => cb(status)
     ipcRenderer.on('update:status', listener)
     return () => ipcRenderer.removeListener('update:status', listener)
+  },
+  onRelicSound: (cb) => {
+    const listener = () => cb()
+    ipcRenderer.on('relics:sound', listener)
+    return () => ipcRenderer.removeListener('relics:sound', listener)
   },
 }
 

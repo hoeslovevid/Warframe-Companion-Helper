@@ -15,9 +15,10 @@ const REWARD_START_PATTERNS = [
  * EE.log buffering makes these imperfect — pair with auto-hide timeout.
  */
 const REWARD_END_PATTERNS = [
-  /ProjectionRewardChoice\.lua:.*(?:Selected|Choice made|Closing|closed)/i,
+  /ProjectionRewardChoice\.lua:.*(?:Selected|Choice made|Closing|closed|Select)/i,
   /EndOfMatch\.lua/i,
   /Got rewards screen closed/i,
+  /Script \[Info\]:.*Reward.*(?:closed|dismiss|selected)/i,
 ]
 
 /**

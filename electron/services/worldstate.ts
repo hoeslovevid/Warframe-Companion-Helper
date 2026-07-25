@@ -1,8 +1,11 @@
 import {
   ArbitrationInfo,
+  ArchonHuntInfo,
   BaroInfo,
   CycleInfo,
+  DeepArchimedeaInfo,
   FissureInfo,
+  InvasionInfo,
   NightwaveChallenge,
   NightwaveInfo,
   WorldstateSnapshot,
@@ -230,6 +233,93 @@ function mapArbitration(payload: {
   }
 }
 
+function mapInvasions(
+  list: Array<{
+    id?: string
+    node?: string
+    desc?: string
+    attacker?: { faction?: string } | string
+    defender?: { faction?: string } | string
+    completion?: number
+    eta?: string
+    expiry?: string
+  }> | null,
+): InvasionInfo[] {
+  return (list || [])
+    .map((inv) => {
+      const attacker =
+        typeof inv.attacker === 'string' ? inv.attacker : inv.attacker?.faction || 'Attacker'
+      const defender =
+        typeof inv.defender === 'string' ? inv.defender : inv.defender?.faction || 'Defender'
+      return {
+        id: inv.id || `${inv.node}-${inv.expiry}`,
+        node: inv.node || 'Unknown',
+        desc: inv.desc || '',
+        attacker,
+        defender,
+        completion: Number(inv.completion) || 0,
+        eta: inv.eta || etaFromExpiry(inv.expiry),
+        expiry: inv.expiry || '',
+      }
+    })
+    .filter((inv) => inv.node !== 'Unknown')
+    .slice(0, 12)
+}
+
+function mapArchonHunt(payload: {
+  boss?: string
+  faction?: string
+  expiry?: string
+  eta?: string
+  missions?: Array<{ node?: string; type?: string }>
+} | null): ArchonHuntInfo | null {
+  if (!payload?.boss && !payload?.missions?.length) return null
+  return {
+    boss: payload.boss || 'Archon',
+    faction: payload.faction || 'Narmer',
+    expiry: payload.expiry || '',
+    eta: payload.eta || etaFromExpiry(payload.expiry),
+    missions: (payload.missions || []).map((m) => ({
+      node: m.node || 'Unknown',
+      type: m.type || 'Mission',
+    })),
+  }
+}
+
+function mapDeepArchimedea(
+  list: Array<{
+    id?: string
+    type?: string
+    typeKey?: string
+    expiry?: string
+    missions?: Array<{
+      missionType?: string
+      deviation?: { name?: string }
+      risks?: Array<{ name?: string }>
+    }>
+  }> | null,
+): DeepArchimedeaInfo | null {
+  if (!list?.length) return null
+  const pick =
+    list.find((a) => /deep|ct_?lab|lab/i.test(`${a.type || ''} ${a.typeKey || ''}`)) || list[0]
+  if (!pick) return null
+  const risks = (pick.missions || []).flatMap((m) => [
+    m.deviation?.name,
+    ...(m.risks || []).map((r) => r.name),
+  ]).filter(Boolean) as string[]
+
+  return {
+    id: pick.id || 'archimedea',
+    expiry: pick.expiry || '',
+    eta: etaFromExpiry(pick.expiry),
+    missions: (pick.missions || []).map((m, i) => ({
+      node: `Mission ${i + 1}`,
+      type: m.missionType || 'Mission',
+    })),
+    riskVariables: [...new Set(risks)].slice(0, 8),
+  }
+}
+
 export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
   const [
     cetus,
@@ -242,6 +332,9 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     voidTrader,
     nightwave,
     arbitration,
+    invasions,
+    archonHunt,
+    archimedeas,
   ] = await Promise.all([
     getJson<CyclePayload>('/cetusCycle'),
     getJson<CyclePayload>('/vallisCycle'),
@@ -290,6 +383,38 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
       eta?: string
       expired?: boolean
     } | null>('/arbitration').catch(() => null),
+    getJson<
+      Array<{
+        id?: string
+        node?: string
+        desc?: string
+        attacker?: { faction?: string } | string
+        defender?: { faction?: string } | string
+        completion?: number
+        eta?: string
+        expiry?: string
+      }>
+    >('/invasions').catch(() => []),
+    getJson<{
+      boss?: string
+      faction?: string
+      expiry?: string
+      eta?: string
+      missions?: Array<{ node?: string; type?: string }>
+    } | null>('/archonHunt').catch(() => null),
+    getJson<
+      Array<{
+        id?: string
+        type?: string
+        typeKey?: string
+        expiry?: string
+        missions?: Array<{
+          missionType?: string
+          deviation?: { name?: string }
+          risks?: Array<{ name?: string }>
+        }>
+      }>
+    >('/archimedeas').catch(() => []),
   ])
 
   const cycles: CycleInfo[] = [
@@ -319,19 +444,22 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     expiry: f.expiry,
   }))
 
-  // warframestat often omits `active` — derive from activation/expiry windows
   const baro = mapBaro(voidTrader)
-
   const nw = mapNightwave(nightwave)
   const arb = mapArbitration(arbitration)
 
   return {
     fetchedAt: new Date().toISOString(),
+    error: null,
+    stale: false,
     cycles,
     fissures: fissureList,
     baro,
     nightwave: nw,
     arbitration: arb,
+    invasions: mapInvasions(invasions),
+    archonHunt: mapArchonHunt(archonHunt),
+    deepArchimedea: mapDeepArchimedea(archimedeas),
   }
 }
 
@@ -349,6 +477,9 @@ export function hasExpiredWorldstate(data: WorldstateSnapshot, now = Date.now())
   for (const c of data.nightwave?.challenges || []) {
     if (c.expiry) expiries.push(c.expiry)
   }
+  if (data.archonHunt?.expiry) expiries.push(data.archonHunt.expiry)
+  if (data.deepArchimedea?.expiry) expiries.push(data.deepArchimedea.expiry)
+  for (const inv of data.invasions || []) if (inv.expiry) expiries.push(inv.expiry)
 
   return expiries.some((e) => {
     const end = new Date(e).getTime()
