@@ -1,3 +1,4 @@
+import { defaultRivenAnchor } from '../../shared/captureGeometry'
 import { DEFAULT_SETTINGS, ModuleId, PanelAnchor } from '../../shared/types'
 
 export type LayoutPresetId = 'left-stack' | 'corners' | 'right-rail'
@@ -6,7 +7,7 @@ export const LAYOUT_DESIGN = { width: 1920, height: 1080 } as const
 
 const RELIC_STRIP: PanelAnchor = { x: 410, y: 640 }
 /** Side panel to the right of the in-game current/reroll cards. */
-const RIVEN_COMPARE: PanelAnchor = { x: 1460, y: 290 }
+const RIVEN_COMPARE: PanelAnchor = defaultRivenAnchor(LAYOUT_DESIGN.width, LAYOUT_DESIGN.height)
 
 type PresetDef = {
   label: string
@@ -112,12 +113,21 @@ export function getLayoutPresetAnchors(
   width: number,
   height: number,
 ): Partial<Record<ModuleId, PanelAnchor>> {
-  return scalePanelAnchors(PRESET_DEFS[id].anchors, width, height)
+  const scaled = scalePanelAnchors(PRESET_DEFS[id].anchors, width, height)
+  return {
+    ...scaled,
+    rivens: defaultRivenAnchor(width, height),
+  }
 }
 
 export function getDefaultPanelAnchors(
   width: number,
   height: number,
 ): Partial<Record<ModuleId, PanelAnchor>> {
-  return scalePanelAnchors(DEFAULT_SETTINGS.panelAnchors, width, height)
+  const scaled = scalePanelAnchors(DEFAULT_SETTINGS.panelAnchors, width, height)
+  // Always place rivens from live geometry so it stays beside Cycle cards.
+  return {
+    ...scaled,
+    rivens: defaultRivenAnchor(width, height),
+  }
 }

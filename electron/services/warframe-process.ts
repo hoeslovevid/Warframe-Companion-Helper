@@ -20,6 +20,7 @@ async function queryWindows(): Promise<{ running: boolean; foreground: boolean }
   }
 
   try {
+    // NOTE: do not use $PID — it is a read-only automatic variable in PowerShell.
     const script = `
 $procs = Get-Process -ErrorAction SilentlyContinue | Where-Object {
   $_.ProcessName -match '^(?i)Warframe(\\.x64)?$'
@@ -32,14 +33,14 @@ using System;
 using System.Runtime.InteropServices;
 public class Fw {
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 }
 "@
   $hwnd = [Fw]::GetForegroundWindow()
-  $pid = 0
-  [void][Fw]::GetWindowThreadProcessId($hwnd, [ref]$pid)
-  if ($pid -ne 0) {
-    $fgProc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+  $fgPid = 0
+  [void][Fw]::GetWindowThreadProcessId($hwnd, [ref]$fgPid)
+  if ($fgPid -ne 0) {
+    $fgProc = Get-Process -Id $fgPid -ErrorAction SilentlyContinue
     if ($fgProc -and ($fgProc.ProcessName -match '^(?i)Warframe(\\.x64)?$')) { $fg = $true }
   }
 }
@@ -98,4 +99,9 @@ export async function isWarframeForeground(): Promise<boolean> {
 export async function isWarframeRunning(): Promise<boolean> {
   const state = await getWarframeProcessState()
   return state.running
+}
+
+/** Bust the short-lived cache (e.g. right before an auto-scan). */
+export function invalidateWarframeProcessCache() {
+  lastCheck = 0
 }

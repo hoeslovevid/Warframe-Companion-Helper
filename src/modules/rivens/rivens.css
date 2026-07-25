@@ -48,8 +48,10 @@
 
 .riven-card__weapon {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   margin-bottom: 8px;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .riven-card__tier {

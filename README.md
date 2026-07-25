@@ -80,7 +80,7 @@ Everything Warframe runs at below-normal process priority, pauses overlay clocks
 - **Baro Ki'Teer** — status + shop inventory
 - **Nightwave** — season / phase
 - **Relics** — OCR reward overlay with set + owned counts
-- **Riven Grader** — OCR current vs reroll; slim side panel beside the Cycle cards
+- **Riven Grader** — PaddleOCR (PP-OCRv4) reads current vs reroll; Tesseract fallback; slim side panel beside Cycle cards
 - **Foundry Planner** — inventory-first list (owned + ready), crafting trees, material totals
 - **Themes** — 4 dark + 4 light presets, plus a Custom palette with color pickers
 - **Per-overlay opacity** — individual opacity sliders under Settings → Appearance

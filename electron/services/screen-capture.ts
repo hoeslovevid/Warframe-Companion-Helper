@@ -1,10 +1,25 @@
 import { desktopCapturer, nativeImage, screen } from 'electron'
+import { rivenCompareRegions, type CaptureRegion } from '../../shared/captureGeometry'
 
-export type CaptureRegion = {
-  x: number
-  y: number
-  width: number
-  height: number
+export type { CaptureRegion }
+
+/** Optional hook so main can hide the overlay while capturing (avoids OCR reading our UI). */
+let pauseOverlayForCapture: (() => () => void) | null = null
+
+export function setCaptureOverlayPause(fn: (() => () => void) | null) {
+  pauseOverlayForCapture = fn
+}
+
+async function withOverlayPaused<T>(fn: () => Promise<T>): Promise<T> {
+  const resume = pauseOverlayForCapture?.()
+  try {
+    // Transparent always-on-top windows can linger in the capture compositor;
+    // give Windows time to drop them so OCR only sees the game.
+    await new Promise((r) => setTimeout(r, 220))
+    return await fn()
+  } finally {
+    resume?.()
+  }
 }
 
 /**
@@ -112,37 +127,50 @@ export function cropPng(png: Buffer, region: CaptureRegion): Buffer {
 }
 
 export async function captureRewardRegionPngs(): Promise<Buffer[]> {
-  const shot = await captureBestDisplay()
-  if (!shot) return []
-  const regions = relicRewardRegions(shot.width, shot.height)
-  return regions.map((region) => cropPng(shot.png, region))
+  return withOverlayPaused(async () => {
+    const shot = await captureBestDisplay()
+    if (!shot) return []
+    const regions = relicRewardRegions(shot.width, shot.height)
+    return regions.map((region) => cropPng(shot.png, region))
+  })
+}
+
+export { rivenCompareRegions }
+
+export type RivenCaptureResult = {
+  crops: Buffer[]
+  fullPng: Buffer
+  width: number
+  height: number
+  regions: CaptureRegion[]
 }
 
 /**
- * Left = current / kept roll, right = new reroll — typical Cycle UI.
- * Tuned for 16:9; Layout can still position the result popup.
+ * Capture the two full Cycle mod cards only (left=current, right=reroll).
+ * Does not include the companion/overlay UI (paused + content-protected).
  */
-export function rivenCompareRegions(width: number, height: number): CaptureRegion[] {
-  const cardW = width * 0.22
-  const cardH = height * 0.42
-  const y = height * 0.28
-  const gap = width * 0.06
-  const total = cardW * 2 + gap
-  const startX = (width - total) / 2
-  return [
-    { x: Math.round(startX), y: Math.round(y), width: Math.round(cardW), height: Math.round(cardH) },
-    {
-      x: Math.round(startX + cardW + gap),
-      y: Math.round(y),
-      width: Math.round(cardW),
-      height: Math.round(cardH),
-    },
-  ]
+export async function captureRivenComparePngs(): Promise<Buffer[]> {
+  const result = await captureRivenCompare()
+  return result?.crops ?? []
 }
 
-export async function captureRivenComparePngs(): Promise<Buffer[]> {
-  const shot = await captureBestDisplay()
-  if (!shot) return []
-  const regions = rivenCompareRegions(shot.width, shot.height)
-  return regions.map((region) => cropPng(shot.png, region))
+export async function captureRivenCompare(): Promise<RivenCaptureResult | null> {
+  return withOverlayPaused(async () => {
+    const shot = await captureBestDisplay()
+    if (!shot) return null
+    const regions = rivenCompareRegions(shot.width, shot.height)
+    console.info(
+      `[Everything Warframe] Riven card crops ${shot.width}×${shot.height}: ` +
+        regions
+          .map((r, i) => `${i === 0 ? 'current' : 'reroll'}@(${r.x},${r.y},${r.width}x${r.height})`)
+          .join(' · '),
+    )
+    return {
+      crops: regions.map((region) => cropPng(shot.png, region)),
+      fullPng: shot.png,
+      width: shot.width,
+      height: shot.height,
+      regions,
+    }
+  })
 }

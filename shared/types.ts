@@ -375,8 +375,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     invasions: { x: 720, y: 24 },
     archon: { x: 720, y: 320 },
     deepArchimedea: { x: 720, y: 560 },
-    /** Right of Kuva Cycle compare cards (matches screen-capture regions on 1920×1080). */
-    rivens: { x: 1460, y: 290 },
+    /** Right of Kuva Cycle compare cards on 1920×1080; Layout reset scales per display. */
+    rivens: { x: 1580, y: 146 },
   },
   opacity: 0.92,
   moduleOpacity: {

@@ -20,22 +20,17 @@ const REWARD_END_PATTERNS = [
 ]
 
 /**
- * Heuristic markers for riven Cycle UI. EE.log is inconsistent — pair with hotkey.
- * Common script names vary by update; keep patterns broad but avoid relic lines.
+ * Real EE.log lines from Kuva Cycle:
+ *  - "Are you sure you want to cycle Ignis Acri-critabin for ?3,500?"
+ *  - then QuickMatchPleaseWait after confirm → compare UI is up
+ *
+ * Note: "Cycle Riven into current selection?" appears on the compare screen itself
+ * and must NOT be treated as dismiss — it was cancelling OCR mid-scan.
  */
-const RIVEN_START_PATTERNS = [
-  /Riven.*(?:Cycle|Reroll|Upgrade)/i,
-  /(?:Cycle|Reroll).*Riven/i,
-  /Mod.*Riven.*(?:Cycle|Roll)/i,
-  /Kuva.*(?:spent|cost).*Riven/i,
-  /Script \[Info\]:.*RivenMod/i,
-  /Lotus\/Types\/Game\/Riven/i,
-]
-
-const RIVEN_END_PATTERNS = [
-  /Riven.*(?:Accept|Decline|Confirm|Closed)/i,
-  /(?:Accept|Decline).*Riven/i,
-]
+const RIVEN_CYCLE_CONFIRM =
+  /Are you sure you want to cycle .+ for/i
+const RIVEN_CYCLE_PENDING_READY =
+  /NavBar_QuickMatchPleaseWait|QuickMatchPleaseWait/i
 
 /**
  * Tail Warframe EE.log for fissure reward-screen and riven cycle markers.
@@ -50,12 +45,20 @@ export class LogWatcher extends EventEmitter {
   private lastRivenEnd = 0
   private rewardScreenOpen = false
   private rivenScreenOpen = false
+  /** True after the kuva "want to cycle" dialog appears; cleared on scan emit or timeout. */
+  private rivenCycleArmed = false
+  private rivenArmTimer: NodeJS.Timeout | null = null
 
   setPath(next: string | null) {
     this.path = next
     this.offset = 0
     this.rewardScreenOpen = false
     this.rivenScreenOpen = false
+    this.rivenCycleArmed = false
+    if (this.rivenArmTimer) {
+      clearTimeout(this.rivenArmTimer)
+      this.rivenArmTimer = null
+    }
     if (next && fs.existsSync(next)) {
       try {
         this.offset = fs.statSync(next).size
@@ -73,6 +76,35 @@ export class LogWatcher extends EventEmitter {
   stop() {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
+    if (this.rivenArmTimer) {
+      clearTimeout(this.rivenArmTimer)
+      this.rivenArmTimer = null
+    }
+  }
+
+  private armRivenCycle() {
+    this.rivenCycleArmed = true
+    if (this.rivenArmTimer) clearTimeout(this.rivenArmTimer)
+    // Fallback: user may confirm without a PleaseWait line we catch in the same tick.
+    this.rivenArmTimer = setTimeout(() => {
+      this.rivenArmTimer = null
+      if (!this.rivenCycleArmed) return
+      this.rivenCycleArmed = false
+      this.emitRivenStart()
+    }, 3200)
+  }
+
+  private emitRivenStart() {
+    const now = Date.now()
+    if (now - this.lastRivenStart < 4000) return
+    this.lastRivenStart = now
+    this.rivenScreenOpen = true
+    this.rivenCycleArmed = false
+    if (this.rivenArmTimer) {
+      clearTimeout(this.rivenArmTimer)
+      this.rivenArmTimer = null
+    }
+    this.emit('event', { type: 'riven_reroll' } satisfies LogEvent)
   }
 
   private tick() {
@@ -108,21 +140,15 @@ export class LogWatcher extends EventEmitter {
         this.emit('event', { type: 'relic_rewards_end' } satisfies LogEvent)
       }
 
-      if (RIVEN_START_PATTERNS.some((re) => re.test(chunk))) {
-        if (now - this.lastRivenStart >= 4000) {
-          this.lastRivenStart = now
-          this.rivenScreenOpen = true
-          this.emit('event', { type: 'riven_reroll' } satisfies LogEvent)
-        }
-      } else if (
-        this.rivenScreenOpen &&
-        RIVEN_END_PATTERNS.some((re) => re.test(chunk)) &&
-        now - this.lastRivenEnd >= 2000
-      ) {
-        this.lastRivenEnd = now
-        this.rivenScreenOpen = false
-        this.emit('event', { type: 'riven_reroll_end' } satisfies LogEvent)
+      // Kuva spend confirm dialog → arm; PleaseWait after confirm → compare UI ready.
+      if (RIVEN_CYCLE_CONFIRM.test(chunk)) {
+        this.armRivenCycle()
       }
+      if (this.rivenCycleArmed && RIVEN_CYCLE_PENDING_READY.test(chunk)) {
+        this.emitRivenStart()
+      }
+
+      // Compare UI dismiss is handled by auto-hide / hotkey — no reliable EE.log close marker.
     } catch (err) {
       console.error('[Everything Warframe] EE.log watch error', err)
     }

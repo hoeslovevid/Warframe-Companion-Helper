@@ -35,6 +35,12 @@ export function createOverlayWindow(devUrl: string | null): BrowserWindow {
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   win.setIgnoreMouseEvents(true, { forward: true })
+  // Keep overlay visible to the player, but exclude it from desktopCapturer / OCR snapshots.
+  try {
+    win.setContentProtection(true)
+  } catch {
+    // Older Electron / OS builds may not support this.
+  }
 
   win.webContents.on('did-fail-load', (_e, code, desc, url) => {
     console.error(`[Everything Warframe] Overlay failed to load (${code}): ${desc} — ${url}`)
@@ -53,6 +59,11 @@ export function createOverlayWindow(devUrl: string | null): BrowserWindow {
   }
 
   win.once('ready-to-show', () => {
+    try {
+      win.setContentProtection(true)
+    } catch {
+      // ignore
+    }
     win.showInactive()
     win.setAlwaysOnTop(true, 'screen-saver')
   })

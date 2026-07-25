@@ -80,11 +80,9 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
   if (!raw) return base
 
   const panelAnchors = { ...base.panelAnchors, ...(raw.panelAnchors ?? {}) }
-  // One-time upgrade: old default sat on the Cycle cards; move beside them when
-  // migrating settings that predate per-module opacity.
+  // One-time upgrade: original centered default sat on the Cycle cards.
   const legacyRivens = raw.panelAnchors?.rivens
   if (
-    !('moduleOpacity' in raw) &&
     legacyRivens &&
     legacyRivens.x === 480 &&
     legacyRivens.y === 200 &&

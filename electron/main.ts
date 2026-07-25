@@ -15,6 +15,8 @@ import path from 'node:path'
 import { getAppIcon, getTrayIcon } from './app-icon'
 import { createOverlayWindow, setOverlayClickThrough } from './overlay-window'
 import { loadSettings, setModuleEnabled, updateSettings } from './settings'
+import { setCaptureOverlayPause } from './services/screen-capture'
+import { defaultRivenAnchor } from '../shared/captureGeometry'
 import { fetchWorldstate, hasExpiredWorldstate } from './services/worldstate'
 import { detectEeLogPath } from './services/log-path'
 import {
@@ -42,8 +44,13 @@ import {
   onRivenScanUpdated,
   scanRivens,
 } from './services/riven-scanner'
+import { shutdownOcr } from './services/ocr'
 import { getFoundryTree, listFoundryItems } from './services/foundry'
-import { isWarframeForeground, isWarframeRunning } from './services/warframe-process'
+import {
+  invalidateWarframeProcessCache,
+  isWarframeForeground,
+  isWarframeRunning,
+} from './services/warframe-process'
 import {
   checkForAppUpdates,
   getUpdateStatus,
@@ -106,9 +113,11 @@ async function runRelicScan(trigger: 'manual' | 'log') {
     return getRelicScanState()
   }
   if (trigger === 'log') {
+    invalidateWarframeProcessCache()
     const fg = await isWarframeForeground()
-    if (!fg) {
-      console.info('[Everything Warframe] Relic auto-scan skipped — Warframe not focused')
+    const running = fg ? true : await isWarframeRunning()
+    if (!running) {
+      console.info('[Everything Warframe] Relic auto-scan skipped — Warframe not running')
       return getRelicScanState()
     }
   }
@@ -152,10 +161,19 @@ async function runRivenScan(trigger: 'manual' | 'log') {
     return getRivenScanState()
   }
   if (trigger === 'log') {
+    invalidateWarframeProcessCache()
     const fg = await isWarframeForeground()
-    if (!fg) {
-      console.info('[Everything Warframe] Riven auto-scan skipped — Warframe not focused')
+    const running = fg ? true : await isWarframeRunning()
+    // EE.log only advances while the game is up; require running, not strict focus
+    // (focus checks are flaky under overlays / multi-monitor).
+    if (!running) {
+      console.info('[Everything Warframe] Riven auto-scan skipped — Warframe not running')
       return getRivenScanState()
+    }
+    if (!fg) {
+      console.info(
+        '[Everything Warframe] Riven auto-scan: Warframe running but not focused — scanning anyway',
+      )
     }
   }
   if (!settings.overlayVisible) {
@@ -361,6 +379,25 @@ function applyOverlayVisibility(visible: boolean) {
     applyOverlayPerformanceMode(false)
   }
   broadcastOverlayVisibility(visible)
+}
+
+/** Unscaled 1080p default (1460,290) overlaps Cycle cards on other resolutions. */
+function fixLegacyRivenAnchor() {
+  const settings = loadSettings()
+  const rivens = settings.panelAnchors.rivens
+  if (!rivens || rivens.x !== 1460 || rivens.y !== 290) return
+  const { width, height } = screen.getPrimaryDisplay().bounds
+  if (width === 1920 && height === 1080) return
+  const next = defaultRivenAnchor(width, height)
+  updateSettings({
+    panelAnchors: {
+      ...settings.panelAnchors,
+      rivens: next,
+    },
+  })
+  console.info(
+    `[Everything Warframe] Repositioned riven overlay for ${width}×${height} → (${next.x}, ${next.y})`,
+  )
 }
 
 function checkWorldstateExpiries() {
@@ -676,6 +713,41 @@ app.whenReady().then(async () => {
 
   createCompanionWindow()
   overlayWindow = createOverlayWindow(isDev ? DEV_URL : null)
+  setCaptureOverlayPause(() => {
+    const win = overlayWindow
+    if (!win || win.isDestroyed()) return () => {}
+    const wasVisible = win.isVisible()
+    let prevOpacity = 1
+    try {
+      prevOpacity = win.getOpacity()
+      win.setOpacity(0)
+    } catch {
+      // ignore
+    }
+    try {
+      win.setContentProtection(true)
+    } catch {
+      // ignore
+    }
+    // Move off-screen so even sticky capture APIs cannot sample overlay pixels.
+    const bounds = win.getBounds()
+    win.setBounds({ ...bounds, x: -10_000, y: -10_000 })
+    win.hide()
+    return () => {
+      if (!overlayWindow || overlayWindow.isDestroyed()) return
+      try {
+        overlayWindow.setBounds(bounds)
+        overlayWindow.setOpacity(prevOpacity > 0 ? prevOpacity : 1)
+        overlayWindow.setContentProtection(true)
+      } catch {
+        // ignore
+      }
+      if (wasVisible && loadSettings().overlayVisible) {
+        overlayWindow.showInactive()
+      }
+    }
+  })
+  fixLegacyRivenAnchor()
   applyOverlayVisibility(loadSettings().overlayVisible)
   applyLayoutEditMode(loadSettings().layoutEditMode)
 
@@ -709,6 +781,11 @@ app.whenReady().then(async () => {
       console.info('[Everything Warframe] EE.log riven reroll detected — scanning')
       void runRivenScan('log')
     } else if (event.type === 'riven_reroll_end') {
+      // Ignore while a scan is in flight (false end markers used to wipe mid-OCR).
+      if (getRivenScanState().scanning) {
+        console.info('[Everything Warframe] EE.log riven end ignored — scan in progress')
+        return
+      }
       console.info('[Everything Warframe] EE.log riven reroll ended — dismissing popup')
       dismissRivenPopup()
     }
@@ -763,6 +840,7 @@ app.on('will-quit', () => {
   if (worldstateTimer) clearInterval(worldstateTimer)
   if (inventorySyncTimer) clearInterval(inventorySyncTimer)
   if (expiryTimer) clearInterval(expiryTimer)
+  void shutdownOcr()
 })
 
 app.on('window-all-closed', () => {

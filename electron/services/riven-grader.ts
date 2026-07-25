@@ -24,7 +24,7 @@ const STAT_META: Record<
   damage: { aliases: ['damage', 'base damage'], max: 200, unit: '%', weight: 1.1 },
   'fire rate': { aliases: ['fire rate', 'attack speed'], max: 90, unit: '%', weight: 1.0 },
   'status chance': {
-    aliases: ['status chance', 'status'],
+    aliases: ['status chance'],
     max: 110,
     unit: '%',
     weight: 1.15,
@@ -32,7 +32,7 @@ const STAT_META: Record<
   'status duration': { aliases: ['status duration'], max: 110, unit: '%', weight: 0.7 },
   reload: { aliases: ['reload', 'reload speed'], max: 70, unit: '%', weight: 0.85 },
   'magazine capacity': {
-    aliases: ['magazine', 'magazine capacity', 'mag'],
+    aliases: ['magazine', 'magazine capacity', 'mag capacity'],
     max: 70,
     unit: '%',
     weight: 0.8,
@@ -72,19 +72,19 @@ const STAT_META: Record<
     weight: 0.85,
   },
   'damage to corpus': {
-    aliases: ['damage to corpus', 'corpus'],
+    aliases: ['damage to corpus'],
     max: 60,
     unit: '%',
     weight: 0.4,
   },
   'damage to grineer': {
-    aliases: ['damage to grineer', 'grineer'],
+    aliases: ['damage to grineer'],
     max: 60,
     unit: '%',
     weight: 0.4,
   },
   'damage to infested': {
-    aliases: ['damage to infested', 'infested'],
+    aliases: ['damage to infested'],
     max: 60,
     unit: '%',
     weight: 0.35,
@@ -95,77 +95,266 @@ const STAT_META: Record<
   'finisher damage': { aliases: ['finisher damage'], max: 110, unit: '%', weight: 0.55 },
 }
 
-function normalize(s: string) {
+/** Fix common Warframe UI OCR mistakes before matching. */
+function scrubOcr(s: string) {
   return s
+    .replace(/[|*·•‚’‘]/g, ' ')
+    // Elemental icon often splits "Cold" → "Col in" / "Col d" / bare "Col"
+    .replace(/\bCol\s*i?n\b/gi, 'Cold')
+    .replace(/\bCol\s*d\b/gi, 'Cold')
+    .replace(/\bC0ld\b/gi, 'Cold')
+    .replace(/\bCol\b/gi, 'Cold')
+    .replace(/\bPun(?:ct(?:ure)?)?\b/gi, 'Puncture')
+    .replace(/\bH0t\b|\bHea1\b/gi, 'Heat')
+    .replace(/\bT0xin\b|\bToxln\b/gi, 'Toxin')
+    .replace(/\bElec(?:tr(?:icity)?)?\b/gi, 'Electricity')
+    .replace(/lnfected|lnfeste[dc]?/gi, 'Infested')
+    .replace(/Grlneer/gi, 'Grineer')
+    .replace(/Corp[uü]s/gi, 'Corpus')
+    .replace(/\blgnis\b/gi, 'Ignis')
+    .replace(/Mu1ti/gi, 'Multi')
+    .replace(/Critica1/gi, 'Critical')
+    .replace(/Critica?\s*Cha(?:n(?:ce)?)?/gi, 'Critical Chance')
+    .replace(/\bChanc[ec]\b/gi, 'Chance')
+    .replace(/Damaqe|Damag[eo]/gi, 'Damage')
+    .replace(/Multish0t|Multisho(?:t)?/gi, 'Multishot')
+    .replace(/Punch\s*Thr(?:ough)?/gi, 'Punch Through')
+    .replace(/%\s*\*/g, '% ')
+    .replace(/\*\s*%/g, '%')
+    .replace(/([+\-]\d+(?:[.,]\d+)?)(%?)([A-Za-z])/g, '$1$2 $3')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function normalize(s: string) {
+  return scrubOcr(s)
     .toLowerCase()
+    .replace(/zo0m/g, 'zoom')
+    .replace(/mu1ti/g, 'multi')
+    .replace(/critica1/g, 'critical')
+    .replace(/\bdamag[eo]\b/g, 'damage')
     .replace(/[^a-z0-9%.\-\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
+/** Prefer longest alias match; allow truncated OCR prefixes ("critical cha", "multisho"). */
 function matchStat(rawName: string) {
   const n = normalize(rawName)
+  if (!n || n.length < 3) return null
+  let best: { canon: string; meta: (typeof STAT_META)[string] } | null = null
+  let bestLen = 0
   for (const [canon, meta] of Object.entries(STAT_META)) {
-    if (meta.aliases.some((a) => n.includes(a) || a.includes(n))) {
-      return { canon, meta }
+    for (const alias of meta.aliases) {
+      const prefixOk =
+        (alias.startsWith(n) && n.length >= 4) || (n.startsWith(alias) && alias.length >= 4)
+      if (
+        n === alias ||
+        n.includes(alias) ||
+        (alias.includes(n) && n.length >= 4) ||
+        prefixOk
+      ) {
+        if (alias.length > bestLen) {
+          bestLen = alias.length
+          best = { canon, meta }
+        }
+      }
     }
   }
-  return null
+  return best
 }
 
-/** Parse OCR block from one riven card into structured stats + weapon guess. */
-export function parseRivenOcr(ocrText: string, side: 'current' | 'reroll'): RivenRoll {
-  const lines = ocrText
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean)
+function parseNumberToken(raw: string): number | null {
+  const value = Number(raw.replace(',', '.').replace(/\s/g, ''))
+  return Number.isFinite(value) ? value : null
+}
 
-  let weapon = 'Unknown Riven'
+function buildStatLine(
+  valueRaw: string,
+  percentFlag: string,
+  namePart: string,
+  cleaned: string,
+): RivenStatLine | null {
+  const value = parseNumberToken(valueRaw)
+  if (value == null) return null
+  const unit: '%' | 'flat' = percentFlag === '%' ? '%' : 'flat'
+  const negative = value < 0 || /^\s*-/.test(valueRaw) || /^\s*-/.test(cleaned)
+  const abs = Math.abs(value)
+  const hit = matchStat(namePart)
+  const max = hit?.meta.max || (unit === '%' ? 100 : 10)
+  const quality = Math.max(0, Math.min(100, (abs / max) * 100))
+  const desirable = hit ? (hit.meta.goodWhenNegative ? negative : !negative) : !negative
+
+  return {
+    raw: cleaned,
+    name: hit?.canon || namePart.trim(),
+    value: negative ? -abs : abs,
+    unit: hit?.meta.unit || unit,
+    negative,
+    quality,
+    desirable,
+  }
+}
+
+const CARD_CHROME =
+  /^(accept|decline|cycle|kuva|confirm|cancel|riven|keep|take|current|new|reroll|vs|ok|yes|no|polarity|disposition|mastery)$/i
+
+function isWeaponCandidate(line: string): boolean {
+  if (line.length < 3 || line.length > 42) return false
+  if (/\d/.test(line)) return false
+  if (CARD_CHROME.test(line)) return false
+  if (/mod|polarity|rank|mr\b|current|reroll|vs\b|kuva|cycle/i.test(line)) return false
+  // Riven Latin names look like "Acri-critabin"
+  if (/^[A-Za-z]+-[a-z]+$/i.test(line)) return false
+  if (matchStat(line)) return false
+  return /[A-Za-z]/.test(line)
+}
+
+function guessWeapon(text: string): string {
+  // Full title: "Ignis Acri-critabin" / "Ignis Wraith Crita-geliada"
+  const full = text.match(
+    /\b([A-Z][a-z]+(?:\s+(?:Prime|Wraith|Vandal|Prisma|Coda|Kuva))?)\s+([A-Za-z]{3,}-[a-z]{3,})/i,
+  )
+  if (full) return `${full[1].trim()} ${full[2].trim()}`
+
+  const latinOnly = text.match(/\b([A-Za-z]{3,}-[a-z]{3,})\b/)
+  const weaponOnly = text.match(
+    /\b([A-Z][a-z]+(?:\s+(?:Prime|Wraith|Vandal|Prisma|Coda|Kuva))?)\b/,
+  )
+  if (weaponOnly && latinOnly && !matchStat(weaponOnly[1])) {
+    return `${weaponOnly[1]} ${latinOnly[1]}`
+  }
+  if (latinOnly) return latinOnly[1]
+
+  for (const line of text.split(/\r?\n/)) {
+    const cleaned = scrubOcr(line)
+    if (isWeaponCandidate(cleaned)) return cleaned
+  }
+  return 'Unknown Riven'
+}
+
+/**
+ * Pull every ±value + known-stat pair out of a mashed OCR blob.
+ * Handles lines like: "+55.2%*Cold +97%Critical Chance ... -39.9%Multishot"
+ */
+function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
+  const blob = scrubOcr(ocrText.replace(/\r?\n/g, ' '))
   const stats: RivenStatLine[] = []
+  const usedRanges: Array<{ start: number; end: number }> = []
 
-  for (const line of lines) {
-    const cleaned = line.replace(/\s+/g, ' ').trim()
-    // Skip UI chrome
-    if (/^(accept|decline|cycle|kuva|confirm|cancel|riven)$/i.test(cleaned)) continue
+  const overlaps = (start: number, end: number) =>
+    usedRanges.some((r) => start < r.end && end > r.start)
 
-    const m = cleaned.match(/^([+\-]?\s*\d+(?:[.,]\d+)?)\s*(%?)\s*(.+)$/i)
-    if (m) {
-      const value = Number(m[1].replace(',', '.').replace(/\s/g, ''))
-      if (!Number.isFinite(value)) continue
-      const unit: '%' | 'flat' = m[2] === '%' ? '%' : 'flat'
-      const namePart = m[3].trim()
-      const negative = value < 0 || /^\-/.test(m[1]) || /^-/.test(cleaned)
-      const abs = Math.abs(value)
-      const hit = matchStat(namePart)
-      const canon = hit?.canon || normalize(namePart)
-      const max = hit?.meta.max || (unit === '%' ? 100 : 10)
-      const quality = Math.max(0, Math.min(100, (abs / max) * 100))
-      const desirable = hit
-        ? hit.meta.goodWhenNegative
-          ? negative
-          : !negative
-        : !negative
-
-      stats.push({
-        raw: cleaned,
-        name: hit?.canon || namePart,
-        value: negative ? -abs : abs,
-        unit: hit?.meta.unit || unit,
-        negative,
-        quality,
-        desirable,
-      })
-      continue
+  // Longest aliases first so "critical chance" wins over nothing shorter colliding.
+  const aliasList: Array<{ alias: string; canon: string }> = []
+  for (const [canon, meta] of Object.entries(STAT_META)) {
+    for (const alias of meta.aliases) {
+      aliasList.push({ alias, canon })
     }
+  }
+  aliasList.sort((a, b) => b.alias.length - a.alias.length)
 
-    // Weapon / title line (no leading number)
-    if (!/\d/.test(cleaned) && cleaned.length > 2 && cleaned.length < 40) {
-      if (!/mod|polarity|rank|mr\b/i.test(cleaned)) {
-        weapon = cleaned.replace(/\briven\b/i, '').trim() || weapon
+  const lower = blob.toLowerCase()
+
+  const tryPush = (
+    valueRaw: string,
+    percent: string,
+    canon: string,
+    valueStart: number,
+    nameEnd: number,
+  ) => {
+    if (overlaps(valueStart, nameEnd)) return
+    const raw = blob.slice(valueStart, nameEnd).trim()
+    const stat = buildStatLine(valueRaw, percent, canon, raw)
+    if (!stat) return
+    const meta = STAT_META[canon]
+    if (meta && Math.abs(stat.value) > meta.max * 1.85) return
+    const existing = stats.findIndex((s) => s.name === stat.name)
+    if (existing >= 0) {
+      const prev = stats[existing]
+      const prevDist = Math.abs(Math.abs(prev.value) - meta.max * 0.55)
+      const nextDist = Math.abs(Math.abs(stat.value) - meta.max * 0.55)
+      if (nextDist < prevDist) stats[existing] = stat
+      usedRanges.push({ start: valueStart, end: nameEnd })
+      return
+    }
+    stats.push(stat)
+    usedRanges.push({ start: valueStart, end: nameEnd })
+  }
+
+  for (const { alias, canon } of aliasList) {
+    let from = 0
+    while (from < lower.length) {
+      const idx = lower.indexOf(alias, from)
+      if (idx < 0) break
+      const nameEnd = idx + alias.length
+      from = idx + 1
+      if (overlaps(idx, nameEnd)) continue
+
+      const left = blob.slice(Math.max(0, idx - 22), idx)
+      const signed = left.match(/([+\-]\s*\d+(?:[.,]\d+)?)\s*(%?)\s*$/)
+      if (signed) {
+        tryPush(signed[1], signed[2] || '', canon, idx - signed[0].length, nameEnd)
+        continue
+      }
+
+      // OCR often turns "+12.7%" into "x1.27" (plus→x, digit slip) before the stat name.
+      const xConfused = left.match(/\bx\s*(\d+[.,]\d+)\s*$/i)
+      if (xConfused) {
+        const meta = STAT_META[canon]
+        let n = Number(String(xConfused[1]).replace(',', '.'))
+        if (!Number.isFinite(n) || n <= 0) continue
+        // Real disposition is ~1.0–1.55; rolled % stats are rarely that small.
+        if (meta?.unit === '%' && n < 3.5 && meta.max >= 20) n = Math.round(n * 100) / 10
+        if (meta && n > meta.max * 1.85) continue
+        tryPush(`+${n}`, '%', canon, idx - xConfused[0].length, nameEnd)
       }
     }
   }
 
+  // Fallback: each ±value / x-value chunk → fuzzy-match the following words
+  if (stats.length < 4) {
+    const chunks = blob
+      .split(/(?=[+\-]\s*\d|\bx\s*\d)/i)
+      .map((c) => c.trim())
+      .filter(Boolean)
+    for (const chunk of chunks) {
+      let m = chunk.match(/^([+\-]\s*\d+(?:[.,]\d+)?)\s*(%?)\s*(.+)$/i)
+      let valueRaw = m?.[1]
+      let percent = m?.[2] || ''
+      let namePart = m?.[3]
+      if (!m) {
+        const xm = chunk.match(/^x\s*(\d+[.,]\d+)\s+(.+)$/i)
+        if (!xm) continue
+        let n = Number(String(xm[1]).replace(',', '.'))
+        namePart = xm[2]
+        const hitPreview = matchStat(namePart.replace(/\s*[+\-x]\s*\d[\s\S]*$/i, '').trim())
+        if (hitPreview?.meta.unit === '%' && n < 3.5 && hitPreview.meta.max >= 20) {
+          n = Math.round(n * 100) / 10
+        }
+        valueRaw = `+${n}`
+        percent = '%'
+      }
+      namePart = (namePart || '').replace(/\s*[+\-]\s*\d[\s\S]*$/i, '').replace(/\s*x\s*\d[\s\S]*$/i, '').trim()
+      if (!valueRaw || !namePart || namePart.length > 40) continue
+      const hit = matchStat(namePart)
+      if (!hit) continue
+      if (stats.some((s) => s.name === hit.canon)) continue
+      const stat = buildStatLine(valueRaw, percent || (hit.meta.unit === '%' ? '%' : ''), hit.canon, chunk.slice(0, 56))
+      if (!stat) continue
+      if (Math.abs(stat.value) > hit.meta.max * 1.85) continue
+      stats.push(stat)
+    }
+  }
+
+  return stats
+}
+
+/** Parse OCR block from one full riven card into structured stats + weapon guess. */
+export function parseRivenOcr(ocrText: string, side: 'current' | 'reroll'): RivenRoll {
+  const scrubbed = scrubOcr(ocrText)
+  const stats = extractStatsFromBlob(scrubbed)
+  const weapon = guessWeapon(scrubbed)
   const { score, tier } = gradeRoll(stats)
   return {
     side,
