@@ -1,13 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useSharedNow } from './NowContext'
 
-/** Re-render roughly once per second so countdown labels stay live. */
-export function useNow(intervalMs = 1000): number {
-  const [now, setNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), intervalMs)
-    return () => window.clearInterval(id)
-  }, [intervalMs])
-
-  return now
+/**
+ * Live clock for countdown labels. Prefer wrapping the app in NowProvider
+ * so all panels share one interval.
+ */
+export function useNow(_intervalMs = 1000): number {
+  return useSharedNow()
 }

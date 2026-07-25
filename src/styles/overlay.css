@@ -9,16 +9,28 @@
 
 .overlay-root.layout-edit {
   pointer-events: auto;
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.2);
 }
 
-/* Solid panels — backdrop-filter breaks Electron transparent windows on Windows */
+/* Solid panels — backdrop-filter breaks Electron transparent windows on Windows.
+   No continuous CSS animations while gaming (compositor cost). */
 .overlay-root .vl-panel {
-  background: rgba(10, 16, 22, 0.94);
+  background: var(--vl-panel-solid);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border: 1px solid rgba(201, 164, 92, 0.45);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(201, 164, 92, 0.48);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: none;
+  transition: none;
+}
+
+.overlay-root .vl-panel:hover {
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.overlay-root .vl-panel::before {
+  animation: none;
+  background: linear-gradient(90deg, var(--vl-gold), var(--vl-teal-bright), transparent 70%);
 }
 
 .overlay-panel {
@@ -26,7 +38,11 @@
   min-width: 280px;
   max-width: 380px;
   pointer-events: none;
-  animation: panelIn 280ms var(--vl-ease) both;
+  animation: none;
+}
+
+.overlay-root .relic-card--needed {
+  animation: none;
 }
 
 .overlay-root.layout-edit .overlay-panel {
@@ -38,30 +54,21 @@
   cursor: grabbing;
 }
 
-@keyframes panelIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .overlay-empty {
   position: fixed;
   left: 24px;
   top: 24px;
-  max-width: 320px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: rgba(10, 16, 22, 0.94);
-  border: 1px solid rgba(201, 164, 92, 0.4);
+  max-width: 340px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--vl-panel-solid);
+  border: 1px solid rgba(201, 164, 92, 0.45);
   color: var(--vl-frost);
   font-size: 0.9rem;
-  line-height: 1.4;
+  line-height: 1.45;
   pointer-events: none;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  animation: none;
 }
 
 .overlay-hint {
@@ -69,11 +76,14 @@
   left: 50%;
   bottom: 28px;
   transform: translateX(-50%);
-  padding: 10px 16px;
+  padding: 11px 18px;
   border-radius: 999px;
-  background: rgba(12, 20, 28, 0.92);
-  border: 1px solid rgba(201, 164, 92, 0.35);
+  background: rgba(5, 9, 13, 0.96);
+  border: 1px solid rgba(184, 148, 79, 0.35);
   color: var(--vl-gold-soft);
   font-size: 0.85rem;
+  letter-spacing: 0.02em;
   pointer-events: none;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  animation: none;
 }

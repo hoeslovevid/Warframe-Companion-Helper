@@ -16,6 +16,7 @@ export type HotkeyConfig = {
   openCompanion: string
   refreshWorldstate: string
   scanRelics: string
+  editLayout: string
 }
 
 export type InventorySource = 'none' | 'manual' | 'detected' | 'helper' | 'alecaframe'
@@ -95,6 +96,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     openCompanion: 'Alt+Shift+C',
     refreshWorldstate: 'Alt+Shift+R',
     scanRelics: 'Alt+Shift+F',
+    editLayout: 'Alt+Shift+E',
   },
   eeLogPath: '',
   inventoryPath: '',

@@ -5,7 +5,6 @@ import {
   ModuleId,
   WorldstateSnapshot,
 } from '../../shared/types'
-import { isExpired } from '../lib/time'
 
 const emptyWorldstate: WorldstateSnapshot = {
   fetchedAt: '',
@@ -18,20 +17,6 @@ const emptyWorldstate: WorldstateSnapshot = {
 
 function api() {
   return window.voidlens
-}
-
-function collectExpiries(data: WorldstateSnapshot): string[] {
-  const list: string[] = []
-  for (const c of data.cycles) if (c.expiry) list.push(c.expiry)
-  for (const f of data.fissures) if (f.expiry) list.push(f.expiry)
-  // Only the relevant upcoming Baro boundary — past activation must not force refresh loops
-  if (data.baro) {
-    if (data.baro.active && data.baro.departure) list.push(data.baro.departure)
-    else if (!data.baro.active && data.baro.arrival) list.push(data.baro.arrival)
-  }
-  if (data.arbitration?.expiry) list.push(data.arbitration.expiry)
-  if (data.nightwave?.expiry) list.push(data.nightwave.expiry)
-  return list
 }
 
 export function useSettings() {
@@ -74,7 +59,6 @@ export function useWorldstate() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const refreshingRef = useRef(false)
-  const lastExpiryRefreshRef = useRef(0)
 
   const refresh = useCallback(async (quiet = false) => {
     if (!api() || refreshingRef.current) {
@@ -110,26 +94,12 @@ export function useWorldstate() {
       } finally {
         setLoading(false)
       }
+      // Expiry rollover is handled in the main process (avoids dual 1s polls)
       unsub = api().onWorldstateUpdated(setData)
     }
     void boot()
     return () => unsub()
   }, [])
-
-  // When a countdown hits zero, pull fresh worldstate so states/nodes roll over
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      const expiries = collectExpiries(data)
-      if (expiries.length === 0) return
-      const now = Date.now()
-      const anyExpired = expiries.some((e) => isExpired(e, now))
-      if (!anyExpired) return
-      if (now - lastExpiryRefreshRef.current < 5000) return
-      lastExpiryRefreshRef.current = now
-      void refresh(true)
-    }, 1000)
-    return () => window.clearInterval(id)
-  }, [data, refresh])
 
   return { data, loading, error, refresh }
 }

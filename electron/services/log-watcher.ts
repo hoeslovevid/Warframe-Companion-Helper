@@ -31,9 +31,9 @@ export class LogWatcher extends EventEmitter {
     }
   }
 
-  start() {
+  start(intervalMs = 2500) {
     this.stop()
-    this.timer = setInterval(() => this.tick(), 1000)
+    this.timer = setInterval(() => this.tick(), intervalMs)
   }
 
   stop() {

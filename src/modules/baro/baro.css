@@ -1,7 +1,7 @@
 .baro-inv {
   margin-top: 4px;
   border-top: 1px solid rgba(157, 180, 196, 0.12);
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .baro-inv__head,
@@ -13,11 +13,12 @@
 }
 
 .baro-inv__head {
-  color: var(--vl-mist);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  color: var(--vl-mist-dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  padding: 0 10px;
 }
 
 .baro-inv__head span:nth-child(2),
@@ -33,9 +34,20 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 4px;
   max-height: 340px;
   overflow: auto;
+  padding-right: 4px;
+}
+
+.baro-inv__row {
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 140ms var(--vl-ease);
+}
+
+.baro-inv__row:hover {
+  background: rgba(201, 164, 92, 0.08);
 }
 
 .baro-inv__name {
@@ -50,18 +62,21 @@
   color: var(--vl-gold-soft);
   font-variant-numeric: tabular-nums;
   font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .baro-inv__credits {
   color: var(--vl-teal-bright);
   font-variant-numeric: tabular-nums;
   font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .baro-inv__more {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   color: var(--vl-mist);
   font-size: 0.78rem;
+  text-align: center;
 }
 
 .overlay-root .baro-inv__list {

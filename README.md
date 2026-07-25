@@ -53,8 +53,17 @@ Outputs land in `release/` (NSIS setup + portable).
 | Open companion | `Alt+Shift+C` |
 | Refresh worldstate | `Alt+Shift+R` |
 | Scan relic rewards | `Alt+Shift+F` |
+| Edit overlay layout | `Alt+Shift+E` |
 
 If a shortcut is taken, the app tries fallbacks. Change them under **Settings → Hotkeys**.
+
+## Performance tips
+
+VoidLens runs at below-normal process priority, pauses overlay clocks when the overlay is hidden, and loads OCR only on the first relic scan. For the lightest footprint while playing:
+
+- Minimize or close the **Companion** window (hotkeys still work)
+- Disable modules you do not need
+- Toggle the overlay off (`Alt+Shift+V`) when you want zero on-screen cost
 
 ## Modules
 

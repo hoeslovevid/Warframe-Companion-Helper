@@ -4,6 +4,7 @@ import { Panel } from '../../components/Panel'
 import { ToggleRow } from '../../components/ToggleRow'
 import { InventorySettings } from '../../components/InventorySettings'
 import { UpdateSettings } from '../../components/UpdateSettings'
+import { NowProvider } from '../../hooks/NowContext'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
 import { CyclesPanel } from '../../modules/cycles/CyclesPanel'
 import { FissuresPanel } from '../../modules/fissures/FissuresPanel'
@@ -29,15 +30,29 @@ export function CompanionApp() {
   )
 
   if (!ready) {
-    return <div className="companion-root companion-main">Loading VoidLens…</div>
+    return (
+      <div className="companion-root companion-main">
+        <div className="brand-lockup">
+          <div className="brand-mark" aria-hidden />
+          <h1 className="brand">VoidLens</h1>
+        </div>
+        <p className="muted">Calibrating companion…</p>
+      </div>
+    )
   }
 
   return (
+    <NowProvider active intervalMs={1000}>
     <div className="companion-root">
       <div className="companion-shell">
         <aside className="companion-nav">
-          <h1 className="brand">VoidLens</h1>
-          <p className="brand-sub">Warframe overlay companion for cycles, relics, and more.</p>
+          <div className="brand-lockup">
+            <div className="brand-mark" aria-hidden />
+            <div>
+              <h1 className="brand">VoidLens</h1>
+            </div>
+          </div>
+          <p className="brand-sub">Warframe companion for cycles, relics, Baro, and more.</p>
           <button
             className={`nav-btn ${tab === 'dashboard' ? 'active' : ''}`}
             onClick={() => setTab('dashboard')}
@@ -61,11 +76,14 @@ export function CompanionApp() {
         <main className="companion-main">
           {tab === 'dashboard' ? (
             <>
-              <h2 className="page-title">Dashboard</h2>
-              <p className="page-desc">
-                Live worldstate for your enabled modules. Keep Warframe in Borderless Windowed for
-                the overlay to sit above the game.
-              </p>
+              <header className="page-header">
+                <h2 className="page-title">Dashboard</h2>
+                <div className="page-title-rule" />
+                <p className="page-desc">
+                  Live worldstate for your enabled modules. Keep Warframe in Borderless Windowed so
+                  the overlay can sit above the game.
+                </p>
+              </header>
               <div className="toolbar">
                 <button className="btn primary" onClick={() => void refresh()}>
                   Refresh worldstate
@@ -134,11 +152,14 @@ export function CompanionApp() {
 
           {tab === 'modules' ? (
             <>
-              <h2 className="page-title">Modules</h2>
-              <p className="page-desc">
-                Toggle what appears in the overlay and dashboard. Relics and Arbitration shells are
-                ready; deep automation arrives in later phases.
-              </p>
+              <header className="page-header">
+                <h2 className="page-title">Modules</h2>
+                <div className="page-title-rule" />
+                <p className="page-desc">
+                  Choose what appears in the overlay and dashboard. Relic scanning and inventory
+                  tags are live; arbitration analytics come later.
+                </p>
+              </header>
               <Panel title="Toggleable modules">
                 {(Object.keys(MODULE_META) as ModuleId[]).map((id) => {
                   const meta = MODULE_META[id]
@@ -183,11 +204,14 @@ export function CompanionApp() {
 
           {tab === 'settings' ? (
             <>
-              <h2 className="page-title">Settings</h2>
-              <p className="page-desc">
-                Paths, hotkeys, and inventory sync. Inventory stays on your PC and powers future
-                “needed for set” relic tags.
-              </p>
+              <header className="page-header">
+                <h2 className="page-title">Settings</h2>
+                <div className="page-title-rule" />
+                <p className="page-desc">
+                  Appearance, hotkeys, inventory sync, and updates. Inventory stays local and powers
+                  “needed for set” relic tags.
+                </p>
+              </header>
 
               <div className="grid-2">
                 <Panel title="Appearance">
@@ -213,7 +237,7 @@ export function CompanionApp() {
                   />
                   <ToggleRow
                     label="Layout edit mode"
-                    description="Disables click-through so you can drag overlay panels"
+                    description={`Disables click-through so you can drag overlay panels (${settings.hotkeys.editLayout})`}
                     checked={settings.layoutEditMode}
                     onChange={(enabled) => void updateSettings({ layoutEditMode: enabled })}
                   />
@@ -268,8 +292,21 @@ export function CompanionApp() {
                       }
                     />
                   </div>
+                  <div className="field">
+                    <label htmlFor="hk-layout">Edit overlay layout</label>
+                    <input
+                      id="hk-layout"
+                      value={settings.hotkeys.editLayout}
+                      onChange={(e) =>
+                        void updateSettings({
+                          hotkeys: { ...settings.hotkeys, editLayout: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
                   <p className="muted">
-                    Use Electron accelerator syntax. Default relic scan: Alt+Shift+F
+                    Use Electron accelerator syntax. Defaults: overlay Alt+Shift+V, layout edit
+                    Alt+Shift+E, relics Alt+Shift+F
                   </p>
                 </Panel>
 
@@ -296,14 +333,15 @@ export function CompanionApp() {
 
               </div>
 
-              <div style={{ height: 16 }} />
+              <div className="section-gap" />
               <InventorySettings />
-              <div style={{ height: 16 }} />
+              <div className="section-gap" />
               <UpdateSettings />
             </>
           ) : null}
         </main>
       </div>
     </div>
+    </NowProvider>
   )
 }

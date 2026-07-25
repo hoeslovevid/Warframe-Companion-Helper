@@ -4,7 +4,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .mod-row {
@@ -12,6 +12,16 @@
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--vl-radius-sm);
+  background: rgba(6, 10, 15, 0.28);
+  border: 1px solid rgba(157, 180, 196, 0.08);
+  transition: border-color 160ms var(--vl-ease), background 160ms var(--vl-ease);
+}
+
+.mod-row:hover {
+  background: rgba(58, 168, 160, 0.07);
+  border-color: rgba(58, 168, 160, 0.18);
 }
 
 .mod-row__title {
@@ -22,21 +32,28 @@
 .mod-row__meta {
   color: var(--vl-mist);
   font-size: 0.78rem;
-  margin-top: 2px;
+  margin-top: 3px;
+  line-height: 1.35;
 }
 
 .mod-row__value {
   color: var(--vl-teal-bright);
   font-variant-numeric: tabular-nums;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
+  font-weight: 600;
   white-space: nowrap;
+  padding-top: 1px;
 }
 
 .mod-empty {
   margin: 0;
   color: var(--vl-mist);
   font-size: 0.85rem;
-  line-height: 1.45;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: var(--vl-radius-sm);
+  border: 1px dashed rgba(157, 180, 196, 0.2);
+  background: rgba(6, 10, 15, 0.22);
 }
 
 .mod-stack {
@@ -49,6 +66,9 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(6, 10, 15, 0.22);
 }
 
 .mod-stat__label {
@@ -70,5 +90,9 @@
   padding-left: 18px;
   color: var(--vl-mist);
   font-size: 0.85rem;
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+.mod-bullets li::marker {
+  color: var(--vl-gold);
 }

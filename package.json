@@ -1,6 +1,6 @@
 {
   "name": "warframe-companion-helper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Warframe Companion Helper (VoidLens) — overlay for worldstate, relics, and inventory",
   "main": "dist-electron/main.cjs",
   "author": "VoidLens",
@@ -53,7 +53,15 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
+      "resources/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources",
+        "filter": ["**/*"]
+      }
     ],
     "asar": true,
     "asarUnpack": [

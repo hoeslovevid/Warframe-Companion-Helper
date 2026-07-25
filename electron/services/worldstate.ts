@@ -232,3 +232,21 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     arbitration: arb,
   }
 }
+
+/** True when any cached countdown boundary has passed (main-process rollover). */
+export function hasExpiredWorldstate(data: WorldstateSnapshot, now = Date.now()): boolean {
+  const expiries: string[] = []
+  for (const c of data.cycles) if (c.expiry) expiries.push(c.expiry)
+  for (const f of data.fissures) if (f.expiry) expiries.push(f.expiry)
+  if (data.baro) {
+    if (data.baro.active && data.baro.departure) expiries.push(data.baro.departure)
+    else if (!data.baro.active && data.baro.arrival) expiries.push(data.baro.arrival)
+  }
+  if (data.arbitration?.expiry) expiries.push(data.arbitration.expiry)
+  if (data.nightwave?.expiry) expiries.push(data.nightwave.expiry)
+
+  return expiries.some((e) => {
+    const end = new Date(e).getTime()
+    return Number.isFinite(end) && end <= now
+  })
+}

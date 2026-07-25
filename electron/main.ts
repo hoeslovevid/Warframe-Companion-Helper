@@ -8,10 +8,12 @@ import {
   Tray,
   nativeImage,
 } from 'electron'
+import os from 'node:os'
 import path from 'node:path'
+import { getAppIcon, getTrayIcon } from './app-icon'
 import { createOverlayWindow, setOverlayClickThrough } from './overlay-window'
 import { loadSettings, setModuleEnabled, updateSettings } from './settings'
-import { fetchWorldstate } from './services/worldstate'
+import { fetchWorldstate, hasExpiredWorldstate } from './services/worldstate'
 import { detectEeLogPath } from './services/log-path'
 import {
   clearInventoryData,
@@ -30,7 +32,6 @@ import {
   getRelicScanState,
   onRelicScanUpdated,
   scanRelicRewards,
-  warmupRelicScanner,
 } from './services/relic-scanner'
 import {
   checkForAppUpdates,
@@ -59,7 +60,24 @@ let overlayWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let worldstateCache: WorldstateSnapshot | null = null
 let worldstateTimer: NodeJS.Timeout | null = null
+let expiryTimer: NodeJS.Timeout | null = null
+let lastExpiryRefresh = 0
 const logWatcher = new LogWatcher()
+
+function preferLowerProcessPriority() {
+  try {
+    os.setPriority(os.constants.priority.PRIORITY_BELOW_NORMAL)
+    console.info('[VoidLens] Process priority set to below-normal')
+  } catch (err) {
+    console.warn('[VoidLens] Could not lower process priority', err)
+  }
+}
+
+function applyOverlayPerformanceMode(visible: boolean) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return
+  // When hidden, let Chromium throttle; when shown, keep timers accurate for countdowns
+  overlayWindow.webContents.setBackgroundThrottling(!visible)
+}
 
 async function runRelicScan(trigger: 'manual' | 'log') {
   // Ensure relics module + overlay are visible for results
@@ -152,6 +170,7 @@ function createCompanionWindow() {
     return companionWindow
   }
 
+  const appIcon = getAppIcon()
   companionWindow = new BrowserWindow({
     width: 1100,
     height: 740,
@@ -161,6 +180,7 @@ function createCompanionWindow() {
     title: 'VoidLens',
     show: false,
     autoHideMenuBar: true,
+    icon: appIcon.isEmpty() ? undefined : appIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -202,6 +222,7 @@ function createCompanionWindow() {
 function applyOverlayVisibility(visible: boolean) {
   if (!overlayWindow || overlayWindow.isDestroyed()) return
   if (visible) {
+    applyOverlayPerformanceMode(true)
     overlayWindow.showInactive()
     // Re-raise companion so overlay creation/show never hides it
     if (companionWindow && !companionWindow.isDestroyed() && companionWindow.isVisible()) {
@@ -209,8 +230,20 @@ function applyOverlayVisibility(visible: boolean) {
     }
   } else {
     overlayWindow.hide()
+    applyOverlayPerformanceMode(false)
   }
   broadcastOverlayVisibility(visible)
+}
+
+function checkWorldstateExpiries() {
+  if (!worldstateCache) return
+  if (!hasExpiredWorldstate(worldstateCache)) return
+  const now = Date.now()
+  if (now - lastExpiryRefresh < 5000) return
+  lastExpiryRefresh = now
+  void refreshWorldstate(true).catch((err) =>
+    console.error('[VoidLens] Expiry refresh failed', err),
+  )
 }
 
 function applyLayoutEditMode(enabled: boolean) {
@@ -223,6 +256,13 @@ const HOTKEY_FALLBACKS: Record<keyof AppSettings['hotkeys'], string[]> = {
   openCompanion: ['Alt+Shift+C', 'Alt+Shift+L', 'F9', 'CommandOrControl+Alt+C'],
   refreshWorldstate: ['Alt+Shift+R', 'F10', 'CommandOrControl+Alt+R'],
   scanRelics: ['Alt+Shift+F', 'F2', 'CommandOrControl+Alt+F'],
+  editLayout: ['Alt+Shift+E', 'Alt+Shift+X', 'F7', 'CommandOrControl+Alt+E'],
+}
+
+function toggleLayoutEditMode() {
+  const next = updateSettings({ layoutEditMode: !loadSettings().layoutEditMode })
+  applyLayoutEditMode(next.layoutEditMode)
+  broadcastSettings(next)
 }
 
 function registerOneHotkey(
@@ -315,6 +355,19 @@ function registerHotkeys() {
     changed = true
   }
 
+  const editLayout = registerOneHotkey(
+    settings.hotkeys.editLayout,
+    HOTKEY_FALLBACKS.editLayout,
+    () => {
+      toggleLayoutEditMode()
+    },
+    'editLayout',
+  )
+  if (editLayout && editLayout !== settings.hotkeys.editLayout) {
+    nextHotkeys.editLayout = editLayout
+    changed = true
+  }
+
   if (changed) {
     const next = updateSettings({ hotkeys: nextHotkeys })
     broadcastSettings(next)
@@ -323,19 +376,15 @@ function registerHotkeys() {
 
 function createTray() {
   try {
-    // Simple 16x16 teal PNG (valid IHDR)
-    const png = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGD4z0AEYBxVMFRgwP+BAsMogqECg/+MDAwMDMMpgqECgwYGBgYGRgYGADqmAwF5Ww6eAAAAAElFTkSuQmCC',
-      'base64',
-    )
-    let icon = nativeImage.createFromBuffer(png)
+    let icon = getTrayIcon()
     if (icon.isEmpty()) {
+      console.warn('[VoidLens] Tray icon missing — using fallback glyph')
       icon = nativeImage.createFromDataURL(
-        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGD4z0AEYBxVMFRgwP+BAsMogqECg/+MDAwMDMMpgqECgwYGBgYGRgYGADqmAwF5Ww6eAAAAAElFTkSuQmCC',
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAbElEQVR4Ae3XwQnAIAxA0Z7dO7iDR3ADZ3AEd3AER3AER3AHZ5DfQyCBhEBKeQehIeTjJUmSJEmS/g0A7gCuAO4ALgDOAI4A9gC2ANYAlgBmACYAhgA6AJoAKgCKAJIAYgDC/zvP8zzP8zzP8/wD2wM3J5oF2mYAAAAASUVORK5CYII=',
       )
     }
     tray = new Tray(icon)
-    tray.setToolTip('VoidLens')
+    tray.setToolTip('VoidLens — Warframe Companion Helper')
     const menu = Menu.buildFromTemplate([
       {
         label: 'Open Companion',
@@ -348,6 +397,10 @@ function createTray() {
           applyOverlayVisibility(next.overlayVisible)
           broadcastSettings(next)
         },
+      },
+      {
+        label: 'Toggle Layout Edit',
+        click: () => toggleLayoutEditMode(),
       },
       { type: 'separator' },
       {
@@ -513,8 +566,9 @@ app.whenReady().then(async () => {
       void runRelicScan('log')
     }
   })
-  logWatcher.start()
+  logWatcher.start(2500)
 
+  preferLowerProcessPriority()
   registerHotkeys()
   createTray()
   initAutoUpdater()
@@ -525,13 +579,15 @@ app.whenReady().then(async () => {
     console.error('Initial worldstate fetch failed', err)
   }
 
-  void warmupRelicScanner().catch((err) =>
-    console.warn('[VoidLens] Relic scanner warmup failed', err),
-  )
+  // OCR/catalog warmup deferred until first relic scan (avoids startup CPU/RAM spike)
 
   worldstateTimer = setInterval(() => {
     void refreshWorldstate(true).catch((err) => console.error(err))
   }, 60_000)
+
+  expiryTimer = setInterval(() => checkWorldstateExpiries(), 2000)
+
+  applyOverlayPerformanceMode(loadSettings().overlayVisible)
 
   app.on('activate', () => {
     createCompanionWindow()
@@ -542,6 +598,7 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   logWatcher.stop()
   if (worldstateTimer) clearInterval(worldstateTimer)
+  if (expiryTimer) clearInterval(expiryTimer)
 })
 
 app.on('window-all-closed', () => {

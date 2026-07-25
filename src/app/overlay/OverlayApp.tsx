@@ -1,5 +1,6 @@
 import { PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ModuleId, PanelAnchor } from '../../../shared/types'
+import { NowProvider } from '../../hooks/NowContext'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
 import { CyclesPanel } from '../../modules/cycles/CyclesPanel'
 import { FissuresPanel } from '../../modules/fissures/FissuresPanel'
@@ -68,64 +69,69 @@ export function OverlayApp() {
   }, [updateSettings])
 
   // Keep the transparent window empty while booting / when toggled off (window is also hidden)
+  // No NowProvider here — stops the shared 1s clock while the overlay is off.
   if (!ready || !settings.overlayVisible) {
     return <div className="overlay-root" />
   }
 
   return (
-    <div
-      className={`overlay-root ${settings.layoutEditMode ? 'layout-edit' : ''}`}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-    >
-      {modules.length === 0 ? (
-        <div className="overlay-empty">
-          No modules enabled. Open the companion (Alt+Shift+C) and turn on Cycles, Fissures, or
-          Baro under Modules.
-        </div>
-      ) : null}
-
-      {modules.map((id) => {
-        const anchor = anchors[id] || { x: 24, y: 24 }
-        return (
-          <div
-            key={id}
-            className="overlay-panel"
-            style={{
-              left: anchor.x,
-              top: anchor.y,
-              zIndex: dragging === id ? 20 : 1,
-            }}
-            onPointerDown={(e) => onPointerDown(id, e)}
-          >
-            {id === 'cycles' ? (
-              <CyclesPanel cycles={data.cycles} opacity={settings.opacity} compact />
-            ) : null}
-            {id === 'fissures' ? (
-              <FissuresPanel
-                fissures={data.fissures}
-                tiers={settings.fissureTiers}
-                opacity={settings.opacity}
-                compact
-              />
-            ) : null}
-            {id === 'baro' ? (
-              <BaroPanel baro={data.baro} opacity={settings.opacity} compact />
-            ) : null}
-            {id === 'nightwave' ? (
-              <NightwavePanel nightwave={data.nightwave} opacity={settings.opacity} />
-            ) : null}
-            {id === 'relics' ? <RelicsPanel opacity={settings.opacity} compact /> : null}
-            {id === 'arbitration' ? (
-              <ArbitrationPanel arbitration={data.arbitration} opacity={settings.opacity} />
-            ) : null}
+    <NowProvider active intervalMs={1000}>
+      <div
+        className={`overlay-root ${settings.layoutEditMode ? 'layout-edit' : ''}`}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      >
+        {modules.length === 0 ? (
+          <div className="overlay-empty">
+            No modules enabled. Open the companion (Alt+Shift+C) and turn on Cycles, Fissures, or
+            Baro under Modules.
           </div>
-        )
-      })}
+        ) : null}
 
-      {settings.layoutEditMode ? (
-        <div className="overlay-hint">Drag panels to reposition · disable layout edit when done</div>
-      ) : null}
-    </div>
+        {modules.map((id) => {
+          const anchor = anchors[id] || { x: 24, y: 24 }
+          return (
+            <div
+              key={id}
+              className="overlay-panel"
+              style={{
+                left: anchor.x,
+                top: anchor.y,
+                zIndex: dragging === id ? 20 : 1,
+              }}
+              onPointerDown={(e) => onPointerDown(id, e)}
+            >
+              {id === 'cycles' ? (
+                <CyclesPanel cycles={data.cycles} opacity={settings.opacity} compact />
+              ) : null}
+              {id === 'fissures' ? (
+                <FissuresPanel
+                  fissures={data.fissures}
+                  tiers={settings.fissureTiers}
+                  opacity={settings.opacity}
+                  compact
+                />
+              ) : null}
+              {id === 'baro' ? (
+                <BaroPanel baro={data.baro} opacity={settings.opacity} compact />
+              ) : null}
+              {id === 'nightwave' ? (
+                <NightwavePanel nightwave={data.nightwave} opacity={settings.opacity} />
+              ) : null}
+              {id === 'relics' ? <RelicsPanel opacity={settings.opacity} compact /> : null}
+              {id === 'arbitration' ? (
+                <ArbitrationPanel arbitration={data.arbitration} opacity={settings.opacity} />
+              ) : null}
+            </div>
+          )
+        })}
+
+        {settings.layoutEditMode ? (
+          <div className="overlay-hint">
+            Drag panels to reposition · {settings.hotkeys.editLayout} to lock
+          </div>
+        ) : null}
+      </div>
+    </NowProvider>
   )
 }
