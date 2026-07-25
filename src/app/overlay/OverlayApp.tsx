@@ -3,6 +3,7 @@ import { ModuleId, PanelAnchor } from '../../../shared/types'
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { NowProvider } from '../../hooks/NowContext'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
+import { prettyHotkey } from '../../lib/hotkey'
 import '../../styles/overlay.css'
 
 export function OverlayApp() {
@@ -29,6 +30,20 @@ export function OverlayApp() {
     [updateSettings],
   )
 
+  const dismissDragHint = useCallback(() => {
+    if (settings.overlayDragHintDismissed) return
+    void updateSettings({ overlayDragHintDismissed: true })
+  }, [settings.overlayDragHintDismissed, updateSettings])
+
+  const hotkeyLabel = prettyHotkey(settings.hotkeys.editLayout)
+  const dragHint = settings.overlayDragHintDismissed
+    ? undefined
+    : settings.layoutEditMode
+      ? 'Drag to move (position saves) · left or right mouse'
+      : hotkeyLabel
+        ? `${hotkeyLabel}, then drag to move`
+        : undefined
+
   if (!ready || !settings.overlayVisible) {
     return <div className="overlay-root" />
   }
@@ -42,14 +57,17 @@ export function OverlayApp() {
         data={data}
         anchors={anchors}
         opacity={settings.opacity}
+        overlayScale={settings.overlayScale}
         fissureTiers={settings.fissureTiers}
+        dragHint={dragHint}
         hint={
           settings.layoutEditMode
-            ? `Drag panels to reposition · ${settings.hotkeys.editLayout} to lock`
+            ? `${hotkeyLabel || 'Hotkey'} again to lock · positions auto-save`
             : undefined
         }
         onAnchorsChange={setAnchors}
         onAnchorsCommit={commitAnchors}
+        onPanelMoved={dismissDragHint}
       />
     </NowProvider>
   )

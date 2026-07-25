@@ -31,6 +31,34 @@
   transform: translateX(-50%);
 }
 
+/* WFHelper-style teaching chip */
+.overlay-drag-hint {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  pointer-events: none;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--vl-gold-soft);
+  background: rgba(5, 9, 13, 0.92);
+  border: 1px solid rgba(184, 148, 79, 0.4);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.overlay-layout-stage.is-preview .overlay-drag-hint {
+  position: absolute;
+}
+
+html.is-overlay-dragging,
+html.is-overlay-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
 .overlay-layout-stage.is-preview.layout-edit {
   background:
     radial-gradient(800px 400px at 20% 10%, rgba(47, 143, 136, 0.1), transparent 55%),

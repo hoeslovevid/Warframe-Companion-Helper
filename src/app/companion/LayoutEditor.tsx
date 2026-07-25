@@ -19,7 +19,9 @@ type Props = {
   settingsModules: Record<ModuleId, boolean>
   panelAnchors: Partial<Record<ModuleId, PanelAnchor>>
   opacity: number
+  overlayScale: number
   fissureTiers: string[]
+  interactionHotkey: string
   liveData: WorldstateSnapshot
   onSaveAnchors: (anchors: Partial<Record<ModuleId, PanelAnchor>>) => void
 }
@@ -28,7 +30,9 @@ export function LayoutEditor({
   settingsModules,
   panelAnchors,
   opacity,
+  overlayScale,
   fissureTiers,
+  interactionHotkey,
   liveData,
   onSaveAnchors,
 }: Props) {
@@ -80,8 +84,9 @@ export function LayoutEditor({
         <h2 className="page-title">Layout</h2>
         <div className="page-title-rule" />
         <p className="page-desc">
-          Drag panels on this mock display to set overlay positions. Changes apply to the live
-          overlay — including Relic Rewards (shown here with sample cards).
+          Arrange overlays on this mock monitor (WFHelper-style: unlock, then drag). Left- or
+          right-drag any panel — including Relic Rewards with sample cards. Positions save to the
+          live overlay. In-game, press <strong>{interactionHotkey}</strong> to unlock and drag.
         </p>
       </header>
 
@@ -89,7 +94,7 @@ export function LayoutEditor({
         <button className="btn ghost" onClick={reset}>
           Reset positions
         </button>
-        <span className="pill muted">Drag any panel · auto-saves</span>
+        <span className="pill muted">Left or right drag · auto-saves</span>
       </div>
 
       <div style={{ marginBottom: 14, maxWidth: 520 }}>
@@ -124,11 +129,13 @@ export function LayoutEditor({
               data={previewData}
               anchors={anchors}
               opacity={opacity}
+              overlayScale={overlayScale}
               fissureTiers={fissureTiers}
               designWidth={DESIGN_W}
               designHeight={DESIGN_H}
               relicPreviewRewards={MOCK_RELIC_REWARDS}
-              hint="Drag panels to reposition · positions match the in-game overlay"
+              dragHint="Drag to move (position saves)"
+              hint="Positions match the in-game overlay · left or right mouse"
               onAnchorsChange={setAnchors}
               onAnchorsCommit={commit}
             />
@@ -138,8 +145,8 @@ export function LayoutEditor({
 
       <p className="muted" style={{ marginTop: 8 }}>
         Preview uses a 1920×1080 canvas. On other resolutions, panels keep the same pixel offsets
-        from the top-left of your primary monitor. In-game quick edit still works via{' '}
-        <strong>Alt+Shift+E</strong>.
+        from the top-left of your primary monitor. In-game: press <strong>{interactionHotkey}</strong>{' '}
+        to unlock click-through, drag panels, then press it again to lock.
       </p>
     </>
   )

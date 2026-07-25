@@ -257,7 +257,8 @@ const HOTKEY_FALLBACKS: Record<keyof AppSettings['hotkeys'], string[]> = {
   openCompanion: ['Alt+Shift+C', 'Alt+Shift+L', 'F9', 'CommandOrControl+Alt+C'],
   refreshWorldstate: ['Alt+Shift+R', 'F10', 'CommandOrControl+Alt+R'],
   scanRelics: ['Alt+Shift+F', 'F2', 'CommandOrControl+Alt+F'],
-  editLayout: ['Alt+Shift+E', 'Alt+Shift+X', 'F7', 'CommandOrControl+Alt+E'],
+  // WFHelper uses Control+Tab to unlock overlay interaction
+  editLayout: ['Control+Tab', 'Alt+Shift+E', 'Alt+Shift+X', 'F7'],
 }
 
 function toggleLayoutEditMode() {

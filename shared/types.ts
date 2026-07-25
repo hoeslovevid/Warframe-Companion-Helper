@@ -25,6 +25,8 @@ export type AppSettings = {
   modules: Record<ModuleId, boolean>
   panelAnchors: Partial<Record<ModuleId, PanelAnchor>>
   opacity: number
+  /** Visual scale for overlay panels (WFHelper-style). */
+  overlayScale: number
   hotkeys: HotkeyConfig
   eeLogPath: string
   inventoryPath: string
@@ -34,6 +36,8 @@ export type AppSettings = {
   fissureTiers: string[]
   overlayVisible: boolean
   layoutEditMode: boolean
+  /** After the user has dragged a live overlay once, hide the move-hint chip. */
+  overlayDragHintDismissed: boolean
 }
 
 export const MODULE_META: Record<
@@ -90,13 +94,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
     arbitration: { x: 420, y: 420 },
   },
   opacity: 0.92,
+  overlayScale: 1,
   hotkeys: {
     // Alt+Shift avoids common browser/IDE grabs (Ctrl+Shift+C/O/R)
     toggleOverlay: 'Alt+Shift+V',
     openCompanion: 'Alt+Shift+C',
     refreshWorldstate: 'Alt+Shift+R',
     scanRelics: 'Alt+Shift+F',
-    editLayout: 'Alt+Shift+E',
+    // Matches WFHelper interaction unlock
+    editLayout: 'Control+Tab',
   },
   eeLogPath: '',
   inventoryPath: '',
@@ -106,6 +112,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fissureTiers: ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem'],
   overlayVisible: true,
   layoutEditMode: false,
+  overlayDragHintDismissed: false,
 }
 
 export type CycleInfo = {

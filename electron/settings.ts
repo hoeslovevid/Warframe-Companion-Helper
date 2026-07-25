@@ -28,6 +28,11 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
     inventorySource: raw.inventorySource ?? base.inventorySource,
     inventoryConsent: raw.inventoryConsent ?? base.inventoryConsent,
     inventoryLastSynced: raw.inventoryLastSynced ?? base.inventoryLastSynced,
+    overlayScale:
+      typeof raw.overlayScale === 'number' && Number.isFinite(raw.overlayScale)
+        ? Math.min(1.5, Math.max(0.75, raw.overlayScale))
+        : base.overlayScale,
+    overlayDragHintDismissed: raw.overlayDragHintDismissed ?? base.overlayDragHintDismissed,
   }
 }
 

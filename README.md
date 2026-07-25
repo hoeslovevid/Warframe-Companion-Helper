@@ -37,7 +37,9 @@ This launches Vite, builds the Electron main/preload bundles, then opens:
 - **Companion** — dashboard, module toggles, **Layout** mock preview, settings
 - **Overlay** — always-on-top click-through panels
 
-Use the companion **Layout** tab to drag every overlay panel (including Relic Rewards with sample cards) on a mock monitor. Positions save to the live overlay. In-game quick edit remains available via `Alt+Shift+E`.
+Use the companion **Layout** tab to drag every overlay panel (including Relic Rewards with sample cards) on a mock monitor. Positions save to the live overlay.
+
+In-game (WFHelper-style): press `Ctrl+Tab` to unlock click-through, left- or right-drag panels, then `Ctrl+Tab` again to lock. A teaching chip appears until you move a panel once.
 
 ### Build a local installer
 
@@ -55,7 +57,7 @@ Outputs land in `release/` (NSIS setup + portable).
 | Open companion | `Alt+Shift+C` |
 | Refresh worldstate | `Alt+Shift+R` |
 | Scan relic rewards | `Alt+Shift+F` |
-| Edit overlay layout | `Alt+Shift+E` |
+| Unlock overlay drag (interaction) | `Ctrl+Tab` |
 
 If a shortcut is taken, the app tries fallbacks. Change them under **Settings → Hotkeys**.
 

@@ -13,6 +13,7 @@ import { NightwavePanel } from '../../modules/nightwave/NightwavePanel'
 import { RelicsPanel } from '../../modules/relics/RelicsPanel'
 import { ArbitrationPanel } from '../../modules/arbitration/ArbitrationPanel'
 import { LayoutEditor } from './LayoutEditor'
+import { prettyHotkey } from '../../lib/hotkey'
 import '../../styles/companion.css'
 import '../../modules/cycles/module.css'
 
@@ -110,7 +111,9 @@ export function CompanionApp() {
                     void updateSettings({ layoutEditMode: !settings.layoutEditMode })
                   }
                 >
-                  {settings.layoutEditMode ? 'Lock in-game edit' : 'In-game layout edit'}
+                  {settings.layoutEditMode
+                    ? 'Lock overlay interaction'
+                    : 'Unlock overlay interaction'}
                 </button>
                 <span className="pill">
                   <span className={`status-dot ${settings.overlayVisible ? '' : 'off'}`} />
@@ -217,7 +220,9 @@ export function CompanionApp() {
               settingsModules={settings.modules}
               panelAnchors={settings.panelAnchors}
               opacity={settings.opacity}
+              overlayScale={settings.overlayScale}
               fissureTiers={settings.fissureTiers}
+              interactionHotkey={prettyHotkey(settings.hotkeys.editLayout)}
               liveData={data}
               onSaveAnchors={(panelAnchors) => void updateSettings({ panelAnchors })}
             />
@@ -250,6 +255,22 @@ export function CompanionApp() {
                       }
                     />
                   </div>
+                  <div className="field">
+                    <label htmlFor="overlay-scale">
+                      Overlay scale ({settings.overlayScale.toFixed(2)}×)
+                    </label>
+                    <input
+                      id="overlay-scale"
+                      type="range"
+                      min={0.75}
+                      max={1.5}
+                      step={0.05}
+                      value={settings.overlayScale}
+                      onChange={(e) =>
+                        void updateSettings({ overlayScale: Number(e.target.value) })
+                      }
+                    />
+                  </div>
                   <ToggleRow
                     label="Overlay visible"
                     description="Global hotkey also toggles this"
@@ -257,8 +278,8 @@ export function CompanionApp() {
                     onChange={(enabled) => void updateSettings({ overlayVisible: enabled })}
                   />
                   <ToggleRow
-                    label="In-game layout edit"
-                    description={`Disables click-through on the live overlay (${settings.hotkeys.editLayout}). Prefer the Layout tab for a mock preview.`}
+                    label="In-game interaction unlock"
+                    description={`Like WFHelper: ${prettyHotkey(settings.hotkeys.editLayout)} unlocks click-through so you can drag panels. Prefer the Layout tab for a mock preview.`}
                     checked={settings.layoutEditMode}
                     onChange={(enabled) => void updateSettings({ layoutEditMode: enabled })}
                   />
@@ -314,7 +335,7 @@ export function CompanionApp() {
                     />
                   </div>
                   <div className="field">
-                    <label htmlFor="hk-layout">Edit overlay layout</label>
+                    <label htmlFor="hk-layout">Unlock overlay interaction (drag)</label>
                     <input
                       id="hk-layout"
                       value={settings.hotkeys.editLayout}
@@ -326,8 +347,8 @@ export function CompanionApp() {
                     />
                   </div>
                   <p className="muted">
-                    Use Electron accelerator syntax. Defaults: overlay Alt+Shift+V, layout edit
-                    Alt+Shift+E, relics Alt+Shift+F
+                    Use Electron accelerator syntax. Defaults: overlay Alt+Shift+V, unlock drag
+                    Ctrl+Tab (WFHelper-style), relics Alt+Shift+F
                   </p>
                 </Panel>
 
