@@ -82,17 +82,25 @@ function applyOverlayPerformanceMode(visible: boolean) {
 }
 
 async function runRelicScan(trigger: 'manual' | 'log') {
-  // Ensure relics module + overlay are visible for results
   const settings = loadSettings()
-  if (!settings.modules.relics || !settings.overlayVisible) {
-    const next = updateSettings({
-      modules: { ...settings.modules, relics: true },
-      overlayVisible: true,
-    })
+  // Feature must be enabled (module toggle). Manual hotkey still works when on.
+  if (!settings.modules.relics) {
+    console.info('[Everything Warframe] Relic scan skipped — Relics module disabled')
+    return getRelicScanState()
+  }
+  // Popup needs the overlay window visible; do not permanently force the relics panel on
+  if (!settings.overlayVisible) {
+    const next = updateSettings({ overlayVisible: true })
     applyOverlayVisibility(true)
     broadcastSettings(next)
   }
   const state = await scanRelicRewards(trigger)
+  broadcastRelicScan()
+  return state
+}
+
+function dismissRelicPopup() {
+  const state = clearRelicScan()
   broadcastRelicScan()
   return state
 }
@@ -541,11 +549,7 @@ function registerIpc() {
   ipcMain.handle('inventory:index', () => getInventoryIndex())
   ipcMain.handle('relics:get', () => getRelicScanState())
   ipcMain.handle('relics:scan', async () => runRelicScan('manual'))
-  ipcMain.handle('relics:clear', () => {
-    const state = clearRelicScan()
-    broadcastRelicScan()
-    return state
-  })
+  ipcMain.handle('relics:clear', () => dismissRelicPopup())
   ipcMain.handle('update:status', () => getUpdateStatus())
   ipcMain.handle('update:check', async () => checkForAppUpdates())
   ipcMain.handle('update:install', () => quitAndInstallUpdate())
@@ -583,11 +587,15 @@ app.whenReady().then(async () => {
   }
   logWatcher.on('event', (event) => {
     if (event.type === 'relic_rewards') {
+      if (!loadSettings().modules.relics) return
       console.info('[Everything Warframe] EE.log relic rewards detected — scanning')
       void runRelicScan('log')
+    } else if (event.type === 'relic_rewards_end') {
+      console.info('[Everything Warframe] EE.log relic rewards ended — dismissing popup')
+      dismissRelicPopup()
     }
   })
-  logWatcher.start(2500)
+  logWatcher.start(1500)
 
   preferLowerProcessPriority()
   registerHotkeys()

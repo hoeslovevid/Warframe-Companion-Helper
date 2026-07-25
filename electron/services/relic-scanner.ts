@@ -8,6 +8,13 @@ type Listener = (state: RelicScanState) => void
 
 const listeners = new Set<Listener>()
 
+/** How long the popup stays after a successful scan (AlecaFrame-style). */
+const AUTO_HIDE_SUCCESS_MS = 45_000
+/** How long to show a failed scan before dismissing. */
+const AUTO_HIDE_ERROR_MS = 12_000
+
+let hideTimer: NodeJS.Timeout | null = null
+
 let state: RelicScanState = {
   active: false,
   scanning: false,
@@ -20,6 +27,21 @@ let state: RelicScanState = {
 
 function emit() {
   for (const cb of listeners) cb(state)
+}
+
+function cancelAutoHide() {
+  if (hideTimer) {
+    clearTimeout(hideTimer)
+    hideTimer = null
+  }
+}
+
+function scheduleAutoHide(ms: number) {
+  cancelAutoHide()
+  hideTimer = setTimeout(() => {
+    hideTimer = null
+    clearRelicScan()
+  }, ms)
 }
 
 function ownedCount(uniqueName: string | null, displayName: string): number {
@@ -71,6 +93,7 @@ export function onRelicScanUpdated(cb: Listener) {
 }
 
 export function clearRelicScan(): RelicScanState {
+  cancelAutoHide()
   state = {
     active: false,
     scanning: false,
@@ -92,6 +115,8 @@ export async function scanRelicRewards(
   trigger: 'manual' | 'log' = 'manual',
 ): Promise<RelicScanState> {
   if (state.scanning) return state
+
+  cancelAutoHide()
 
   state = {
     ...state,
@@ -137,10 +162,15 @@ export async function scanRelicRewards(
         setOwnedParts,
         setTotalParts,
         setParts,
-        matchScore: matched?.score ?? 99,
+        matchScore: matched?.score ?? 0,
         ducats: matched?.item.ducats ?? null,
       }
     })
+
+    const useful = rewards.some((r) => r.ocrText.trim().length > 1 || r.matchScore > 0)
+    if (!useful) {
+      throw new Error('No reward names detected. Open the fissure pick screen, then scan again.')
+    }
 
     state = {
       active: true,
@@ -152,6 +182,7 @@ export async function scanRelicRewards(
       inventoryLoaded: Object.keys(getInventoryIndex()).length > 0,
     }
     emit()
+    scheduleAutoHide(AUTO_HIDE_SUCCESS_MS)
     return state
   } catch (err) {
     state = {
@@ -161,6 +192,7 @@ export async function scanRelicRewards(
       error: err instanceof Error ? err.message : 'Relic scan failed',
     }
     emit()
+    scheduleAutoHide(AUTO_HIDE_ERROR_MS)
     return state
   }
 }

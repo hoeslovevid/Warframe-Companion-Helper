@@ -59,8 +59,10 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
         <div className="help-block">
           <h3>4. Relic rewards</h3>
           <p>
-            On the fissure reward pick screen, press <strong>{prettyHotkey(hk.scanRelics)}</strong>{' '}
-            (or wait for EE.log auto-detect). Sync inventory in Settings for “needed for set” tags.
+            With the Relics module on, the overlay popup appears when a fissure reward screen is
+            detected (EE.log), or when you press{' '}
+            <strong>{prettyHotkey(hk.scanRelics)}</strong>. It auto-hides after you leave the pick
+            screen or after ~45s. Sync inventory in Settings for “needed for set” tags.
           </p>
         </div>
       </Panel>

@@ -7,15 +7,18 @@ export type CaptureRegion = {
   height: number
 }
 
-/** Four horizontal reward-name bands on a typical fissure reward screen. */
+/**
+ * Four reward-name bands on a typical fissure pick screen (1080p-scaled).
+ * Tuned for the item-name strip on each card, not the full art.
+ */
 export function relicRewardRegions(width: number, height: number): CaptureRegion[] {
   const slots = 4
-  const cardW = width * 0.17
-  const gap = width * 0.035
+  const cardW = width * 0.155
+  const gap = width * 0.028
   const total = slots * cardW + (slots - 1) * gap
   const startX = (width - total) / 2
-  const y = height * 0.4
-  const h = height * 0.14
+  const y = height * 0.445
+  const h = height * 0.085
 
   return Array.from({ length: slots }, (_, i) => ({
     x: Math.round(startX + i * (cardW + gap)),

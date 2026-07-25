@@ -1,12 +1,23 @@
 import fs from 'node:fs'
 import { EventEmitter } from 'node:events'
 
-export type LogEvent = { type: 'relic_rewards' }
+export type LogEvent = { type: 'relic_rewards' | 'relic_rewards_end' }
 
-const REWARD_PATTERNS = [
-  /Got rewards/i,
+/** Markers that the fissure reward pick screen is up (AlecaFrame / WFInfo style). */
+const REWARD_START_PATTERNS = [
+  /ProjectionRewardChoice\.lua:\s*Relic rewards initialized/i,
   /Relic rewards initialized/i,
   /ProjectionRewardChoice/i,
+]
+
+/**
+ * Markers that the pick screen is gone / mission moved on.
+ * EE.log buffering makes these imperfect — pair with auto-hide timeout.
+ */
+const REWARD_END_PATTERNS = [
+  /ProjectionRewardChoice\.lua:.*(?:Selected|Choice made|Closing|closed)/i,
+  /EndOfMatch\.lua/i,
+  /Got rewards screen closed/i,
 ]
 
 /**
@@ -17,11 +28,14 @@ export class LogWatcher extends EventEmitter {
   private path: string | null = null
   private offset = 0
   private timer: NodeJS.Timeout | null = null
-  private lastEmit = 0
+  private lastStartEmit = 0
+  private lastEndEmit = 0
+  private rewardScreenOpen = false
 
   setPath(next: string | null) {
     this.path = next
     this.offset = 0
+    this.rewardScreenOpen = false
     if (next && fs.existsSync(next)) {
       try {
         this.offset = fs.statSync(next).size
@@ -31,7 +45,7 @@ export class LogWatcher extends EventEmitter {
     }
   }
 
-  start(intervalMs = 2500) {
+  start(intervalMs = 1500) {
     this.stop()
     this.timer = setInterval(() => this.tick(), intervalMs)
   }
@@ -56,12 +70,26 @@ export class LogWatcher extends EventEmitter {
       this.offset = stat.size
 
       const chunk = buf.toString('utf8')
-      if (!REWARD_PATTERNS.some((re) => re.test(chunk))) return
-
       const now = Date.now()
-      if (now - this.lastEmit < 8000) return
-      this.lastEmit = now
-      this.emit('event', { type: 'relic_rewards' } satisfies LogEvent)
+
+      if (REWARD_START_PATTERNS.some((re) => re.test(chunk))) {
+        if (now - this.lastStartEmit >= 5000) {
+          this.lastStartEmit = now
+          this.rewardScreenOpen = true
+          this.emit('event', { type: 'relic_rewards' } satisfies LogEvent)
+        }
+        return
+      }
+
+      if (
+        this.rewardScreenOpen &&
+        REWARD_END_PATTERNS.some((re) => re.test(chunk)) &&
+        now - this.lastEndEmit >= 2000
+      ) {
+        this.lastEndEmit = now
+        this.rewardScreenOpen = false
+        this.emit('event', { type: 'relic_rewards_end' } satisfies LogEvent)
+      }
     } catch (err) {
       console.error('[Everything Warframe] EE.log watch error', err)
     }

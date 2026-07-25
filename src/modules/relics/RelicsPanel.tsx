@@ -115,8 +115,8 @@ export function RelicsPanel({
         {rewards.length === 0 && !scanning ? (
           <div className="mod-stack">
             <p className="mod-empty">
-              On the fissure reward pick screen, press <strong>{scanHotkey}</strong>. EE.log
-              auto-detect also watches for “Got rewards”.
+              Overlay popup appears automatically when EE.log reports a fissure reward screen.
+              Manual scan: <strong>{scanHotkey}</strong>. Dismisses after you pick / ~45s.
             </p>
             {!compact && !previewMode ? (
               <button className="btn primary" disabled={scanning} onClick={() => void scan()}>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ModuleId, PanelAnchor } from '../../../shared/types'
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { NowProvider } from '../../hooks/NowContext'
+import { useRelicScan } from '../../hooks/useRelicScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
 import { prettyHotkey } from '../../lib/hotkey'
 import '../../styles/overlay.css'
@@ -9,6 +10,7 @@ import '../../styles/overlay.css'
 export function OverlayApp() {
   const { settings, ready, updateSettings } = useSettings()
   const { data } = useWorldstate()
+  const { state: relicScan } = useRelicScan()
   const [anchors, setAnchors] = useState<Partial<Record<ModuleId, PanelAnchor>>>(
     settings.panelAnchors,
   )
@@ -17,10 +19,14 @@ export function OverlayApp() {
     setAnchors(settings.panelAnchors)
   }, [settings.panelAnchors])
 
-  const modules = useMemo(
-    () => (Object.keys(settings.modules) as ModuleId[]).filter((id) => settings.modules[id]),
-    [settings.modules],
-  )
+  // Relics is a transient popup (like AlecaFrame), not a always-on panel.
+  const modules = useMemo(() => {
+    const enabled = (Object.keys(settings.modules) as ModuleId[]).filter(
+      (id) => settings.modules[id] && id !== 'relics',
+    )
+    const showRelicPopup = settings.modules.relics && relicScan.active
+    return showRelicPopup ? [...enabled, 'relics' as ModuleId] : enabled
+  }, [settings.modules, relicScan.active])
 
   const commitAnchors = useCallback(
     (next: Partial<Record<ModuleId, PanelAnchor>>) => {

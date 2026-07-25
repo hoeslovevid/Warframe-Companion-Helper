@@ -76,7 +76,8 @@ export const MODULE_META: Record<
   },
   relics: {
     label: 'Relic Rewards',
-    description: 'OCR reward overlay with prices and missing set parts (Phase 2)',
+    description:
+      'Popup when a fissure reward screen is detected (EE.log / hotkey) — AlecaFrame-style',
     phase: 2,
   },
   arbitration: {
