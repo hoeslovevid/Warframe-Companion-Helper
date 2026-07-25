@@ -123,6 +123,7 @@ export function CompanionApp() {
   const [whatsNewOpen, setWhatsNewOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [hotkeyStatus, setHotkeyStatus] = useState<HotkeyRegistration[]>([])
+  const [overlayCue, setOverlayCue] = useState<'on' | 'off' | null>(null)
   const { settings, ready, updateSettings, setModuleEnabled } = useSettings()
   const { data, loading, error, refresh } = useWorldstate()
   const { status: inventory } = useInventory()
@@ -245,6 +246,14 @@ export function CompanionApp() {
     return window.voidlens.onRelicSound(playRelicChime)
   }, [])
 
+  useEffect(() => {
+    const unsub = window.voidlens?.onOverlayVisibilityChanged((visible) => {
+      setOverlayCue(visible ? 'on' : 'off')
+      window.setTimeout(() => setOverlayCue(null), 1600)
+    })
+    return () => unsub?.()
+  }, [])
+
   if (!ready) {
     return (
       <div className="companion-root companion-main">
@@ -260,6 +269,14 @@ export function CompanionApp() {
   return (
     <NowProvider active intervalMs={1000}>
       <div className="companion-root">
+        {overlayCue ? (
+          <div
+            className={`companion-overlay-cue ${overlayCue === 'off' ? 'is-off' : ''}`}
+            role="status"
+          >
+            Overlay {overlayCue === 'on' ? 'ON' : 'OFF'}
+          </div>
+        ) : null}
         <div className="companion-shell">
           <aside className="companion-nav">
             <div className="brand-lockup">

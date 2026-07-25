@@ -32,6 +32,7 @@ export function createOverlayWindow(devUrl: string | null): BrowserWindow {
   })
 
   // High enough to sit above borderless Warframe; companion uses the same level + moveTop
+  // (On pure Wayland always-on-top is a no-op — main process forces XWayland when possible.)
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   // `{ forward: true }` is Windows-only; Linux/Proton still get click-through without it.
@@ -40,11 +41,13 @@ export function createOverlayWindow(devUrl: string | null): BrowserWindow {
   } else {
     win.setIgnoreMouseEvents(true)
   }
-  // Keep overlay visible to the player, but exclude it from desktopCapturer / OCR snapshots.
-  try {
-    win.setContentProtection(true)
-  } catch {
-    // Older Electron / OS builds may not support this.
+  // Exclude overlay from desktopCapturer / OCR snapshots (macOS/Windows; no-op on Linux).
+  if (process.platform !== 'linux') {
+    try {
+      win.setContentProtection(true)
+    } catch {
+      // Older Electron / OS builds may not support this.
+    }
   }
 
   win.webContents.on('did-fail-load', (_e, code, desc, url) => {
@@ -64,10 +67,12 @@ export function createOverlayWindow(devUrl: string | null): BrowserWindow {
   }
 
   win.once('ready-to-show', () => {
-    try {
-      win.setContentProtection(true)
-    } catch {
-      // ignore
+    if (process.platform !== 'linux') {
+      try {
+        win.setContentProtection(true)
+      } catch {
+        // ignore
+      }
     }
     win.showInactive()
     win.setAlwaysOnTop(true, 'screen-saver')

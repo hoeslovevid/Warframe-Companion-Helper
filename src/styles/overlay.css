@@ -87,3 +87,39 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   animation: none;
 }
+
+.overlay-toggle-cue {
+  position: fixed;
+  left: 50%;
+  top: 12%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 14px 28px;
+  border-radius: 12px;
+  background: rgba(5, 10, 14, 0.94);
+  border: 1px solid rgba(95, 208, 197, 0.55);
+  color: var(--vl-frost);
+  font-family: var(--vl-font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: none;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  animation: overlayCueIn 180ms ease-out both;
+}
+
+.overlay-toggle-cue.is-off {
+  border-color: rgba(212, 106, 106, 0.55);
+  color: #f0c0c0;
+}
+
+@keyframes overlayCueIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

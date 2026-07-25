@@ -18,10 +18,19 @@ export function OverlayApp() {
   const [anchors, setAnchors] = useState<Partial<Record<ModuleId, PanelAnchor>>>(
     settings.panelAnchors,
   )
+  const [toggleCue, setToggleCue] = useState<'on' | 'off' | null>(null)
 
   useEffect(() => {
     setAnchors(settings.panelAnchors)
   }, [settings.panelAnchors])
+
+  useEffect(() => {
+    const unsub = window.voidlens?.onOverlayVisibilityChanged((visible) => {
+      setToggleCue(visible ? 'on' : 'off')
+      window.setTimeout(() => setToggleCue(null), 1400)
+    })
+    return () => unsub?.()
+  }, [])
 
   // Relics / Rivens are transient popups (AlecaFrame-style), not always-on panels.
   const modules = useMemo(() => {
@@ -57,8 +66,15 @@ export function OverlayApp() {
         ? `${hotkeyLabel}, then drag to move`
         : undefined
 
+  const cue = toggleCue ? (
+    <div className={`overlay-toggle-cue ${toggleCue === 'off' ? 'is-off' : ''}`}>
+      Overlay {toggleCue === 'on' ? 'ON' : 'OFF'}
+    </div>
+  ) : null
+
   if (!ready || !settings.overlayVisible) {
-    return <div className="overlay-root" />
+    // Keep a brief OFF cue visible even while the window is being hidden.
+    return <div className="overlay-root">{cue}</div>
   }
 
   return (
@@ -87,6 +103,7 @@ export function OverlayApp() {
         onAnchorsCommit={commitAnchors}
         onPanelMoved={dismissDragHint}
       />
+      {cue}
     </NowProvider>
   )
 }

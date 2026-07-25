@@ -9,6 +9,30 @@
   position: relative;
 }
 
+.companion-overlay-cue {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  padding: 10px 20px;
+  border-radius: 10px;
+  background: rgba(8, 14, 18, 0.96);
+  border: 1px solid rgba(95, 208, 197, 0.5);
+  color: var(--vl-frost);
+  font-family: var(--vl-font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.companion-overlay-cue.is-off {
+  border-color: rgba(212, 106, 106, 0.5);
+  color: #f0c0c0;
+}
+
 .companion-root::before {
   content: '';
   position: fixed;

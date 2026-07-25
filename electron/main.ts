@@ -9,6 +9,7 @@ import {
   Tray,
   nativeImage,
   screen,
+  shell,
 } from 'electron'
 import os from 'node:os'
 import path from 'node:path'
@@ -82,6 +83,18 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('enable-transparent-visuals')
   // PipeWire capturer — needed for reliable Wayland screen share + restore tokens
   app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
+  // Pure Wayland cannot pin always-on-top above games — use XWayland for the overlay.
+  // Override with ELECTRON_OZONE_PLATFORM_HINT=wayland if needed.
+  if (
+    process.env.WAYLAND_DISPLAY &&
+    !process.env.ELECTRON_OZONE_PLATFORM_HINT &&
+    !app.commandLine.hasSwitch('ozone-platform')
+  ) {
+    app.commandLine.appendSwitch('ozone-platform', 'x11')
+    console.info(
+      '[Everything Warframe] Using X11/XWayland so the overlay can stay above Warframe',
+    )
+  }
 }
 
 const isDev = !app.isPackaged
@@ -372,20 +385,137 @@ function createCompanionWindow() {
   return companionWindow
 }
 
-function applyOverlayVisibility(visible: boolean) {
+function restoreOverlayGeometry(win: BrowserWindow) {
+  const display = screen.getPrimaryDisplay()
+  const { x, y, width, height } = display.bounds
+  try {
+    win.setBounds({ x, y, width, height })
+  } catch {
+    // Wayland may ignore programmatic moves; best-effort.
+  }
+  try {
+    win.setOpacity(1)
+  } catch {
+    // ignore
+  }
+  try {
+    win.setAlwaysOnTop(true, 'screen-saver')
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  } catch {
+    // ignore
+  }
+}
+
+function refreshTrayUi() {
+  if (!tray) return
+  const on = loadSettings().overlayVisible
+  try {
+    tray.setToolTip(`Everything Warframe — Overlay ${on ? 'ON' : 'OFF'}`)
+  } catch {
+    // ignore
+  }
+  try {
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        {
+          label: 'Open Companion',
+          click: () => createCompanionWindow(),
+        },
+        {
+          label: on ? 'Overlay: ON (click to hide)' : 'Overlay: OFF (click to show)',
+          click: () => setOverlayVisible(!loadSettings().overlayVisible, { announce: true }),
+        },
+        {
+          label: 'Move / Lock Panels',
+          click: () => toggleLayoutEditMode(),
+        },
+        { type: 'separator' },
+        {
+          label: 'Quit',
+          click: () => {
+            app.quit()
+          },
+        },
+      ]),
+    )
+  } catch {
+    // ignore
+  }
+}
+
+function announceOverlayVisibility(visible: boolean) {
+  try {
+    shell.beep()
+  } catch {
+    // ignore
+  }
+  if (Notification.isSupported()) {
+    try {
+      const tip = new Notification({
+        title: visible ? 'Overlay ON' : 'Overlay OFF',
+        body: visible
+          ? 'Everything Warframe overlay is visible over the game.'
+          : 'Everything Warframe overlay is hidden.',
+        silent: false,
+      })
+      tip.show()
+    } catch {
+      // ignore
+    }
+  }
+  refreshTrayUi()
+}
+
+let hideOverlayTimer: NodeJS.Timeout | null = null
+
+/** Central overlay show/hide. Pass announce for hotkey/tray toggles. */
+function setOverlayVisible(visible: boolean, opts?: { announce?: boolean }) {
+  const next = updateSettings({ overlayVisible: visible })
+  applyOverlayVisibility(next.overlayVisible, {
+    // Keep window up briefly so the on-screen OFF cue can paint.
+    delayHideMs: opts?.announce && !visible ? 900 : 0,
+  })
+  broadcastSettings(next)
+  if (opts?.announce) announceOverlayVisibility(next.overlayVisible)
+  else refreshTrayUi()
+  return next.overlayVisible
+}
+
+function applyOverlayVisibility(visible: boolean, opts?: { delayHideMs?: number }) {
   if (!overlayWindow || overlayWindow.isDestroyed()) return
+  if (hideOverlayTimer) {
+    clearTimeout(hideOverlayTimer)
+    hideOverlayTimer = null
+  }
   if (visible) {
     applyOverlayPerformanceMode(true)
+    restoreOverlayGeometry(overlayWindow)
     overlayWindow.showInactive()
+    try {
+      overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+    } catch {
+      // ignore
+    }
     // Re-raise companion so overlay creation/show never hides it
     if (companionWindow && !companionWindow.isDestroyed() && companionWindow.isVisible()) {
       raiseCompanion()
     }
-  } else {
+    broadcastOverlayVisibility(visible)
+    return
+  }
+
+  broadcastOverlayVisibility(visible)
+  const hide = () => {
+    hideOverlayTimer = null
+    if (!overlayWindow || overlayWindow.isDestroyed()) return
+    // Skip hide if the user toggled back on during the cue delay.
+    if (loadSettings().overlayVisible) return
     overlayWindow.hide()
     applyOverlayPerformanceMode(false)
   }
-  broadcastOverlayVisibility(visible)
+  const delay = opts?.delayHideMs ?? 0
+  if (delay > 0) hideOverlayTimer = setTimeout(hide, delay)
+  else hide()
 }
 
 /** Migrate old side-panel riven anchors to the horizontal strip above Cycle cards. */
@@ -500,9 +630,7 @@ function registerHotkeys() {
   }
 
   bind('toggleOverlay', () => {
-    const next = updateSettings({ overlayVisible: !loadSettings().overlayVisible })
-    applyOverlayVisibility(next.overlayVisible)
-    broadcastSettings(next)
+    setOverlayVisible(!loadSettings().overlayVisible, { announce: true })
   })
   bind('openCompanion', () => {
     createCompanionWindow()
@@ -544,33 +672,7 @@ function createTray() {
       )
     }
     tray = new Tray(icon)
-    tray.setToolTip('Everything Warframe')
-    const menu = Menu.buildFromTemplate([
-      {
-        label: 'Open Companion',
-        click: () => createCompanionWindow(),
-      },
-      {
-        label: 'Toggle Overlay',
-        click: () => {
-          const next = updateSettings({ overlayVisible: !loadSettings().overlayVisible })
-          applyOverlayVisibility(next.overlayVisible)
-          broadcastSettings(next)
-        },
-      },
-      {
-        label: 'Move / Lock Panels',
-        click: () => toggleLayoutEditMode(),
-      },
-      { type: 'separator' },
-      {
-        label: 'Quit',
-        click: () => {
-          app.quit()
-        },
-      },
-    ])
-    tray.setContextMenu(menu)
+    refreshTrayUi()
     tray.on('double-click', () => createCompanionWindow())
     tray.on('click', () => createCompanionWindow())
   } catch (err) {
@@ -593,7 +695,10 @@ function registerIpc() {
     const next = updateSettings(partial)
     if (partial.hotkeys) registerHotkeys()
     if (partial.layoutEditMode !== undefined) applyLayoutEditMode(next.layoutEditMode)
-    if (partial.overlayVisible !== undefined) applyOverlayVisibility(next.overlayVisible)
+    if (partial.overlayVisible !== undefined) {
+      applyOverlayVisibility(next.overlayVisible)
+      refreshTrayUi()
+    }
     broadcastSettings(next)
     return next
   })
@@ -609,10 +714,7 @@ function registerIpc() {
   ipcMain.handle('worldstate:get', async () => refreshWorldstate(false))
   ipcMain.handle('worldstate:refresh', async () => refreshWorldstate(true))
   ipcMain.handle('overlay:toggle', () => {
-    const next = updateSettings({ overlayVisible: !loadSettings().overlayVisible })
-    applyOverlayVisibility(next.overlayVisible)
-    broadcastSettings(next)
-    return next.overlayVisible
+    return setOverlayVisible(!loadSettings().overlayVisible, { announce: true })
   })
   ipcMain.handle('overlay:setLayoutEdit', (_e, enabled: boolean) => {
     const next = updateSettings({ layoutEditMode: enabled })
@@ -747,21 +849,39 @@ app.whenReady().then(async () => {
     } catch {
       // ignore
     }
-    // Move off-screen so even sticky capture APIs cannot sample overlay pixels.
+    // Windows: park off-screen so sticky capture APIs cannot sample overlay pixels.
+    // Linux/Wayland: setBounds is unreliable and can leave the overlay "stuck" off-screen.
+    const parkOffscreen = process.platform === 'win32'
     const bounds = win.getBounds()
-    win.setBounds({ ...bounds, x: -10_000, y: -10_000 })
+    if (parkOffscreen) {
+      try {
+        win.setBounds({ ...bounds, x: -10_000, y: -10_000 })
+      } catch {
+        // ignore
+      }
+    }
     win.hide()
     return () => {
       if (!overlayWindow || overlayWindow.isDestroyed()) return
       try {
-        overlayWindow.setBounds(bounds)
+        if (parkOffscreen) {
+          overlayWindow.setBounds(bounds)
+        } else {
+          restoreOverlayGeometry(overlayWindow)
+        }
         overlayWindow.setOpacity(prevOpacity > 0 ? prevOpacity : 1)
         overlayWindow.setContentProtection(true)
       } catch {
         // ignore
       }
       if (wasVisible && loadSettings().overlayVisible) {
+        restoreOverlayGeometry(overlayWindow)
         overlayWindow.showInactive()
+        try {
+          overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+        } catch {
+          // ignore
+        }
       }
     }
   })
