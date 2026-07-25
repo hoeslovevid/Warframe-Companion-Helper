@@ -245,6 +245,7 @@ export function OverlayLayoutStage({
               compact
               previewMode={mode === 'preview'}
               previewRewards={relicPreviewRewards}
+              layoutWidth={mode === 'preview' ? designWidth : undefined}
             />
           )
         case 'arbitration':
@@ -254,7 +255,7 @@ export function OverlayLayoutStage({
       }
     }
     return render
-  }, [data, opacity, fissureTiers, mode, relicPreviewRewards])
+  }, [data, opacity, fissureTiers, mode, relicPreviewRewards, designWidth])
 
   const stageStyle =
     mode === 'preview'

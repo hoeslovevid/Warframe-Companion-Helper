@@ -8,6 +8,7 @@ import {
   Notification,
   Tray,
   nativeImage,
+  screen,
 } from 'electron'
 import os from 'node:os'
 import path from 'node:path'
@@ -447,6 +448,15 @@ function createTray() {
   }
 }
 
+function getPrimaryDisplayInfo() {
+  const display = screen.getPrimaryDisplay()
+  return {
+    width: display.bounds.width,
+    height: display.bounds.height,
+    scaleFactor: display.scaleFactor,
+  }
+}
+
 function registerIpc() {
   ipcMain.handle('settings:get', () => loadSettings())
   ipcMain.handle('settings:update', (_e, partial: Partial<AppSettings>) => {
@@ -462,6 +472,7 @@ function registerIpc() {
     broadcastSettings(next)
     return next
   })
+  ipcMain.handle('display:getPrimary', () => getPrimaryDisplayInfo())
   ipcMain.handle('worldstate:get', async () => refreshWorldstate(false))
   ipcMain.handle('worldstate:refresh', async () => refreshWorldstate(true))
   ipcMain.handle('overlay:toggle', () => {

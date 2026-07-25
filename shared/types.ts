@@ -273,10 +273,17 @@ export type AppUpdateStatus = {
   message: string
 }
 
+export type PrimaryDisplayInfo = {
+  width: number
+  height: number
+  scaleFactor: number
+}
+
 export type VoidLensApi = {
   getSettings: () => Promise<AppSettings>
   updateSettings: (partial: Partial<AppSettings>) => Promise<AppSettings>
   setModuleEnabled: (id: ModuleId, enabled: boolean) => Promise<AppSettings>
+  getPrimaryDisplay: () => Promise<PrimaryDisplayInfo>
   getWorldstate: () => Promise<WorldstateSnapshot>
   refreshWorldstate: () => Promise<WorldstateSnapshot>
   toggleOverlay: () => Promise<boolean>

@@ -4,6 +4,7 @@ import type {
   AppUpdateStatus,
   InventoryStatus,
   ModuleId,
+  PrimaryDisplayInfo,
   RelicScanState,
   VoidLensApi,
   WorldstateSnapshot,
@@ -14,6 +15,7 @@ const api: VoidLensApi = {
   updateSettings: (partial) => ipcRenderer.invoke('settings:update', partial),
   setModuleEnabled: (id: ModuleId, enabled: boolean) =>
     ipcRenderer.invoke('settings:setModule', id, enabled),
+  getPrimaryDisplay: () => ipcRenderer.invoke('display:getPrimary') as Promise<PrimaryDisplayInfo>,
   getWorldstate: () => ipcRenderer.invoke('worldstate:get'),
   refreshWorldstate: () => ipcRenderer.invoke('worldstate:refresh'),
   toggleOverlay: () => ipcRenderer.invoke('overlay:toggle'),

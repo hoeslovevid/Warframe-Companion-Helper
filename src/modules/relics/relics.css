@@ -13,8 +13,8 @@
 
 /* Live overlay / Layout preview: one row under the four reward cards */
 .relic-strip {
-  width: min(1120px, 72vw);
   pointer-events: none;
+  box-sizing: border-box;
 }
 
 .relic-strip__status {
@@ -193,8 +193,3 @@
   font-size: 0.7rem;
 }
 
-.overlay-root .relic-strip,
-.overlay-layout-stage .relic-strip {
-  width: 1100px;
-  max-width: none;
-}

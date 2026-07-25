@@ -1,19 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  DEFAULT_SETTINGS,
   MODULE_META,
   ModuleId,
   PanelAnchor,
+  PrimaryDisplayInfo,
   WorldstateSnapshot,
 } from '../../../shared/types'
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { ToggleRow } from '../../components/ToggleRow'
-import { LAYOUT_PRESETS, LayoutPresetId } from '../../lib/layoutPresets'
+import {
+  getDefaultPanelAnchors,
+  getLayoutPresetAnchors,
+  LAYOUT_PRESETS,
+  LayoutPresetId,
+} from '../../lib/layoutPresets'
 import { buildPreviewWorldstate, MOCK_RELIC_REWARDS } from '../../lib/mockOverlayData'
 import '../../styles/overlay.css'
 
-const DESIGN_W = 1920
-const DESIGN_H = 1080
+const FALLBACK_DISPLAY: PrimaryDisplayInfo = {
+  width: 1920,
+  height: 1080,
+  scaleFactor: 1,
+}
+
 const ALL_MODULES = Object.keys(MODULE_META) as ModuleId[]
 
 type Props = {
@@ -41,10 +50,48 @@ export function LayoutEditor({
   const [scale, setScale] = useState(0.45)
   const [showAll, setShowAll] = useState(true)
   const [anchors, setAnchors] = useState(panelAnchors)
+  const [display, setDisplay] = useState<PrimaryDisplayInfo>(FALLBACK_DISPLAY)
 
   useEffect(() => {
     setAnchors(panelAnchors)
   }, [panelAnchors])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        if (window.voidlens?.getPrimaryDisplay) {
+          const next = await window.voidlens.getPrimaryDisplay()
+          if (!cancelled && next?.width > 0 && next?.height > 0) {
+            setDisplay(next)
+            return
+          }
+        }
+      } catch {
+        // fall through
+      }
+      if (!cancelled) {
+        setDisplay({
+          width: window.screen.width || FALLBACK_DISPLAY.width,
+          height: window.screen.height || FALLBACK_DISPLAY.height,
+          scaleFactor: window.devicePixelRatio || 1,
+        })
+      }
+    }
+    void load()
+
+    const onResize = () => {
+      void load()
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      cancelled = true
+      window.removeEventListener('resize', onResize)
+    }
+  }, [])
+
+  const designW = display.width
+  const designH = display.height
 
   useEffect(() => {
     const el = shellRef.current
@@ -52,12 +99,12 @@ export function LayoutEditor({
     const ro = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? el.clientWidth
       if (width <= 0) return
-      setScale(Math.min(1, width / DESIGN_W))
+      setScale(Math.min(1, width / designW))
     })
     ro.observe(el)
-    setScale(Math.min(1, el.clientWidth / DESIGN_W))
+    setScale(Math.min(1, el.clientWidth / designW))
     return () => ro.disconnect()
-  }, [])
+  }, [designW])
 
   const modules = useMemo(() => {
     if (showAll) return ALL_MODULES
@@ -75,12 +122,11 @@ export function LayoutEditor({
   )
 
   const reset = () => {
-    const next = structuredClone(DEFAULT_SETTINGS.panelAnchors)
-    commit(next)
+    commit(getDefaultPanelAnchors(designW, designH))
   }
 
   const applyPreset = (id: LayoutPresetId) => {
-    commit(structuredClone(LAYOUT_PRESETS[id].anchors))
+    commit(getLayoutPresetAnchors(id, designW, designH))
   }
 
   return (
@@ -89,10 +135,13 @@ export function LayoutEditor({
         <h2 className="page-title">Layout</h2>
         <div className="page-title-rule" />
         <p className="page-desc">
-          Arrange overlays on this mock monitor. Drag the horizontal <strong>Relic Rewards</strong>{' '}
-          strip so each label sits under an in-game reward card. Other panels stack wherever you
-          like. Positions save automatically. In-game, press <strong>{interactionHotkey}</strong>{' '}
-          to unlock and drag during a popup.
+          Arrange overlays on a mock of your primary monitor (
+          <strong>
+            {designW}×{designH}
+          </strong>
+          ). Drag the horizontal <strong>Relic Rewards</strong> strip under the reward cards. Presets
+          and reset scale to this resolution. In-game, press <strong>{interactionHotkey}</strong> to
+          unlock and drag during a popup.
         </p>
       </header>
 
@@ -110,6 +159,10 @@ export function LayoutEditor({
         <button className="btn ghost" onClick={reset}>
           Reset positions
         </button>
+        <span className="pill muted">
+          Monitor {designW}×{designH}
+          {display.scaleFactor !== 1 ? ` · ${display.scaleFactor}× DPI` : ''}
+        </span>
         <span className="pill muted">Left or right drag · auto-saves</span>
       </div>
 
@@ -126,7 +179,7 @@ export function LayoutEditor({
         <div
           className="layout-preview-scale"
           style={{
-            height: DESIGN_H * scale,
+            height: designH * scale,
             position: 'relative',
           }}
         >
@@ -134,8 +187,8 @@ export function LayoutEditor({
             style={{
               transform: `scale(${scale})`,
               transformOrigin: 'top left',
-              width: DESIGN_W,
-              height: DESIGN_H,
+              width: designW,
+              height: designH,
             }}
           >
             <OverlayLayoutStage
@@ -147,11 +200,11 @@ export function LayoutEditor({
               opacity={opacity}
               overlayScale={overlayScale}
               fissureTiers={fissureTiers}
-              designWidth={DESIGN_W}
-              designHeight={DESIGN_H}
+              designWidth={designW}
+              designHeight={designH}
               relicPreviewRewards={MOCK_RELIC_REWARDS}
               dragHint="Drag to move (position saves)"
-              hint="Positions match the in-game overlay · left or right mouse"
+              hint={`Preview · ${designW}×${designH} primary display · left or right mouse`}
               onAnchorsChange={setAnchors}
               onAnchorsCommit={commit}
             />
@@ -160,9 +213,9 @@ export function LayoutEditor({
       </div>
 
       <p className="muted" style={{ marginTop: 8 }}>
-        Preview uses a 1920×1080 canvas. On other resolutions, panels keep the same pixel offsets
-        from the top-left of your primary monitor. In-game: press <strong>{interactionHotkey}</strong>{' '}
-        to unlock click-through, drag panels, then press it again to lock.
+        Canvas matches your primary monitor ({designW}×{designH}). Preset and reset coordinates are
+        scaled from a 1920×1080 design so positions land correctly on ultrawide and 1440p/4K. In-game:
+        press <strong>{interactionHotkey}</strong> to unlock click-through, drag, then lock again.
       </p>
     </>
   )

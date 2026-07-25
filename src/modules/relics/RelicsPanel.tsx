@@ -5,6 +5,10 @@ import '../cycles/module.css'
 import '../baro/baro.css'
 import './relics.css'
 
+/** Design-space strip width at 1920px wide (~under four reward cards). */
+const STRIP_DESIGN_WIDTH = 1100
+const STRIP_DESIGN_REF = 1920
+
 type Props = {
   opacity?: number
   compact?: boolean
@@ -13,6 +17,13 @@ type Props = {
   previewRewards?: RewardEval[]
   /** Pretty hotkey label for empty-state CTA copy */
   scanHotkey?: string
+  /** Preview canvas / monitor width — scales the horizontal strip. */
+  layoutWidth?: number
+}
+
+function stripWidthPx(layoutWidth?: number) {
+  const ref = layoutWidth && layoutWidth > 0 ? layoutWidth : window.innerWidth || STRIP_DESIGN_REF
+  return Math.round(ref * (STRIP_DESIGN_WIDTH / STRIP_DESIGN_REF))
 }
 
 function ownershipLabel(reward: RewardEval, compact?: boolean) {
@@ -87,15 +98,21 @@ export function RelicsPanel({
   previewMode,
   previewRewards,
   scanHotkey = 'Alt+Shift+F',
+  layoutWidth,
 }: Props) {
   const { state, scan, clear } = useRelicScan()
   const rewards = previewMode && previewRewards ? previewRewards : state.rewards
   const scanning = previewMode ? false : state.scanning
+  const stripW = stripWidthPx(layoutWidth)
 
   // Overlay / Layout: horizontal strip meant to sit under the four reward cards
   if (compact || previewMode) {
     return (
-      <div className="relic-strip" style={{ opacity }} data-relic-strip>
+      <div
+        className="relic-strip"
+        style={{ opacity, width: stripW }}
+        data-relic-strip
+      >
         {scanning ? <p className="relic-strip__status">Scanning reward screen…</p> : null}
         {!previewMode && state.error ? (
           <p className="relic-strip__error">{state.error}</p>

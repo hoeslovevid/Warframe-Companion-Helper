@@ -1,14 +1,20 @@
-import { ModuleId, PanelAnchor } from '../../shared/types'
+import { DEFAULT_SETTINGS, ModuleId, PanelAnchor } from '../../shared/types'
 
 export type LayoutPresetId = 'left-stack' | 'corners' | 'right-rail'
 
-/** Default under-card strip position for a 1920×1080 mock / primary display. */
+/** Canonical design size presets are authored against. */
+export const LAYOUT_DESIGN = { width: 1920, height: 1080 } as const
+
+/** Design-space under-card strip (centered under four reward cards @ 1080p). */
 const RELIC_STRIP: PanelAnchor = { x: 410, y: 640 }
 
-export const LAYOUT_PRESETS: Record<
-  LayoutPresetId,
-  { label: string; description: string; anchors: Partial<Record<ModuleId, PanelAnchor>> }
-> = {
+type PresetDef = {
+  label: string
+  description: string
+  anchors: Partial<Record<ModuleId, PanelAnchor>>
+}
+
+const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
   'left-stack': {
     label: 'Left stack',
     description: 'Timers stacked on the left; relic strip under reward cards',
@@ -45,4 +51,62 @@ export const LAYOUT_PRESETS: Record<
       arbitration: { x: 640, y: 420 },
     },
   },
+}
+
+/** UI metadata (labels) — anchors are built per display via helpers below. */
+export const LAYOUT_PRESETS: Record<
+  LayoutPresetId,
+  { label: string; description: string }
+> = {
+  'left-stack': {
+    label: PRESET_DEFS['left-stack'].label,
+    description: PRESET_DEFS['left-stack'].description,
+  },
+  corners: {
+    label: PRESET_DEFS.corners.label,
+    description: PRESET_DEFS.corners.description,
+  },
+  'right-rail': {
+    label: PRESET_DEFS['right-rail'].label,
+    description: PRESET_DEFS['right-rail'].description,
+  },
+}
+
+function scaleAnchor(anchor: PanelAnchor, sx: number, sy: number): PanelAnchor {
+  return {
+    x: Math.round(anchor.x * sx),
+    y: Math.round(anchor.y * sy),
+  }
+}
+
+export function scalePanelAnchors(
+  anchors: Partial<Record<ModuleId, PanelAnchor>>,
+  width: number,
+  height: number,
+  fromWidth = LAYOUT_DESIGN.width,
+  fromHeight = LAYOUT_DESIGN.height,
+): Partial<Record<ModuleId, PanelAnchor>> {
+  const sx = width / fromWidth
+  const sy = height / fromHeight
+  const next: Partial<Record<ModuleId, PanelAnchor>> = {}
+  for (const [id, anchor] of Object.entries(anchors) as [ModuleId, PanelAnchor][]) {
+    if (!anchor) continue
+    next[id] = scaleAnchor(anchor, sx, sy)
+  }
+  return next
+}
+
+export function getLayoutPresetAnchors(
+  id: LayoutPresetId,
+  width: number,
+  height: number,
+): Partial<Record<ModuleId, PanelAnchor>> {
+  return scalePanelAnchors(PRESET_DEFS[id].anchors, width, height)
+}
+
+export function getDefaultPanelAnchors(
+  width: number,
+  height: number,
+): Partial<Record<ModuleId, PanelAnchor>> {
+  return scalePanelAnchors(DEFAULT_SETTINGS.panelAnchors, width, height)
 }
