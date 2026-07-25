@@ -117,7 +117,9 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
 
     const capture = await captureRivenCompare()
     if (!capture || capture.crops.length < 2) {
-      throw new Error('Could not capture riven cards. Use Borderless on a captured display.')
+      throw new Error(
+        'Could not capture riven cards. Use Borderless Windowed (Linux/Proton: X11 or XWayland).',
+      )
     }
     let crops = capture.crops
 

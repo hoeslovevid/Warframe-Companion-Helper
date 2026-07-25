@@ -1,7 +1,7 @@
 {
   "name": "everything-warframe",
-  "version": "0.9.3",
-  "description": "Everything Warframe — overlay companion for worldstate, relics, rivens, foundry, and inventory",
+  "version": "0.9.4",
+  "description": "Everything Warframe — overlay companion for Windows and Linux (Steam/Proton): worldstate, relics, rivens, foundry, inventory",
   "main": "dist-electron/main.cjs",
   "author": "Everything Warframe",
   "license": "MIT",
@@ -9,7 +9,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hoeslovevid/Warframe-Companion-Helper.git"
+    "url": "https://github.com/hoeslovevid/everything-warframe.git"
   },
   "homepage": "https://hoeslovevid.github.io/Warframe-Companion-Helper/",
   "scripts": {
@@ -21,7 +21,10 @@
     "start": "npm run electron:dev",
     "dist": "npm run build && electron-builder --win -c.win.signAndEditExecutable=false",
     "dist:dir": "npm run build && electron-builder --win --dir -c.win.signAndEditExecutable=false",
-    "release": "npm run build && electron-builder --win --publish always -c.win.signAndEditExecutable=false"
+    "dist:linux": "npm run build && electron-builder --linux",
+    "release": "npm run build && electron-builder --win --publish always -c.win.signAndEditExecutable=false",
+    "release:win": "npm run build && electron-builder --win --publish always -c.win.signAndEditExecutable=false",
+    "release:linux": "npm run build && electron-builder --linux --publish always"
   },
   "dependencies": {
     "@repeato/ocr": "^1.5.21",
@@ -96,6 +99,26 @@
         }
       ]
     },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Game",
+      "synopsis": "Warframe overlay companion for Windows and Linux (Steam/Proton)",
+      "executableName": "everything-warframe",
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -111,7 +134,7 @@
       {
         "provider": "github",
         "owner": "hoeslovevid",
-        "repo": "Warframe-Companion-Helper",
+        "repo": "everything-warframe",
         "releaseType": "release"
       }
     ]

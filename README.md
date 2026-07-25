@@ -1,22 +1,23 @@
 # Everything Warframe
 
-Windows companion + transparent overlay for Warframe: worldstate panels, Baro inventory, account inventory sync, and relic reward scanning.
+Companion + transparent overlay for Warframe on **Windows** and **Linux (Steam/Proton)**: worldstate panels, Baro inventory, account inventory sync, and relic/riven OCR.
 
 **Website:** [hoeslovevid.github.io/Warframe-Companion-Helper](https://hoeslovevid.github.io/Warframe-Companion-Helper/)  
-**Downloads:** [GitHub Releases](https://github.com/hoeslovevid/Warframe-Companion-Helper/releases)
+**Downloads:** [GitHub Releases](https://github.com/hoeslovevid/everything-warframe/releases)
 
 ## Requirements
 
-- Windows 10/11 (x64)
+- **Windows** 10/11 (x64), or **Linux** x64 with Warframe via **Steam + Proton**
 - Warframe in **Borderless Windowed** (exclusive fullscreen hides the overlay)
+- Linux: X11 is the most reliable for overlays; Wayland may need XWayland / portal screen capture
 - For development: Node.js 20+ recommended (18 may work for `npm start`)
 
 ## Download (users)
 
-1. Open [Releases](https://github.com/hoeslovevid/Warframe-Companion-Helper/releases)
-2. Download the latest **Setup** `.exe` (installer) or **portable** build
+1. Open [Releases](https://github.com/hoeslovevid/everything-warframe/releases)
+2. **Windows:** Setup `.exe` or portable · **Linux:** `.AppImage` or `.deb`
 3. Install / run **Everything Warframe**
-4. Keep Warframe in Borderless Windowed
+4. Keep Warframe in Borderless Windowed (Proton: same setting in-game)
 
 ### Auto-updates
 
@@ -45,10 +46,11 @@ In-game (WFHelper-style): press `Ctrl+Tab` to unlock click-through, left- or rig
 ### Build a local installer
 
 ```bash
-npm run dist
+npm run dist        # Windows
+npm run dist:linux  # Linux AppImage + deb
 ```
 
-Outputs land in `release/` (NSIS setup + portable).
+Outputs land in `release/`.
 
 ## Default hotkeys
 
@@ -110,6 +112,14 @@ Data stays on your PC.
 3. The overlay grades both rolls and recommends keep / take / similar
 4. EE.log may auto-detect; the hotkey is the reliable path. Dismiss with **Alt+Shift+H**
 
+## Linux / Proton
+
+1. Install Warframe through Steam and launch it once (creates `compatdata/230410`)
+2. Run the AppImage or `.deb` build of Everything Warframe
+3. EE.log is auto-detected from the Proton prefix; process detection uses `pgrep` for `Warframe.x64.exe`
+4. Overlay + OCR work best on **X11** / XWayland with Warframe in Borderless
+5. Inventory sync from the game runs the Windows helper via Proton’s wine inside the Warframe prefix (or import `inventory.json` manually)
+
 ## Foundry planner
 
 1. Sync inventory under **Settings → Inventory**
@@ -144,7 +154,9 @@ npm run release
 | `npm start` | Dev companion + overlay |
 | `npm run build` | Production renderer + electron bundles |
 | `npm run dist` | Build Windows installer + portable (no publish) |
-| `npm run release` | Build and publish to GitHub Releases |
+| `npm run dist:linux` | Build Linux AppImage + deb (no publish) |
+| `npm run release:win` | Build and publish Windows artifacts |
+| `npm run release:linux` | Build and publish Linux artifacts |
 
 ## Data sources
 

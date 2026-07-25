@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Everything Warframe — Windows overlay companion</title>
+    <title>Everything Warframe — overlay companion for Windows &amp; Linux</title>
     <meta
       name="description"
-      content="Open-source Windows overlay for Warframe: worldstate panels, relic picks, riven grading, and local inventory sync. No account. Data stays on your PC."
+      content="Open-source Warframe overlay for Windows and Linux (Steam/Proton): worldstate panels, relic picks, riven grading, and local inventory sync. No account. Data stays on your PC."
     />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Everything Warframe" />
     <meta
       property="og:description"
-      content="Worldstate overlays, relic reward scanning, riven grading, and inventory-aware picks — open source, local-first."
+      content="Worldstate overlays, relic reward scanning, riven grading, and inventory-aware picks — Windows & Linux via Steam/Proton. Open source, local-first."
     />
     <meta
       property="og:image"
@@ -43,7 +43,7 @@
         <a class="nav-link-secondary" href="#faq">FAQ</a>
         <a
           class="nav-ext"
-          href="https://github.com/hoeslovevid/Warframe-Companion-Helper"
+          href="https://github.com/hoeslovevid/everything-warframe"
           target="_blank"
           rel="noreferrer"
           >GitHub</a
@@ -109,23 +109,30 @@
             <p class="brand">Everything Warframe</p>
             <h1>Stay in the fight. Keep the intel.</h1>
             <p class="lede">
-              A Windows overlay for cycles, fissures, Baro, relic picks, and riven grading — open
-              source, local-first.
+              An overlay for cycles, fissures, Baro, relic picks, and riven grading — Windows and
+              Linux via Steam/Proton. Open source, local-first.
             </p>
             <div class="cta-row">
               <a
                 id="download-setup"
                 class="btn primary"
-                href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+                href="https://github.com/hoeslovevid/everything-warframe/releases/latest"
               >
                 Download for Windows
               </a>
               <a
+                id="download-linux"
+                class="btn primary"
+                href="https://github.com/hoeslovevid/everything-warframe/releases/latest"
+              >
+                Download for Linux
+              </a>
+              <a
                 id="download-portable"
                 class="btn ghost"
-                href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+                href="https://github.com/hoeslovevid/everything-warframe/releases/latest"
               >
-                Portable build
+                Windows portable
               </a>
             </div>
             <p class="version-line" id="version-line">Fetching latest release…</p>
@@ -148,8 +155,8 @@
             <span>No telemetry, no login</span>
           </p>
           <p>
-            <strong>Unsigned build</strong>
-            <span>SmartScreen may warn on first run</span>
+            <strong>Windows &amp; Linux</strong>
+            <span>Native + Steam/Proton play</span>
           </p>
         </div>
       </section>
@@ -166,7 +173,10 @@
               <span class="step-num">01</span>
               <div>
                 <h3>Install &amp; launch</h3>
-                <p>Use the Setup installer, or run the portable build. The companion opens from the tray.</p>
+                <p>
+                  Windows: Setup or portable. Linux: AppImage or .deb. The companion opens from the
+                  tray / app menu.
+                </p>
               </div>
             </li>
             <li>
@@ -239,7 +249,8 @@
         <div class="section-inner">
           <h2>Why this is safe to run</h2>
           <p class="section-lede">
-            You’re downloading a Windows .exe — here’s exactly what it does and doesn’t do.
+            You’re downloading an Electron app (Windows installer/portable or Linux AppImage/deb) —
+            here’s exactly what it does and doesn’t do.
           </p>
           <ul class="trust-list">
             <li>
@@ -256,9 +267,10 @@
               electron-updater.
             </li>
             <li>
-              <strong>SmartScreen warning</strong>
-              Builds aren’t code-signed yet, so Windows may warn on first launch. That’s expected for
-              indie software — verify the download from this site or the official GitHub release.
+              <strong>SmartScreen / unsigned</strong>
+              Windows builds aren’t code-signed yet, so SmartScreen may warn on first launch. Linux
+              AppImages are unmarked binaries — verify the download from this site or the official
+              GitHub release.
             </li>
           </ul>
           <p class="muted trust-aside">
@@ -271,8 +283,8 @@
         <div class="section-inner">
           <h2>Download</h2>
           <p class="section-lede">
-            Windows 10/11 (x64). Keep Warframe in <strong>Borderless Windowed</strong> so the overlay
-            can sit above the game.
+            Windows 10/11 (x64) · Linux x64 with Warframe via <strong>Steam + Proton</strong>. Keep
+            the game in <strong>Borderless Windowed</strong> so the overlay can sit above it.
           </p>
 
           <div class="download-meta" id="download-meta" hidden>
@@ -285,8 +297,12 @@
               <strong id="meta-date">—</strong>
             </p>
             <p>
-              <span class="meta-label">Installer size</span>
+              <span class="meta-label">Windows Setup</span>
               <strong id="meta-size">—</strong>
+            </p>
+            <p>
+              <span class="meta-label">Linux AppImage</span>
+              <strong id="meta-size-linux">—</strong>
             </p>
           </div>
 
@@ -294,20 +310,27 @@
             <a
               id="download-setup-2"
               class="btn primary"
-              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+              href="https://github.com/hoeslovevid/everything-warframe/releases/latest"
             >
-              Download Setup
+              Windows Setup
+            </a>
+            <a
+              id="download-linux-2"
+              class="btn primary"
+              href="https://github.com/hoeslovevid/everything-warframe/releases/latest"
+            >
+              Linux AppImage
             </a>
             <a
               id="download-portable-2"
               class="btn ghost"
-              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+              href="https://github.com/hoeslovevid/everything-warframe/releases/latest"
             >
-              Portable
+              Windows portable
             </a>
             <a
               class="btn ghost"
-              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases"
+              href="https://github.com/hoeslovevid/everything-warframe/releases"
               target="_blank"
               rel="noreferrer"
             >
@@ -315,7 +338,8 @@
             </a>
           </div>
           <p class="muted" id="asset-note">
-            Prefer the Setup build for auto-updates. Portable is a single .exe with no installer.
+            Windows: prefer Setup for auto-updates. Linux: chmod +x the AppImage, or install the
+            .deb. Also on the release page: Linux .deb and Windows portable.
           </p>
           <p class="muted checksum-line" id="checksum-line" hidden></p>
         </div>
@@ -326,6 +350,16 @@
           <h2>FAQ</h2>
           <p class="section-lede">Quick answers before you install.</p>
           <div class="faq-list">
+            <details class="faq-item">
+              <summary>Does this work on Linux?</summary>
+              <p>
+                Yes — with <strong>Warframe via Steam + Proton</strong>. Use the AppImage or .deb.
+                EE.log is auto-detected from your Proton
+                <code>compatdata/230410</code> prefix. Overlay and OCR work best on X11 / XWayland
+                with Borderless Windowed. Inventory sync runs the Windows helper through Proton’s
+                wine, or import <code>inventory.json</code> manually.
+              </p>
+            </details>
             <details class="faq-item">
               <summary>Windows says the app is unrecognized / SmartScreen</summary>
               <p>
@@ -338,7 +372,8 @@
               <summary>I can’t see the overlay in-game</summary>
               <p>
                 Set Warframe to <strong>Borderless Windowed</strong>. Exclusive fullscreen draws
-                above the overlay. Then press Alt+Shift+V to toggle the overlay on.
+                above the overlay. Then press Alt+Shift+V to toggle the overlay on. On Linux, prefer
+                an X11 session (or XWayland) if the overlay doesn’t appear under pure Wayland.
               </p>
             </details>
             <details class="faq-item">
@@ -377,19 +412,19 @@
         </p>
         <p class="footer-links">
           <a
-            href="https://github.com/hoeslovevid/Warframe-Companion-Helper"
+            href="https://github.com/hoeslovevid/everything-warframe"
             target="_blank"
             rel="noreferrer"
             >Source</a
           >
           <a
-            href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases"
+            href="https://github.com/hoeslovevid/everything-warframe/releases"
             target="_blank"
             rel="noreferrer"
             >Releases</a
           >
           <a
-            href="https://github.com/hoeslovevid/Warframe-Companion-Helper/issues"
+            href="https://github.com/hoeslovevid/everything-warframe/issues"
             target="_blank"
             rel="noreferrer"
             >Report an issue</a

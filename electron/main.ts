@@ -76,6 +76,10 @@ if (process.platform === 'win32') {
   // Keep stable AUMID so Windows taskbar/jump lists stay linked across renames
   app.setAppUserModelId('com.voidlens.app')
 }
+if (process.platform === 'linux') {
+  // Helps transparent always-on-top overlay above Proton / borderless clients
+  app.commandLine.appendSwitch('enable-transparent-visuals')
+}
 
 const isDev = !app.isPackaged
 const DEV_URL = 'http://127.0.0.1:5173'

@@ -34,7 +34,12 @@ export function createOverlayWindow(devUrl: string | null): BrowserWindow {
   // High enough to sit above borderless Warframe; companion uses the same level + moveTop
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  win.setIgnoreMouseEvents(true, { forward: true })
+  // `{ forward: true }` is Windows-only; Linux/Proton still get click-through without it.
+  if (process.platform === 'win32') {
+    win.setIgnoreMouseEvents(true, { forward: true })
+  } else {
+    win.setIgnoreMouseEvents(true)
+  }
   // Keep overlay visible to the player, but exclude it from desktopCapturer / OCR snapshots.
   try {
     win.setContentProtection(true)
@@ -73,7 +78,11 @@ export function createOverlayWindow(devUrl: string | null): BrowserWindow {
 
 export function setOverlayClickThrough(win: BrowserWindow, clickThrough: boolean) {
   if (clickThrough) {
-    win.setIgnoreMouseEvents(true, { forward: true })
+    if (process.platform === 'win32') {
+      win.setIgnoreMouseEvents(true, { forward: true })
+    } else {
+      win.setIgnoreMouseEvents(true)
+    }
     win.setFocusable(false)
   } else {
     win.setIgnoreMouseEvents(false)

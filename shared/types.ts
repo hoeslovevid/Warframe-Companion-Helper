@@ -655,6 +655,10 @@ export type InventoryStatus = {
   loaded: boolean
   helperReady: boolean
   warframeRunning: boolean
+  /** Node process.platform */
+  platform: string
+  /** Linux: Warframe Steam/Proton prefix detected */
+  protonPlay: boolean
   error: string | null
   candidates: InventoryCandidate[]
 }

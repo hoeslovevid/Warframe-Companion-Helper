@@ -11,6 +11,8 @@ const emptyStatus: InventoryStatus = {
   loaded: false,
   helperReady: false,
   warframeRunning: false,
+  platform: 'win32',
+  protonPlay: false,
   error: null,
   candidates: [],
 }

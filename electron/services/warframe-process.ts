@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import fs from 'node:fs'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
@@ -15,10 +16,6 @@ let lastRunning = false
 let lastForeground = false
 
 async function queryWindows(): Promise<{ running: boolean; foreground: boolean }> {
-  if (process.platform !== 'win32') {
-    return { running: false, foreground: false }
-  }
-
   try {
     // NOTE: do not use $PID — it is a read-only automatic variable in PowerShell.
     const script = `
@@ -58,7 +55,6 @@ Write-Output ("{0}|{1}" -f $running, $fg)
       foreground: /^true$/i.test(foreground || ''),
     }
   } catch {
-    // Fallback: tasklist
     try {
       const { stdout } = await execFileAsync(
         'tasklist',
@@ -76,6 +72,64 @@ Write-Output ("{0}|{1}" -f $running, $fg)
   }
 }
 
+/** Warframe under Proton appears as Warframe.x64.exe in the Linux process list. */
+async function queryLinux(): Promise<{ running: boolean; foreground: boolean }> {
+  let running = false
+  try {
+    const { stdout } = await execFileAsync(
+      'pgrep',
+      ['-if', 'warframe(\\.x64)?(\\.exe)?'],
+      { timeout: 2500 },
+    )
+    running = stdout.trim().length > 0
+  } catch {
+    // pgrep exits 1 when no match — also try /proc scan
+    running = scanProcForWarframe()
+  }
+
+  if (!running) return { running: false, foreground: false }
+
+  // X11: optional active-window check. Wayland usually can't — treat running as playable.
+  let foreground = running
+  try {
+    const { stdout } = await execFileAsync(
+      'xdotool',
+      ['getactivewindow', 'getwindowname'],
+      { timeout: 1500 },
+    )
+    const name = stdout.toLowerCase()
+    foreground = /warframe/.test(name)
+  } catch {
+    foreground = running
+  }
+  return { running, foreground }
+}
+
+function scanProcForWarframe(): boolean {
+  try {
+    for (const dir of fs.readdirSync('/proc')) {
+      if (!/^\d+$/.test(dir)) continue
+      try {
+        const cmdline = fs.readFileSync(`/proc/${dir}/cmdline`, 'utf8').toLowerCase()
+        if (cmdline.includes('warframe.x64') || cmdline.includes('warframe.exe')) {
+          return true
+        }
+      } catch {
+        // ignore unreadable pids
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return false
+}
+
+async function queryPlatform(): Promise<{ running: boolean; foreground: boolean }> {
+  if (process.platform === 'win32') return queryWindows()
+  if (process.platform === 'linux') return queryLinux()
+  return { running: false, foreground: false }
+}
+
 export async function getWarframeProcessState(): Promise<{
   running: boolean
   foreground: boolean
@@ -84,7 +138,7 @@ export async function getWarframeProcessState(): Promise<{
   if (now - lastCheck < 2000) {
     return { running: lastRunning, foreground: lastForeground }
   }
-  const next = await queryWindows()
+  const next = await queryPlatform()
   lastCheck = now
   lastRunning = next.running
   lastForeground = next.foreground

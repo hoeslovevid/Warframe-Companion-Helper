@@ -15,6 +15,13 @@ import {
   MasteryIndex,
 } from '../../shared/types'
 import { loadSettings, updateSettings } from '../settings'
+import {
+  findWineLauncher,
+  isProtonPlayAvailable,
+  warframeProtonLocalAppData,
+  warframeProtonPrefix,
+} from './steam-paths'
+import { isWarframeRunning as isWarframeProcessRunning } from './warframe-process'
 
 const HELPER_URL =
   'https://github.com/Sainan/warframe-api-helper/releases/download/1.1.2/warframe-api-helper.exe'
@@ -93,6 +100,17 @@ function managedInventoryPath() {
 }
 
 export function isWarframeRunning(): boolean {
+  if (process.platform === 'linux') {
+    try {
+      const out = execSync('pgrep -if "warframe(\\.x64)?(\\.exe)?"', {
+        encoding: 'utf8',
+        timeout: 5000,
+      })
+      return out.trim().length > 0
+    } catch {
+      return false
+    }
+  }
   try {
     const out = execSync('tasklist /FI "IMAGENAME eq Warframe.x64.exe" /NH', {
       encoding: 'utf8',
@@ -159,8 +177,8 @@ export function detectInventoryCandidates(): InventoryCandidate[] {
   pushCandidate(list, managedInventoryPath(), 'Everything Warframe synced inventory', 'helper')
   pushCandidate(list, path.join(inventoryWorkDir(), 'inventory.json'), 'Everything Warframe inventory folder', 'helper')
   pushCandidate(list, path.join(toolsDir(), 'inventory.json'), 'Helper tools folder', 'helper')
-  pushCandidate(list, path.join(downloads, 'inventory.json'), 'Downloads\\inventory.json', 'detected')
-  pushCandidate(list, path.join(desktop, 'inventory.json'), 'Desktop\\inventory.json', 'detected')
+  pushCandidate(list, path.join(downloads, 'inventory.json'), 'Downloads/inventory.json', 'detected')
+  pushCandidate(list, path.join(desktop, 'inventory.json'), 'Desktop/inventory.json', 'detected')
   pushCandidate(list, path.join(process.cwd(), 'inventory.json'), 'Current folder inventory.json', 'detected')
 
   const alecaPaths = [
@@ -168,6 +186,19 @@ export function detectInventoryCandidates(): InventoryCandidate[] {
     path.join(roaming, 'AlecaFrame', 'lastData.dat'),
     path.join(local, 'Overwolf', 'Extensions'),
   ]
+
+  // Proton: look inside Warframe's Wine prefix for Windows-side exports
+  const protonLocal = warframeProtonLocalAppData()
+  if (protonLocal) {
+    alecaPaths.push(path.join(protonLocal, 'AlecaFrame', 'lastData.dat'))
+    pushCandidate(
+      list,
+      path.join(protonLocal, 'inventory.json'),
+      'Proton prefix inventory.json',
+      'detected',
+    )
+  }
+
   for (const p of alecaPaths) {
     if (p.endsWith('lastData.dat')) {
       pushCandidate(list, p, 'AlecaFrame lastData.dat', 'alecaframe')
@@ -178,7 +209,6 @@ export function detectInventoryCandidates(): InventoryCandidate[] {
     }
   }
 
-  // Nearby helper drops
   for (const found of walkForName(downloads, 'inventory.json', 2)) {
     pushCandidate(list, found, 'Downloads inventory.json', 'detected')
   }
@@ -450,10 +480,14 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       error: 'Permission required. Accept the inventory sync risk acknowledgment first.',
     }
   }
-  if (!isWarframeRunning()) {
+  const running = isWarframeRunning() || (await isWarframeProcessRunning())
+  if (!running) {
     return {
       ok: false,
-      error: 'Warframe.x64.exe is not running. Log into Warframe, then try again.',
+      error:
+        process.platform === 'linux'
+          ? 'Warframe is not running under Steam/Proton. Launch the game, then try again.'
+          : 'Warframe.x64.exe is not running. Log into Warframe, then try again.',
     }
   }
 
@@ -462,14 +496,46 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
     const work = inventoryWorkDir()
     fs.mkdirSync(work, { recursive: true })
     const outJson = path.join(work, 'inventory.json')
-    // Remove stale file so we know a fresh write happened
     if (fs.existsSync(outJson)) fs.unlinkSync(outJson)
 
-    const child = spawn(exe, [], {
-      cwd: work,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
+    let child
+    if (process.platform === 'linux') {
+      const wine = findWineLauncher()
+      const pfx = warframeProtonPrefix()
+      if (!wine) {
+        return {
+          ok: false,
+          error:
+            'Linux inventory sync needs Proton’s wine or system wine. Install Steam Proton, or import inventory.json / lastData.dat manually.',
+        }
+      }
+      if (!pfx) {
+        return {
+          ok: false,
+          error:
+            'Warframe Proton prefix not found (Steam AppID 230410). Launch Warframe once via Steam, or import an inventory file manually.',
+        }
+      }
+      console.info(
+        `[Everything Warframe] Inventory sync via ${wine.label} (WINEPREFIX=${pfx})`,
+      )
+      child = spawn(wine.command, [...wine.args, exe], {
+        cwd: work,
+        env: {
+          ...process.env,
+          WINEPREFIX: pfx,
+          // Avoid wine GUI noise / crash dialogs in headless-ish contexts
+          WINEDEBUG: '-all',
+        },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+    } else {
+      child = spawn(exe, [], {
+        cwd: work,
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+    }
 
     let stderr = ''
     child.stderr?.on('data', (d) => {
@@ -496,8 +562,10 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       return {
         ok: false,
         error:
-          stderr.trim() ||
-          'Timed out waiting for inventory.json. Stay logged into Warframe and try again.',
+          stderr.trim().slice(0, 400) ||
+          (process.platform === 'linux'
+            ? 'Timed out waiting for inventory.json under Proton. Stay logged in, or import a file manually.'
+            : 'Timed out waiting for inventory.json. Stay logged into Warframe and try again.'),
       }
     }
 
@@ -628,6 +696,8 @@ export function getInventoryStatus(): InventoryStatus {
     loaded: cachedMeta.uniqueCount > 0,
     helperReady: helperIsReady(),
     warframeRunning: isWarframeRunning(),
+    platform: process.platform,
+    protonPlay: isProtonPlayAvailable(),
     error: null,
     candidates: detectInventoryCandidates(),
   }

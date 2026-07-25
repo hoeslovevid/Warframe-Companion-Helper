@@ -10,7 +10,15 @@ permissions:
 
 jobs:
   release:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            publish_cmd: npm run release:win
+          - os: ubuntu-22.04
+            publish_cmd: npm run release:linux
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,6 +29,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg rpm
+
       - name: Install dependencies
         run: npm ci
 
@@ -28,4 +42,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npm run release
+        run: ${{ matrix.publish_cmd }}

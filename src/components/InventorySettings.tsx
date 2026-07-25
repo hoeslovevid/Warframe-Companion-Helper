@@ -59,7 +59,11 @@ export function InventorySettings() {
 
         <ToggleRow
           label="Allow game inventory sync"
-          description="With permission, Everything Warframe can run warframe-api-helper to read a short-lived session token from the running game (not your password), download your inventory, and store it locally. Community tools warn this may conflict with Warframe TOS — use at your own risk."
+          description={
+            status.platform === 'linux'
+              ? 'With permission, Everything Warframe runs warframe-api-helper inside your Warframe Proton prefix (via Proton’s wine) to download inventory locally. May conflict with Warframe TOS — use at your own risk.'
+              : 'With permission, Everything Warframe can run warframe-api-helper to read a short-lived session token from the running game (not your password), download your inventory, and store it locally. Community tools warn this may conflict with Warframe TOS — use at your own risk.'
+          }
           checked={status.consent}
           onChange={(v) => void setConsent(v)}
         />
@@ -82,6 +86,14 @@ export function InventorySettings() {
             Clear
           </button>
         </div>
+
+        {status.platform === 'linux' ? (
+          <p className="muted">
+            {status.protonPlay
+              ? 'Steam/Proton Warframe prefix detected. Sync uses Proton wine while you are logged in.'
+              : 'Launch Warframe once via Steam so the Proton prefix is created, or import inventory.json manually.'}
+          </p>
+        ) : null}
 
         {!status.consent ? (
           <p className="muted">
