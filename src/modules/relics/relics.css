@@ -1,0 +1,98 @@
+.relic-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.relic-grid.is-compact {
+  grid-template-columns: 1fr;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.relic-card {
+  border: 1px solid rgba(157, 180, 196, 0.18);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(6, 10, 15, 0.35);
+}
+
+.relic-card.is-needed {
+  border-color: rgba(95, 208, 197, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(95, 208, 197, 0.15);
+}
+
+.relic-card__slot {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vl-mist);
+  margin-bottom: 4px;
+}
+
+.relic-card__name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.relic-card__set {
+  color: var(--vl-gold-soft);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.relic-card__owned {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--vl-mist);
+}
+
+.relic-card__owned.is-needed {
+  color: var(--vl-teal-bright);
+}
+
+.relic-card__progress {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: var(--vl-mist);
+}
+
+.relic-card__parts {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.relic-card__parts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--vl-mist);
+}
+
+.relic-card__parts .has {
+  color: var(--vl-ok);
+}
+
+.relic-card__parts .miss {
+  color: var(--vl-danger);
+}
+
+.relic-card__meta {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--vl-gold-soft);
+}
+
+.overlay-root .relic-grid.is-compact {
+  max-width: 320px;
+}

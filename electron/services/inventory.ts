@@ -1,0 +1,506 @@
+import crypto from 'node:crypto'
+import fs from 'node:fs'
+import https from 'node:https'
+import os from 'node:os'
+import path from 'node:path'
+import { spawn, execSync } from 'node:child_process'
+import { app } from 'electron'
+import {
+  InventoryCandidate,
+  InventoryIndex,
+  InventorySource,
+  InventoryStatus,
+  InventorySyncResult,
+} from '../../shared/types'
+import { loadSettings, updateSettings } from '../settings'
+
+const HELPER_URL =
+  'https://github.com/Sainan/warframe-api-helper/releases/download/1.1.2/warframe-api-helper.exe'
+
+/** Same AES key/IV AlecaFrame / warframe-api-helper use for lastData.dat */
+const ALECA_KEY = Buffer.from([76, 69, 79, 45, 65, 76, 69, 67, 9, 69, 79, 45, 65, 76, 69, 67])
+const ALECA_IV = Buffer.from([49, 50, 70, 71, 66, 51, 54, 45, 76, 69, 51, 45, 113, 61, 57, 0])
+
+const INVENTORY_ARRAY_KEYS = [
+  'Suits',
+  'Pistols',
+  'LongGuns',
+  'Melee',
+  'SpaceSuits',
+  'SpaceGuns',
+  'SpaceMelee',
+  'Sentinels',
+  'SentinelWeapons',
+  'KubrowPets',
+  'Cats',
+  'MoaPets',
+  'Horses',
+  'SpecialItems',
+  'MiscItems',
+  'Recipes',
+  'Consumables',
+  'FlavourItems',
+  'ShipDecorations',
+  'FusionTreasures',
+  'Upgrades',
+  'WeaponSkins',
+  'OperatorAmps',
+  'MechSuits',
+]
+
+let cachedIndex: InventoryIndex = {}
+let cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
+const listeners = new Set<(status: InventoryStatus) => void>()
+
+function toolsDir() {
+  return path.join(app.getPath('userData'), 'tools')
+}
+
+function inventoryWorkDir() {
+  return path.join(app.getPath('userData'), 'inventory')
+}
+
+function helperExePath() {
+  return path.join(toolsDir(), 'warframe-api-helper.exe')
+}
+
+function managedInventoryPath() {
+  return path.join(inventoryWorkDir(), 'inventory.json')
+}
+
+export function isWarframeRunning(): boolean {
+  try {
+    const out = execSync('tasklist /FI "IMAGENAME eq Warframe.x64.exe" /NH', {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 5000,
+    })
+    return out.toLowerCase().includes('warframe.x64.exe')
+  } catch {
+    return false
+  }
+}
+
+function fileMtimeIso(filePath: string): string {
+  try {
+    return fs.statSync(filePath).mtime.toISOString()
+  } catch {
+    return ''
+  }
+}
+
+function pushCandidate(
+  list: InventoryCandidate[],
+  filePath: string,
+  label: string,
+  source: InventorySource,
+) {
+  if (!filePath || !fs.existsSync(filePath)) return
+  if (list.some((c) => c.path.toLowerCase() === filePath.toLowerCase())) return
+  list.push({
+    path: filePath,
+    label,
+    source,
+    mtime: fileMtimeIso(filePath),
+  })
+}
+
+function walkForName(root: string, name: string, maxDepth = 3, out: string[] = [], depth = 0) {
+  if (depth > maxDepth || out.length >= 8) return out
+  let entries: fs.Dirent[]
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true })
+  } catch {
+    return out
+  }
+  for (const entry of entries) {
+    const full = path.join(root, entry.name)
+    if (entry.isFile() && entry.name.toLowerCase() === name.toLowerCase()) {
+      out.push(full)
+    } else if (entry.isDirectory() && !entry.name.startsWith('.')) {
+      walkForName(full, name, maxDepth, out, depth + 1)
+    }
+  }
+  return out
+}
+
+export function detectInventoryCandidates(): InventoryCandidate[] {
+  const home = os.homedir()
+  const local = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local')
+  const roaming = process.env.APPDATA || path.join(home, 'AppData', 'Roaming')
+  const downloads = path.join(home, 'Downloads')
+  const desktop = path.join(home, 'Desktop')
+  const list: InventoryCandidate[] = []
+
+  pushCandidate(list, managedInventoryPath(), 'VoidLens synced inventory', 'helper')
+  pushCandidate(list, path.join(inventoryWorkDir(), 'inventory.json'), 'VoidLens inventory folder', 'helper')
+  pushCandidate(list, path.join(toolsDir(), 'inventory.json'), 'Helper tools folder', 'helper')
+  pushCandidate(list, path.join(downloads, 'inventory.json'), 'Downloads\\inventory.json', 'detected')
+  pushCandidate(list, path.join(desktop, 'inventory.json'), 'Desktop\\inventory.json', 'detected')
+  pushCandidate(list, path.join(process.cwd(), 'inventory.json'), 'Current folder inventory.json', 'detected')
+
+  const alecaPaths = [
+    path.join(local, 'AlecaFrame', 'lastData.dat'),
+    path.join(roaming, 'AlecaFrame', 'lastData.dat'),
+    path.join(local, 'Overwolf', 'Extensions'),
+  ]
+  for (const p of alecaPaths) {
+    if (p.endsWith('lastData.dat')) {
+      pushCandidate(list, p, 'AlecaFrame lastData.dat', 'alecaframe')
+    } else if (fs.existsSync(p)) {
+      for (const found of walkForName(p, 'lastData.dat', 4)) {
+        pushCandidate(list, found, 'AlecaFrame / Overwolf lastData.dat', 'alecaframe')
+      }
+    }
+  }
+
+  // Nearby helper drops
+  for (const found of walkForName(downloads, 'inventory.json', 2)) {
+    pushCandidate(list, found, 'Downloads inventory.json', 'detected')
+  }
+
+  list.sort((a, b) => (b.mtime || '').localeCompare(a.mtime || ''))
+  return list
+}
+
+function addCount(index: InventoryIndex, key: string, count: number) {
+  if (!key || count <= 0) return
+  index[key] = (index[key] || 0) + count
+  // Also index basename for fuzzy matching later
+  const base = key.split('/').pop()
+  if (base && base !== key) index[base] = (index[base] || 0) + count
+}
+
+export function parseInventoryJson(raw: unknown): { index: InventoryIndex; itemCount: number } {
+  const index: InventoryIndex = {}
+  let itemCount = 0
+  if (!raw || typeof raw !== 'object') return { index, itemCount }
+
+  const root = raw as Record<string, unknown>
+
+  for (const key of INVENTORY_ARRAY_KEYS) {
+    const arr = root[key]
+    if (!Array.isArray(arr)) continue
+    for (const entry of arr) {
+      if (!entry || typeof entry !== 'object') continue
+      const row = entry as Record<string, unknown>
+      const type = String(row.ItemType || row.uniqueName || row.ItemName || '')
+      const count = Number(row.ItemCount ?? row.Count ?? 1) || 1
+      if (!type) continue
+      addCount(index, type, count)
+      itemCount += count
+    }
+  }
+
+  // Some exports nest under Inventory
+  if (itemCount === 0 && root.Inventory && typeof root.Inventory === 'object') {
+    return parseInventoryJson(root.Inventory)
+  }
+
+  return { index, itemCount }
+}
+
+export function decryptAlecaFrameDat(filePath: string): unknown {
+  const encrypted = fs.readFileSync(filePath)
+  const decipher = crypto.createDecipheriv('aes-128-cbc', ALECA_KEY, ALECA_IV)
+  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()])
+  // strip PKCS7 padding leftovers if JSON has trailing junk
+  const text = decrypted.toString('utf8').replace(/\0+$/g, '').trim()
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start < 0 || end < 0) throw new Error('Decrypted AlecaFrame data is not JSON')
+  return JSON.parse(text.slice(start, end + 1))
+}
+
+function loadJsonFile(filePath: string): unknown {
+  if (filePath.toLowerCase().endsWith('.dat')) {
+    return decryptAlecaFrameDat(filePath)
+  }
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+}
+
+export function loadInventoryFromPath(filePath: string): {
+  index: InventoryIndex
+  itemCount: number
+  uniqueCount: number
+} {
+  const raw = loadJsonFile(filePath)
+  const { index, itemCount } = parseInventoryJson(raw)
+  return { index, itemCount, uniqueCount: Object.keys(index).length }
+}
+
+export function getInventoryIndex(): InventoryIndex {
+  return { ...cachedIndex }
+}
+
+function downloadFile(url: string, dest: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    fs.mkdirSync(path.dirname(dest), { recursive: true })
+    const file = fs.createWriteStream(dest)
+    const get = (target: string, redirects = 0) => {
+      https
+        .get(target, { headers: { 'User-Agent': 'VoidLens' } }, (res) => {
+          if (
+            res.statusCode &&
+            res.statusCode >= 300 &&
+            res.statusCode < 400 &&
+            res.headers.location &&
+            redirects < 5
+          ) {
+            res.resume()
+            get(res.headers.location, redirects + 1)
+            return
+          }
+          if (res.statusCode !== 200) {
+            file.close()
+            fs.unlink(dest, () => {})
+            reject(new Error(`Download failed (${res.statusCode})`))
+            return
+          }
+          res.pipe(file)
+          file.on('finish', () => file.close(() => resolve()))
+        })
+        .on('error', (err) => {
+          file.close()
+          fs.unlink(dest, () => {})
+          reject(err)
+        })
+    }
+    get(url)
+  })
+}
+
+export async function ensureHelperDownloaded(): Promise<string> {
+  const exe = helperExePath()
+  if (fs.existsSync(exe) && fs.statSync(exe).size > 100_000) return exe
+  await downloadFile(HELPER_URL, exe)
+  return exe
+}
+
+export function helperIsReady(): boolean {
+  try {
+    return fs.existsSync(helperExePath()) && fs.statSync(helperExePath()).size > 100_000
+  } catch {
+    return false
+  }
+}
+
+export function inferInventorySource(filePath: string): InventorySource {
+  const lower = filePath.toLowerCase()
+  if (lower.endsWith('.dat')) return 'alecaframe'
+  const managed = managedInventoryPath().toLowerCase()
+  if (lower === managed || lower.startsWith(inventoryWorkDir().toLowerCase())) return 'helper'
+  return 'detected'
+}
+
+async function waitForFile(filePath: string, timeoutMs: number): Promise<boolean> {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    if (fs.existsSync(filePath)) {
+      try {
+        const st = fs.statSync(filePath)
+        if (st.size > 100) {
+          // small settle delay for write flush
+          await new Promise((r) => setTimeout(r, 400))
+          return true
+        }
+      } catch {
+        // retry
+      }
+    }
+    await new Promise((r) => setTimeout(r, 400))
+  }
+  return false
+}
+
+export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
+  const settings = loadSettings()
+  if (!settings.inventoryConsent) {
+    return {
+      ok: false,
+      error: 'Permission required. Accept the inventory sync risk acknowledgment first.',
+    }
+  }
+  if (!isWarframeRunning()) {
+    return {
+      ok: false,
+      error: 'Warframe.x64.exe is not running. Log into Warframe, then try again.',
+    }
+  }
+
+  try {
+    const exe = await ensureHelperDownloaded()
+    const work = inventoryWorkDir()
+    fs.mkdirSync(work, { recursive: true })
+    const outJson = path.join(work, 'inventory.json')
+    // Remove stale file so we know a fresh write happened
+    if (fs.existsSync(outJson)) fs.unlinkSync(outJson)
+
+    const child = spawn(exe, [], {
+      cwd: work,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+
+    let stderr = ''
+    child.stderr?.on('data', (d) => {
+      stderr += String(d)
+    })
+    child.stdout?.on('data', (d) => {
+      stderr += String(d)
+    })
+
+    const appeared = await waitForFile(outJson, 90_000)
+    try {
+      child.stdin?.write('\r\n')
+      child.stdin?.end()
+    } catch {
+      // ignore
+    }
+    try {
+      child.kill()
+    } catch {
+      // ignore
+    }
+
+    if (!appeared) {
+      return {
+        ok: false,
+        error:
+          stderr.trim() ||
+          'Timed out waiting for inventory.json. Stay logged into Warframe and try again.',
+      }
+    }
+
+    return useInventoryFile(outJson, 'helper')
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Inventory sync failed',
+    }
+  }
+}
+
+export function useInventoryFile(
+  filePath: string,
+  source: InventorySource,
+): InventorySyncResult {
+  try {
+    // If AlecaFrame .dat, decrypt into managed inventory.json for stable path
+    let finalPath = filePath
+    let finalSource = source
+    if (filePath.toLowerCase().endsWith('.dat')) {
+      const json = decryptAlecaFrameDat(filePath)
+      fs.mkdirSync(inventoryWorkDir(), { recursive: true })
+      finalPath = managedInventoryPath()
+      fs.writeFileSync(finalPath, JSON.stringify(json, null, 2), 'utf8')
+      finalSource = 'alecaframe'
+    }
+
+    const loaded = loadInventoryFromPath(finalPath)
+    cachedIndex = loaded.index
+    cachedMeta = {
+      path: finalPath,
+      itemCount: loaded.itemCount,
+      uniqueCount: loaded.uniqueCount,
+    }
+
+    updateSettings({
+      inventoryPath: finalPath,
+      inventorySource: finalSource,
+      inventoryLastSynced: new Date().toISOString(),
+    })
+
+    const status = getInventoryStatus()
+    for (const cb of listeners) cb(status)
+
+    return {
+      ok: true,
+      path: finalPath,
+      source: finalSource,
+      itemCount: loaded.itemCount,
+      uniqueCount: loaded.uniqueCount,
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Failed to load inventory file',
+    }
+  }
+}
+
+export function reloadConfiguredInventory(): void {
+  const settings = loadSettings()
+  if (!settings.inventoryPath || !fs.existsSync(settings.inventoryPath)) {
+    cachedIndex = {}
+    cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
+    return
+  }
+  try {
+    const loaded = loadInventoryFromPath(settings.inventoryPath)
+    cachedIndex = loaded.index
+    cachedMeta = {
+      path: settings.inventoryPath,
+      itemCount: loaded.itemCount,
+      uniqueCount: loaded.uniqueCount,
+    }
+  } catch (err) {
+    console.error('[VoidLens] Failed to reload inventory', err)
+  }
+}
+
+export function clearInventoryData(): InventoryStatus {
+  cachedIndex = {}
+  cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
+  updateSettings({
+    inventoryPath: '',
+    inventorySource: 'none',
+    inventoryLastSynced: '',
+  })
+  const managed = managedInventoryPath()
+  try {
+    if (fs.existsSync(managed)) fs.unlinkSync(managed)
+  } catch {
+    // ignore
+  }
+  const status = getInventoryStatus()
+  for (const cb of listeners) cb(status)
+  return status
+}
+
+export function setInventoryConsent(consent: boolean): InventoryStatus {
+  updateSettings({ inventoryConsent: consent })
+  const status = getInventoryStatus()
+  for (const cb of listeners) cb(status)
+  return status
+}
+
+export function getInventoryStatus(): InventoryStatus {
+  const settings = loadSettings()
+  if (
+    settings.inventoryPath &&
+    settings.inventoryPath !== cachedMeta.path &&
+    fs.existsSync(settings.inventoryPath)
+  ) {
+    reloadConfiguredInventory()
+  }
+
+  return {
+    path: settings.inventoryPath,
+    source: settings.inventorySource,
+    consent: settings.inventoryConsent,
+    lastSynced: settings.inventoryLastSynced,
+    itemCount: cachedMeta.itemCount,
+    uniqueCount: cachedMeta.uniqueCount,
+    loaded: cachedMeta.uniqueCount > 0,
+    helperReady: helperIsReady(),
+    warframeRunning: isWarframeRunning(),
+    error: null,
+    candidates: detectInventoryCandidates(),
+  }
+}
+
+export function onInventoryUpdated(cb: (status: InventoryStatus) => void) {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}

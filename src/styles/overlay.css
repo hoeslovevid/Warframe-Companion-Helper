@@ -1,0 +1,79 @@
+.overlay-root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+
+.overlay-root.layout-edit {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+/* Solid panels — backdrop-filter breaks Electron transparent windows on Windows */
+.overlay-root .vl-panel {
+  background: rgba(10, 16, 22, 0.94);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(201, 164, 92, 0.45);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+}
+
+.overlay-panel {
+  position: absolute;
+  min-width: 280px;
+  max-width: 380px;
+  pointer-events: none;
+  animation: panelIn 280ms var(--vl-ease) both;
+}
+
+.overlay-root.layout-edit .overlay-panel {
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.overlay-root.layout-edit .overlay-panel:active {
+  cursor: grabbing;
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.overlay-empty {
+  position: fixed;
+  left: 24px;
+  top: 24px;
+  max-width: 320px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(10, 16, 22, 0.94);
+  border: 1px solid rgba(201, 164, 92, 0.4);
+  color: var(--vl-frost);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.overlay-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(12, 20, 28, 0.92);
+  border: 1px solid rgba(201, 164, 92, 0.35);
+  color: var(--vl-gold-soft);
+  font-size: 0.85rem;
+  pointer-events: none;
+}

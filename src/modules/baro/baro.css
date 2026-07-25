@@ -1,0 +1,73 @@
+.baro-inv {
+  margin-top: 4px;
+  border-top: 1px solid rgba(157, 180, 196, 0.12);
+  padding-top: 10px;
+}
+
+.baro-inv__head,
+.baro-inv__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 88px;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.baro-inv__head {
+  color: var(--vl-mist);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.baro-inv__head span:nth-child(2),
+.baro-inv__head span:nth-child(3),
+.baro-inv__ducats,
+.baro-inv__credits {
+  text-align: right;
+}
+
+.baro-inv__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 340px;
+  overflow: auto;
+}
+
+.baro-inv__name {
+  font-size: 0.84rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.baro-inv__ducats {
+  color: var(--vl-gold-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+}
+
+.baro-inv__credits {
+  color: var(--vl-teal-bright);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+}
+
+.baro-inv__more {
+  margin: 8px 0 0;
+  color: var(--vl-mist);
+  font-size: 0.78rem;
+}
+
+.overlay-root .baro-inv__list {
+  max-height: 180px;
+}
+
+.baro-panel--wide {
+  grid-column: 1 / -1;
+}
