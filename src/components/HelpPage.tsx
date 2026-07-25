@@ -70,17 +70,19 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
           <h3>5. Riven grader</h3>
           <p>
             On the Kuva Cycle compare screen (current vs new), press{' '}
-            <strong>{prettyHotkey(hk.scanRivens)}</strong>. The overlay grades both rolls and
-            recommends which to keep. EE.log may auto-detect; the hotkey is the reliable path.
-            Dismiss with <strong>{prettyHotkey(hk.dismissRivens)}</strong>.
+            <strong>{prettyHotkey(hk.scanRivens)}</strong>. A slim grader panel appears beside the
+            in-game cards with tiers and a keep/take tip. EE.log may auto-detect; the hotkey is the
+            reliable path. Dismiss with <strong>{prettyHotkey(hk.dismissRivens)}</strong>. Reset
+            Layout if your panel still sits over the cards from an older default.
           </p>
         </div>
         <div className="help-block">
           <h3>6. Foundry planner</h3>
           <p>
             Open the <strong>Foundry</strong> tab in the companion (not an overlay). Sync inventory,
-            then browse recipes, filter ready-to-build items, and expand crafting trees to see missing
-            resources and blueprints.
+            then browse <strong>My inventory</strong> (owned gear + ready-to-build) by default. Use
+            Browse all only for the full catalog. Expand a recipe for crafting trees and missing
+            materials.
           </p>
         </div>
       </Panel>

@@ -5,7 +5,8 @@ export type LayoutPresetId = 'left-stack' | 'corners' | 'right-rail'
 export const LAYOUT_DESIGN = { width: 1920, height: 1080 } as const
 
 const RELIC_STRIP: PanelAnchor = { x: 410, y: 640 }
-const RIVEN_COMPARE: PanelAnchor = { x: 480, y: 200 }
+/** Side panel to the right of the in-game current/reroll cards. */
+const RIVEN_COMPARE: PanelAnchor = { x: 1460, y: 290 }
 
 type PresetDef = {
   label: string

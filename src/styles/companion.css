@@ -383,6 +383,23 @@
 }
 
 /* Custom range slider */
+.opacity-module-list {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 14px;
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.opacity-module-list .field {
+  margin: 0;
+}
+
+.opacity-module-list .field label {
+  font-size: 0.78rem;
+}
+
 .field input[type='range'] {
   -webkit-appearance: none;
   appearance: none;

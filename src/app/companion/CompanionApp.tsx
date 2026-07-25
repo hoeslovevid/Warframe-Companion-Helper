@@ -5,6 +5,7 @@ import {
   HotkeyRegistration,
   MODULE_META,
   ModuleId,
+  OVERLAY_MODULE_IDS,
 } from '../../../shared/types'
 import { themeIdsByMode } from '../../lib/theme'
 import { useColorTheme } from '../../hooks/useColorTheme'
@@ -563,6 +564,7 @@ export function CompanionApp() {
                 settingsModules={settings.modules}
                 panelAnchors={settings.panelAnchors}
                 opacity={settings.opacity}
+                moduleOpacity={settings.moduleOpacity}
                 overlayScale={settings.overlayScale}
                 fissureTiers={settings.fissureTiers}
                 fissureShowSteelPath={settings.fissureShowSteelPath}
@@ -634,19 +636,59 @@ export function CompanionApp() {
                       )
                     })}
                   </div>
-                  <div className="field" style={{ marginTop: 16 }}>
-                    <label htmlFor="opacity">
-                      Overlay opacity ({settings.opacity.toFixed(2)})
+                  <p className="theme-group-label" style={{ marginTop: 16 }}>
+                    Overlay opacity
+                  </p>
+                  <p className="page-desc" style={{ marginTop: 0, marginBottom: 10 }}>
+                    Each overlay panel has its own opacity. Use “Set all” to match every panel.
+                  </p>
+                  <div className="field">
+                    <label htmlFor="opacity-all">
+                      Set all ({settings.opacity.toFixed(2)})
                     </label>
                     <input
-                      id="opacity"
+                      id="opacity-all"
                       type="range"
                       min={0.4}
                       max={1}
                       step={0.01}
                       value={settings.opacity}
-                      onChange={(e) => void updateSettings({ opacity: Number(e.target.value) })}
+                      onChange={(e) => {
+                        const value = Number(e.target.value)
+                        const moduleOpacity = Object.fromEntries(
+                          OVERLAY_MODULE_IDS.map((id) => [id, value]),
+                        ) as Partial<Record<ModuleId, number>>
+                        void updateSettings({ opacity: value, moduleOpacity })
+                      }}
                     />
+                  </div>
+                  <div className="opacity-module-list">
+                    {OVERLAY_MODULE_IDS.map((id) => {
+                      const value = settings.moduleOpacity[id] ?? settings.opacity
+                      return (
+                        <div className="field" key={id}>
+                          <label htmlFor={`opacity-${id}`}>
+                            {MODULE_META[id].label} ({value.toFixed(2)})
+                          </label>
+                          <input
+                            id={`opacity-${id}`}
+                            type="range"
+                            min={0.4}
+                            max={1}
+                            step={0.01}
+                            value={value}
+                            onChange={(e) =>
+                              void updateSettings({
+                                moduleOpacity: {
+                                  ...settings.moduleOpacity,
+                                  [id]: Number(e.target.value),
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
                   <div className="field">
                     <label htmlFor="overlay-scale">

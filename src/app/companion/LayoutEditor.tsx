@@ -35,6 +35,7 @@ type Props = {
   settingsModules: Record<ModuleId, boolean>
   panelAnchors: Partial<Record<ModuleId, PanelAnchor>>
   opacity: number
+  moduleOpacity: Partial<Record<ModuleId, number>>
   overlayScale: number
   fissureTiers: string[]
   fissureShowSteelPath?: boolean
@@ -50,6 +51,7 @@ export function LayoutEditor({
   settingsModules,
   panelAnchors,
   opacity,
+  moduleOpacity,
   overlayScale,
   fissureTiers,
   fissureShowSteelPath = true,
@@ -153,10 +155,10 @@ export function LayoutEditor({
           <strong>
             {designW}×{designH}
           </strong>
-          ). Drag the <strong>Relic Rewards</strong> strip under the reward cards and the{' '}
-          <strong>Riven Grader</strong> compare panel where you want it. Presets and reset scale to
-          this resolution. In-game, press <strong>{interactionHotkey}</strong> to unlock and drag
-          during a popup.
+          ).           Drag the <strong>Relic Rewards</strong> strip under the reward cards and the{' '}
+          <strong>Riven Grader</strong> side panel next to the Cycle compare cards. Presets and
+          reset scale to this resolution. In-game, press <strong>{interactionHotkey}</strong> to
+          unlock and drag during a popup.
         </p>
       </header>
 
@@ -213,6 +215,7 @@ export function LayoutEditor({
               data={previewData}
               anchors={anchors}
               opacity={opacity}
+              moduleOpacity={moduleOpacity}
               overlayScale={overlayScale}
               fissureTiers={fissureTiers}
               fissureShowSteelPath={fissureShowSteelPath}

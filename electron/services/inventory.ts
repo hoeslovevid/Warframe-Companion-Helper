@@ -336,6 +336,15 @@ export function getMasteryIndex(): MasteryIndex {
   return { ...cachedMastery }
 }
 
+/** Live refs for main-process services — do not mutate. */
+export function peekInventoryIndex(): InventoryIndex {
+  return cachedIndex
+}
+
+export function peekMasteryIndex(): MasteryIndex {
+  return cachedMastery
+}
+
 export function ownedCountFor(uniqueName: string, index: InventoryIndex = cachedIndex): number {
   if (!uniqueName) return 0
   if (index[uniqueName] != null) return index[uniqueName]

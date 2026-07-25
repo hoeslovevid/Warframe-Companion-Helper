@@ -70,6 +70,7 @@ export function OverlayApp() {
         data={data}
         anchors={anchors}
         opacity={settings.opacity}
+        moduleOpacity={settings.moduleOpacity}
         overlayScale={settings.overlayScale}
         fissureTiers={settings.fissureTiers}
         fissureShowSteelPath={settings.fissureShowSteelPath}

@@ -6,6 +6,25 @@
   min-width: min(720px, 70vw);
 }
 
+/* Compact overlay: slim vertical stack so it fits beside in-game cards. */
+[data-riven-strip] .riven-compare {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  min-width: 280px;
+  max-width: 360px;
+  width: 340px;
+}
+
+[data-riven-strip] .riven-vs {
+  padding: 2px 0;
+  letter-spacing: 0.18em;
+}
+
+[data-riven-strip] .riven-reco {
+  margin-top: 8px;
+  font-size: 0.82rem;
+}
+
 .riven-card {
   border: 1px solid rgba(157, 180, 196, 0.18);
   border-radius: 12px;

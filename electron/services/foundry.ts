@@ -4,10 +4,16 @@ import type {
   FoundryTotalLine,
   FoundryTreeNode,
   FoundryTreeResult,
+  InventoryIndex,
+  MasteryIndex,
   RecipeComponent,
   RecipeItem,
 } from '../../shared/types'
-import { getInventoryIndex, getMasteryIndex, ownedCountFor } from './inventory'
+import {
+  ownedCountFor,
+  peekInventoryIndex,
+  peekMasteryIndex,
+} from './inventory'
 import {
   ensureRecipeCatalog,
   getRecipeByUnique,
@@ -26,12 +32,12 @@ function normalizeSearch(s: string) {
     .trim()
 }
 
-function directReady(item: RecipeItem, index: ReturnType<typeof getInventoryIndex>): boolean {
+function directReady(item: RecipeItem, index: InventoryIndex): boolean {
   if (!item.components.length) return false
   return item.components.every((c) => ownedCountFor(c.uniqueName, index) >= c.itemCount)
 }
 
-function missingDirectCount(item: RecipeItem, index: ReturnType<typeof getInventoryIndex>): number {
+function missingDirectCount(item: RecipeItem, index: InventoryIndex): number {
   let missing = 0
   for (const c of item.components) {
     const owned = ownedCountFor(c.uniqueName, index)
@@ -40,9 +46,19 @@ function missingDirectCount(item: RecipeItem, index: ReturnType<typeof getInvent
   return missing
 }
 
-function toListItem(item: RecipeItem): FoundryListItem {
-  const index = getInventoryIndex()
-  const mastery = getMasteryIndex()
+function isOwnedItem(item: RecipeItem, index: InventoryIndex, mastery: MasteryIndex): boolean {
+  const ownedCount = ownedCountFor(item.uniqueName, index)
+  if (ownedCount > 0) return true
+  const masteryEntry =
+    mastery[item.uniqueName] || mastery[item.uniqueName.split('/').pop() || ''] || null
+  return (masteryEntry?.owned ?? 0) > 0
+}
+
+function toListItem(
+  item: RecipeItem,
+  index: InventoryIndex,
+  mastery: MasteryIndex,
+): FoundryListItem {
   const ownedCount = ownedCountFor(item.uniqueName, index)
   const masteryEntry =
     mastery[item.uniqueName] || mastery[item.uniqueName.split('/').pop() || ''] || null
@@ -63,36 +79,98 @@ function toListItem(item: RecipeItem): FoundryListItem {
   }
 }
 
+/** Recipes for gear you own, plus anything you can craft from current parts. */
+function collectInventoryRecipes(
+  index: InventoryIndex,
+  mastery: MasteryIndex,
+  includeReady: boolean,
+): RecipeItem[] {
+  const seen = new Set<string>()
+  const out: RecipeItem[] = []
+
+  const addOwned = (key: string) => {
+    const recipe = getRecipeByUnique(key)
+    if (!recipe || seen.has(recipe.uniqueName)) return
+    if (!isOwnedItem(recipe, index, mastery)) return
+    seen.add(recipe.uniqueName)
+    out.push(recipe)
+  }
+
+  for (const key of Object.keys(mastery)) addOwned(key)
+  for (const key of Object.keys(index)) addOwned(key)
+
+  // Ready-to-build: cheap component checks only (no full row build yet).
+  if (includeReady && Object.keys(index).length > 0) {
+    for (const item of getRecipeItems()) {
+      if (seen.has(item.uniqueName)) continue
+      if (directReady(item, index)) {
+        seen.add(item.uniqueName)
+        out.push(item)
+      }
+    }
+  }
+
+  return out
+}
+
+function matchesStaticFilters(
+  item: RecipeItem,
+  filters: {
+    search: string
+    category: string
+    prime: string
+    vaulted: string
+  },
+): boolean {
+  if (filters.category !== 'all' && item.category !== filters.category) return false
+  if (filters.prime === 'prime' && !item.isPrime) return false
+  if (filters.prime === 'normal' && item.isPrime) return false
+  if (filters.vaulted === 'vaulted' && item.vaulted !== true) return false
+  if (filters.vaulted === 'unvaulted' && item.vaulted === true) return false
+  if (filters.search) {
+    const hay = normalizeSearch(`${item.name} ${item.uniqueName}`)
+    if (!hay.includes(filters.search)) return false
+  }
+  return true
+}
+
 export async function listFoundryItems(filters: FoundryListFilters = {}): Promise<FoundryListItem[]> {
   await ensureRecipeCatalog()
+  const index = peekInventoryIndex()
+  const mastery = peekMasteryIndex()
   const search = normalizeSearch(filters.search || '')
   const category = filters.category || 'all'
   const prime = filters.prime || 'any'
   const owned = filters.owned || 'any'
-  const mastery = filters.mastery || 'any'
+  const masteryFilter = filters.mastery || 'any'
   const ready = filters.ready || 'any'
   const vaulted = filters.vaulted || 'any'
+  const scope = filters.scope || 'inventory'
 
+  // Owned-only view can skip the ready-to-build catalog pass.
+  const includeReady = owned !== 'owned'
+  const source =
+    scope === 'inventory'
+      ? collectInventoryRecipes(index, mastery, includeReady)
+      : getRecipeItems()
+
+  const staticFilters = { search, category, prime, vaulted }
   const out: FoundryListItem[] = []
-  for (const item of getRecipeItems()) {
-    if (category !== 'all' && item.category !== category) continue
-    if (prime === 'prime' && !item.isPrime) continue
-    if (prime === 'normal' && item.isPrime) continue
-    if (vaulted === 'vaulted' && item.vaulted !== true) continue
-    if (vaulted === 'unvaulted' && item.vaulted === true) continue
-    if (search) {
-      const hay = normalizeSearch(`${item.name} ${item.uniqueName}`)
-      if (!hay.includes(search)) continue
-    }
-    const row = toListItem(item)
+  for (const item of source) {
+    if (!matchesStaticFilters(item, staticFilters)) continue
+    const row = toListItem(item, index, mastery)
     if (owned === 'owned' && !row.owned) continue
     if (owned === 'unowned' && row.owned) continue
-    if (mastery === 'mastered' && row.mastered !== true) continue
-    if (mastery === 'unmastered' && row.mastered !== false) continue
-    if (mastery === 'unknown' && row.mastered !== null) continue
+    if (masteryFilter === 'mastered' && row.mastered !== true) continue
+    if (masteryFilter === 'unmastered' && row.mastered !== false) continue
+    if (masteryFilter === 'unknown' && row.mastered !== null) continue
     if (ready === 'ready' && !row.readyToBuild) continue
     if (ready === 'not_ready' && row.readyToBuild) continue
     out.push(row)
+  }
+
+  if (scope === 'inventory') {
+    out.sort((a, b) => a.name.localeCompare(b.name))
   }
   return out
 }
@@ -104,8 +182,8 @@ function buildTreeNode(
   components: RecipeComponent[],
   depth: number,
   stack: Set<string>,
+  index: InventoryIndex,
 ): FoundryTreeNode {
-  const index = getInventoryIndex()
   const owned = ownedCountFor(uniqueName, index)
   const missing = Math.max(0, required - owned)
   const children: FoundryTreeNode[] = []
@@ -116,7 +194,15 @@ function buildTreeNode(
     for (const comp of components) {
       const nested = resolveComponentRecipe(comp)
       children.push(
-        buildTreeNode(comp.name, comp.uniqueName, comp.itemCount * missing, nested, depth + 1, nextStack),
+        buildTreeNode(
+          comp.name,
+          comp.uniqueName,
+          comp.itemCount * missing,
+          nested,
+          depth + 1,
+          nextStack,
+          index,
+        ),
       )
     }
   }
@@ -130,9 +216,9 @@ function accumulateTotals(
   depth: number,
   stack: Set<string>,
   bucket: Map<string, FoundryTotalLine>,
+  index: InventoryIndex,
 ) {
   if (craftsNeeded <= 0 || depth > MAX_DEPTH) return
-  const index = getInventoryIndex()
 
   for (const comp of components) {
     const need = comp.itemCount * craftsNeeded
@@ -144,7 +230,7 @@ function accumulateTotals(
     if (nested.length && !stack.has(comp.uniqueName)) {
       const next = new Set(stack)
       next.add(comp.uniqueName)
-      accumulateTotals(nested, still, depth + 1, next, bucket)
+      accumulateTotals(nested, still, depth + 1, next, bucket, index)
     } else {
       const prev = bucket.get(comp.uniqueName)
       if (prev) {
@@ -165,7 +251,9 @@ function accumulateTotals(
 
 export async function getFoundryTree(uniqueName: string): Promise<FoundryTreeResult> {
   await ensureRecipeCatalog()
-  const inventoryLoaded = Object.keys(getInventoryIndex()).length > 0
+  const index = peekInventoryIndex()
+  const mastery = peekMasteryIndex()
+  const inventoryLoaded = Object.keys(index).length > 0
   const item = getRecipeByUnique(uniqueName)
   if (!item) {
     return {
@@ -177,13 +265,13 @@ export async function getFoundryTree(uniqueName: string): Promise<FoundryTreeRes
     }
   }
 
-  const listItem = toListItem(item)
-  const tree = buildTreeNode(item.name, item.uniqueName, 1, item.components, 0, new Set())
+  const listItem = toListItem(item, index, mastery)
+  const tree = buildTreeNode(item.name, item.uniqueName, 1, item.components, 0, new Set(), index)
   const bucket = new Map<string, FoundryTotalLine>()
-  const ownedFinished = ownedCountFor(item.uniqueName)
+  const ownedFinished = ownedCountFor(item.uniqueName, index)
   const craftsNeeded = ownedFinished > 0 ? 0 : 1
   if (craftsNeeded > 0) {
-    accumulateTotals(item.components, craftsNeeded, 0, new Set([item.uniqueName]), bucket)
+    accumulateTotals(item.components, craftsNeeded, 0, new Set([item.uniqueName]), bucket, index)
   }
 
   const totals = [...bucket.values()].sort((a, b) => a.name.localeCompare(b.name))

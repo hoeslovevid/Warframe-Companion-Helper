@@ -24,7 +24,10 @@ export type OverlayLayoutStageProps = {
   modules: ModuleId[]
   data: WorldstateSnapshot
   anchors: Partial<Record<ModuleId, PanelAnchor>>
-  opacity: number
+  /** Legacy / fallback opacity when a module has no per-panel value. */
+  opacity?: number
+  /** Per-overlay panel opacity. */
+  moduleOpacity?: Partial<Record<ModuleId, number>>
   overlayScale?: number
   fissureTiers: string[]
   fissureShowSteelPath?: boolean
@@ -69,11 +72,24 @@ function isNoDragTarget(target: EventTarget | null): boolean {
   return Boolean(target.closest('button, a, input, select, textarea, [data-no-drag]'))
 }
 
+function resolveOpacity(
+  id: ModuleId,
+  moduleOpacity: Partial<Record<ModuleId, number>> | undefined,
+  fallback: number,
+) {
+  const value = moduleOpacity?.[id]
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return clamp(value, 0.4, 1)
+  }
+  return clamp(fallback, 0.4, 1)
+}
+
 export function OverlayLayoutStage({
   modules,
   data,
   anchors,
-  opacity,
+  opacity = 0.92,
+  moduleOpacity,
   overlayScale = 1,
   fissureTiers,
   fissureShowSteelPath = true,
@@ -238,9 +254,10 @@ export function OverlayLayoutStage({
 
   const panel = useMemo(() => {
     const render = (id: ModuleId) => {
+      const op = resolveOpacity(id, moduleOpacity, opacity)
       switch (id) {
         case 'cycles':
-          return <CyclesPanel cycles={data.cycles} opacity={opacity} compact />
+          return <CyclesPanel cycles={data.cycles} opacity={op} compact />
         case 'fissures':
           return (
             <FissuresPanel
@@ -248,7 +265,7 @@ export function OverlayLayoutStage({
               tiers={fissureTiers}
               showSteelPath={fissureShowSteelPath}
               sort={fissureSort}
-              opacity={opacity}
+              opacity={op}
               compact
             />
           )
@@ -257,7 +274,7 @@ export function OverlayLayoutStage({
             <BaroPanel
               baro={data.baro}
               wishlist={baroWishlist}
-              opacity={opacity}
+              opacity={op}
               compact
             />
           )
@@ -266,14 +283,14 @@ export function OverlayLayoutStage({
             <NightwavePanel
               nightwave={data.nightwave}
               doneIds={nightwaveDoneIds}
-              opacity={opacity}
+              opacity={op}
               compact
             />
           )
         case 'relics':
           return (
             <RelicsPanel
-              opacity={opacity}
+              opacity={op}
               compact
               previewMode={mode === 'preview'}
               previewRewards={relicPreviewRewards}
@@ -281,23 +298,23 @@ export function OverlayLayoutStage({
             />
           )
         case 'arbitration':
-          return <ArbitrationPanel arbitration={data.arbitration} opacity={opacity} />
+          return <ArbitrationPanel arbitration={data.arbitration} opacity={op} />
         case 'invasions':
-          return <InvasionsPanel invasions={data.invasions} opacity={opacity} compact />
+          return <InvasionsPanel invasions={data.invasions} opacity={op} compact />
         case 'archon':
-          return <ArchonPanel archonHunt={data.archonHunt} opacity={opacity} compact />
+          return <ArchonPanel archonHunt={data.archonHunt} opacity={op} compact />
         case 'deepArchimedea':
           return (
             <DeepArchimedeaPanel
               deepArchimedea={data.deepArchimedea}
-              opacity={opacity}
+              opacity={op}
               compact
             />
           )
         case 'rivens':
           return (
             <RivenPanel
-              opacity={opacity}
+              opacity={op}
               compact
               previewMode={mode === 'preview'}
               previewState={rivenPreviewState}
@@ -311,6 +328,7 @@ export function OverlayLayoutStage({
   }, [
     data,
     opacity,
+    moduleOpacity,
     fissureTiers,
     fissureShowSteelPath,
     fissureSort,

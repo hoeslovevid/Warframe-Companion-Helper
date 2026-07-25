@@ -25,6 +25,11 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Eight color themes (4 dark, 4 light) for companion and overlay',
     'Visual polish: nav sections, status pills, and clearer empty states',
   ],
+  '0.9.1': [
+    'Riven Grader overlay defaults beside the Cycle compare cards (slim side panel)',
+    'Per-overlay opacity sliders in Settings → Appearance',
+    'Foundry defaults to My inventory (owned + ready) for much faster lists',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

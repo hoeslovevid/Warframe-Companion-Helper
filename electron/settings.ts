@@ -1,7 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
-import { AppSettings, ColorThemeId, DEFAULT_SETTINGS, ModuleId } from '../shared/types'
+import {
+  AppSettings,
+  ColorThemeId,
+  DEFAULT_SETTINGS,
+  ModuleId,
+  OVERLAY_MODULE_IDS,
+} from '../shared/types'
 
 const COLOR_THEMES: ColorThemeId[] = [
   'void',
@@ -20,15 +26,56 @@ function settingsPath() {
   return path.join(app.getPath('userData'), 'voidlens-settings.json')
 }
 
+function clampOpacity(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.min(1, Math.max(0.4, value))
+}
+
+function mergeModuleOpacity(
+  raw: Partial<AppSettings> | null | undefined,
+  base: AppSettings,
+): AppSettings['moduleOpacity'] {
+  const fallback = clampOpacity(raw?.opacity, base.opacity)
+  const next: AppSettings['moduleOpacity'] = { ...base.moduleOpacity }
+  for (const id of OVERLAY_MODULE_IDS) {
+    next[id] = fallback
+  }
+  const fromFile = raw?.moduleOpacity
+  if (fromFile && typeof fromFile === 'object') {
+    for (const id of OVERLAY_MODULE_IDS) {
+      if (id in fromFile) {
+        next[id] = clampOpacity(fromFile[id], fallback)
+      }
+    }
+  }
+  return next
+}
+
 function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSettings {
   const base = structuredClone(DEFAULT_SETTINGS)
   if (!raw) return base
+
+  const panelAnchors = { ...base.panelAnchors, ...(raw.panelAnchors ?? {}) }
+  // One-time upgrade: old default sat on the Cycle cards; move beside them when
+  // migrating settings that predate per-module opacity.
+  const legacyRivens = raw.panelAnchors?.rivens
+  if (
+    !('moduleOpacity' in raw) &&
+    legacyRivens &&
+    legacyRivens.x === 480 &&
+    legacyRivens.y === 200 &&
+    base.panelAnchors.rivens
+  ) {
+    panelAnchors.rivens = { ...base.panelAnchors.rivens }
+  }
 
   return {
     ...base,
     ...raw,
     modules: { ...base.modules, ...(raw.modules ?? {}) },
-    panelAnchors: { ...base.panelAnchors, ...(raw.panelAnchors ?? {}) },
+    panelAnchors,
+    opacity: clampOpacity(raw.opacity, base.opacity),
+    moduleOpacity: mergeModuleOpacity(raw, base),
     hotkeys: {
       ...base.hotkeys,
       ...(raw.hotkeys ?? {}),
@@ -102,6 +149,7 @@ export function updateSettings(partial: Partial<AppSettings>): AppSettings {
     ...partial,
     modules: { ...current.modules, ...(partial.modules ?? {}) },
     panelAnchors: { ...current.panelAnchors, ...(partial.panelAnchors ?? {}) },
+    moduleOpacity: { ...current.moduleOpacity, ...(partial.moduleOpacity ?? {}) },
     hotkeys: { ...current.hotkeys, ...(partial.hotkeys ?? {}) },
     onboarding: {
       ...current.onboarding,

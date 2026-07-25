@@ -129,10 +129,30 @@ export const COLOR_THEME_META: Record<
   },
 }
 
+/** Modules that can appear on the live overlay (excludes companion-only). */
+export const OVERLAY_MODULE_IDS: ModuleId[] = [
+  'cycles',
+  'fissures',
+  'baro',
+  'nightwave',
+  'relics',
+  'arbitration',
+  'invasions',
+  'archon',
+  'deepArchimedea',
+  'rivens',
+]
+
 export type AppSettings = {
   modules: Record<ModuleId, boolean>
   panelAnchors: Partial<Record<ModuleId, PanelAnchor>>
+  /**
+   * Legacy global opacity fallback. Prefer `moduleOpacity` per panel;
+   * kept so older settings files still load cleanly.
+   */
   opacity: number
+  /** Per-overlay panel opacity (0.4–1). Missing keys fall back to `opacity`. */
+  moduleOpacity: Partial<Record<ModuleId, number>>
   /** Visual scale for overlay panels (WFHelper-style). */
   overlayScale: number
   /** Companion + overlay color palette. */
@@ -264,9 +284,22 @@ export const DEFAULT_SETTINGS: AppSettings = {
     invasions: { x: 720, y: 24 },
     archon: { x: 720, y: 320 },
     deepArchimedea: { x: 720, y: 560 },
-    rivens: { x: 480, y: 200 },
+    /** Right of Kuva Cycle compare cards (matches screen-capture regions on 1920×1080). */
+    rivens: { x: 1460, y: 290 },
   },
   opacity: 0.92,
+  moduleOpacity: {
+    cycles: 0.92,
+    fissures: 0.92,
+    baro: 0.92,
+    nightwave: 0.92,
+    relics: 0.92,
+    arbitration: 0.92,
+    invasions: 0.92,
+    archon: 0.92,
+    deepArchimedea: 0.92,
+    rivens: 0.92,
+  },
   overlayScale: 1,
   colorTheme: 'void',
   hotkeys: {
@@ -457,6 +490,8 @@ export type FoundryMasteryFilter = 'any' | 'mastered' | 'unmastered' | 'unknown'
 export type FoundryReadyFilter = 'any' | 'ready' | 'not_ready'
 export type FoundryPrimeFilter = 'any' | 'prime' | 'normal'
 export type FoundryVaultedFilter = 'any' | 'vaulted' | 'unvaulted'
+/** inventory = owned gear + ready-to-build; all = full recipe catalog */
+export type FoundryScopeFilter = 'inventory' | 'all'
 
 export type FoundryListFilters = {
   search?: string
@@ -466,6 +501,8 @@ export type FoundryListFilters = {
   mastery?: FoundryMasteryFilter
   ready?: FoundryReadyFilter
   vaulted?: FoundryVaultedFilter
+  /** Defaults to inventory-scoped list for performance. */
+  scope?: FoundryScopeFilter
 }
 
 export type FoundryListItem = {

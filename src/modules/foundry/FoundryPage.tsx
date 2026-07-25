@@ -3,6 +3,7 @@ import type {
   FoundryCategory,
   FoundryListFilters,
   FoundryListItem,
+  FoundryScopeFilter,
   FoundryTreeNode,
   FoundryTreeResult,
 } from '../../../shared/types'
@@ -67,6 +68,7 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<FoundryCategory | 'all'>('all')
   const [prime, setPrime] = useState<FoundryListFilters['prime']>('any')
+  const [scope, setScope] = useState<FoundryScopeFilter>('inventory')
   const [owned, setOwned] = useState<FoundryListFilters['owned']>('any')
   const [ready, setReady] = useState<FoundryListFilters['ready']>('any')
   const [items, setItems] = useState<FoundryListItem[]>([])
@@ -77,8 +79,17 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
   const [treeLoading, setTreeLoading] = useState(false)
 
   const filters = useMemo<FoundryListFilters>(
-    () => ({ search, category, prime, owned, ready, mastery: 'any', vaulted: 'any' }),
-    [search, category, prime, owned, ready],
+    () => ({
+      search,
+      category,
+      prime,
+      scope,
+      owned,
+      ready,
+      mastery: 'any',
+      vaulted: 'any',
+    }),
+    [search, category, prime, scope, owned, ready],
   )
 
   const refreshList = useCallback(async () => {
@@ -143,8 +154,8 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
         <h2 className="page-title">Foundry</h2>
         <div className="page-title-rule" />
         <p className="page-desc">
-          Browse craftable gear, check owned / ready-to-build status, and expand full crafting trees
-          against your local inventory.
+          Defaults to gear you own plus anything ready to craft from your inventory. Switch to
+          Browse all only when you need the full catalog.
         </p>
       </header>
 
@@ -188,6 +199,22 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
             <div className="foundry-chips">
               <button
                 type="button"
+                className={`foundry-chip ${scope === 'inventory' ? 'is-on' : ''}`}
+                onClick={() => setScope('inventory')}
+              >
+                My inventory
+              </button>
+              <button
+                type="button"
+                className={`foundry-chip ${scope === 'all' ? 'is-on' : ''}`}
+                onClick={() => setScope('all')}
+              >
+                Browse all
+              </button>
+            </div>
+            <div className="foundry-chips">
+              <button
+                type="button"
                 className={`foundry-chip ${prime === 'any' ? 'is-on' : ''}`}
                 onClick={() => setPrime('any')}
               >
@@ -214,13 +241,15 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               >
                 Owned
               </button>
-              <button
-                type="button"
-                className={`foundry-chip ${owned === 'unowned' ? 'is-on' : ''}`}
-                onClick={() => setOwned(owned === 'unowned' ? 'any' : 'unowned')}
-              >
-                Unowned
-              </button>
+              {scope === 'all' ? (
+                <button
+                  type="button"
+                  className={`foundry-chip ${owned === 'unowned' ? 'is-on' : ''}`}
+                  onClick={() => setOwned(owned === 'unowned' ? 'any' : 'unowned')}
+                >
+                  Unowned
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={`foundry-chip ${ready === 'ready' ? 'is-on' : ''}`}
@@ -230,7 +259,13 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               </button>
             </div>
             <p className="muted" style={{ margin: 0, fontSize: '0.78rem' }}>
-              {loading ? 'Loading catalog…' : `${items.length} items`}
+              {loading
+                ? scope === 'inventory'
+                  ? 'Loading your items…'
+                  : 'Loading catalog…'
+                : scope === 'inventory'
+                  ? `${items.length} in inventory / ready`
+                  : `${items.length} items`}
               {error ? ` · ${error}` : ''}
             </p>
           </div>
@@ -257,7 +292,11 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               <li style={{ padding: '8px 12px' }}>
                 <EmptyState
                   title="No matches"
-                  body="Try clearing filters or searching a different name."
+                  body={
+                    scope === 'inventory'
+                      ? 'No owned or ready-to-build recipes match. Sync inventory, or switch to Browse all.'
+                      : 'Try clearing filters or searching a different name.'
+                  }
                 />
               </li>
             ) : null}
