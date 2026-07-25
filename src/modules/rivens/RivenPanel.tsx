@@ -1,3 +1,4 @@
+import { rivenStripLayout } from '../../../shared/captureGeometry'
 import { RivenRoll, RivenScanState } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useRivenScan } from '../../hooks/useRivenScan'
@@ -11,6 +12,26 @@ type Props = {
   previewState?: RivenScanState
   scanHotkey?: string
   dismissHotkey?: string
+  /** Display width used to size the overlay strip (Layout preview / live overlay). */
+  layoutWidth?: number
+  layoutHeight?: number
+}
+
+function stripSize(layoutWidth?: number, layoutHeight?: number) {
+  const w =
+    layoutWidth && layoutWidth > 0
+      ? layoutWidth
+      : typeof window !== 'undefined'
+        ? window.innerWidth || 1920
+        : 1920
+  const h =
+    layoutHeight && layoutHeight > 0
+      ? layoutHeight
+      : typeof window !== 'undefined'
+        ? window.innerHeight || Math.round((w * 9) / 16)
+        : Math.round((w * 9) / 16)
+  const layout = rivenStripLayout(w, h)
+  return { width: layout.width }
 }
 
 function RollCard({
@@ -30,6 +51,11 @@ function RollCard({
         {roll.tier}
         <span>{roll.score}/100</span>
       </div>
+      {roll.prefsMatched ? (
+        <div className="riven-card__prefs" title={roll.prefsNotes || 'Sheet preferences'}>
+          sheet prefs
+        </div>
+      ) : null}
       <ul className="riven-stats">
         {roll.stats.map((s) => (
           <li key={`${s.name}-${s.value}`} className={s.desirable ? 'is-good' : 'is-bad'}>
@@ -61,6 +87,8 @@ export function RivenPanel({
   previewState,
   scanHotkey = 'Alt+Shift+G',
   dismissHotkey = 'Alt+Shift+H',
+  layoutWidth,
+  layoutHeight,
 }: Props) {
   const { state: live, scan, clear } = useRivenScan()
   const state = previewMode && previewState ? previewState : live
@@ -74,6 +102,7 @@ export function RivenPanel({
       : state.recommendation === 'keep'
         ? 'current'
         : null
+  const strip = stripSize(layoutWidth, layoutHeight)
 
   const body = (
     <div className="mod-stack">
@@ -123,7 +152,7 @@ export function RivenPanel({
 
   if (compact || previewMode) {
     return (
-      <div style={{ opacity }} data-riven-strip>
+      <div className="riven-strip" style={{ opacity, width: strip.width }} data-riven-strip>
         {body}
       </div>
     )

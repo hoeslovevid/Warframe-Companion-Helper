@@ -47,6 +47,9 @@ export type RivenRoll = {
   stats: RivenStatLine[]
   score: number
   tier: RivenTier
+  /** True when Megrim/Valkyrial sheet prefs were used for this score. */
+  prefsMatched?: boolean
+  prefsNotes?: string
 }
 
 export type RivenScanState = {
@@ -375,8 +378,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     invasions: { x: 720, y: 24 },
     archon: { x: 720, y: 320 },
     deepArchimedea: { x: 720, y: 560 },
-    /** Right of Kuva Cycle compare cards on 1920×1080; Layout reset scales per display. */
-    rivens: { x: 1580, y: 146 },
+    /** Above Kuva Cycle compare cards on 1920×1080; Layout reset scales per display. */
+    rivens: { x: 720, y: 8 },
   },
   opacity: 0.92,
   moduleOpacity: {

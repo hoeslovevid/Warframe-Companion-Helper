@@ -6,7 +6,7 @@ export type LayoutPresetId = 'left-stack' | 'corners' | 'right-rail'
 export const LAYOUT_DESIGN = { width: 1920, height: 1080 } as const
 
 const RELIC_STRIP: PanelAnchor = { x: 410, y: 640 }
-/** Side panel to the right of the in-game current/reroll cards. */
+/** Horizontal strip above the in-game current/reroll cards. */
 const RIVEN_COMPARE: PanelAnchor = defaultRivenAnchor(LAYOUT_DESIGN.width, LAYOUT_DESIGN.height)
 
 type PresetDef = {
@@ -18,7 +18,7 @@ type PresetDef = {
 const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
   'left-stack': {
     label: 'Left stack',
-    description: 'Timers stacked on the left; relic strip under reward cards',
+    description: 'Timers stacked on the left; relic/riven strips over compare screens',
     anchors: {
       cycles: { x: 24, y: 24 },
       fissures: { x: 24, y: 260 },
@@ -34,7 +34,7 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
   },
   corners: {
     label: 'Corners',
-    description: 'Timers in corners; relic strip centered under cards',
+    description: 'Timers in corners; relic/riven strips over compare screens',
     anchors: {
       cycles: { x: 24, y: 24 },
       fissures: { x: 24, y: 720 },
@@ -50,7 +50,7 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
   },
   'right-rail': {
     label: 'Right rail',
-    description: 'Timers on the right; relic strip under reward cards',
+    description: 'Timers on the right; relic/riven strips over compare screens',
     anchors: {
       cycles: { x: 1520, y: 24 },
       fissures: { x: 1520, y: 280 },
@@ -125,7 +125,7 @@ export function getDefaultPanelAnchors(
   height: number,
 ): Partial<Record<ModuleId, PanelAnchor>> {
   const scaled = scalePanelAnchors(DEFAULT_SETTINGS.panelAnchors, width, height)
-  // Always place rivens from live geometry so it stays beside Cycle cards.
+  // Always place rivens from live geometry so the strip sits above Cycle cards.
   return {
     ...scaled,
     rivens: defaultRivenAnchor(width, height),

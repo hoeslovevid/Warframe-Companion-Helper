@@ -318,6 +318,8 @@ export function OverlayLayoutStage({
               compact
               previewMode={mode === 'preview'}
               previewState={rivenPreviewState}
+              layoutWidth={mode === 'preview' ? designWidth : undefined}
+              layoutHeight={mode === 'preview' ? designHeight : undefined}
             />
           )
         default:
@@ -338,6 +340,7 @@ export function OverlayLayoutStage({
     relicPreviewRewards,
     rivenPreviewState,
     designWidth,
+    designHeight,
   ])
 
   const stageStyle =

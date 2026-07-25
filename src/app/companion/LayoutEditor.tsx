@@ -155,8 +155,8 @@ export function LayoutEditor({
           <strong>
             {designW}×{designH}
           </strong>
-          ).           Drag the <strong>Relic Rewards</strong> strip under the reward cards and the{' '}
-          <strong>Riven Grader</strong> side panel next to the Cycle compare cards. Presets and
+          ). Drag the <strong>Relic Rewards</strong> strip under the reward cards and the{' '}
+          <strong>Riven Grader</strong> strip above the Cycle compare cards. Presets and
           reset scale to this resolution. In-game, press <strong>{interactionHotkey}</strong> to
           unlock and drag during a popup.
         </p>

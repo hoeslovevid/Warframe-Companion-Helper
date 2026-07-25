@@ -385,14 +385,22 @@ function applyOverlayVisibility(visible: boolean) {
   broadcastOverlayVisibility(visible)
 }
 
-/** Unscaled 1080p default (1460,290) overlaps Cycle cards on other resolutions. */
+/** Migrate old side-panel riven anchors to the horizontal strip above Cycle cards. */
 function fixLegacyRivenAnchor() {
   const settings = loadSettings()
   const rivens = settings.panelAnchors.rivens
-  if (!rivens || rivens.x !== 1460 || rivens.y !== 290) return
+  if (!rivens) return
   const { width, height } = screen.getPrimaryDisplay().bounds
-  if (width === 1920 && height === 1080) return
   const next = defaultRivenAnchor(width, height)
+  const knownSidePanel =
+    (rivens.x === 1460 && rivens.y === 290) ||
+    (rivens.x === 1465 && rivens.y === 173) ||
+    (rivens.x === 1555 && rivens.y === 167) ||
+    (rivens.x === 1580 && rivens.y === 146)
+  // Previous default sat beside the cards (far right, upper third).
+  const looksLikeSidePanel = rivens.x > width * 0.55 && rivens.y < height * 0.4
+  if (!knownSidePanel && !looksLikeSidePanel) return
+  if (rivens.x === next.x && rivens.y === next.y) return
   updateSettings({
     panelAnchors: {
       ...settings.panelAnchors,
@@ -400,7 +408,7 @@ function fixLegacyRivenAnchor() {
     },
   })
   console.info(
-    `[Everything Warframe] Repositioned riven overlay for ${width}×${height} → (${next.x}, ${next.y})`,
+    `[Everything Warframe] Repositioned riven overlay above Cycle cards for ${width}×${height} → (${next.x}, ${next.y})`,
   )
 }
 

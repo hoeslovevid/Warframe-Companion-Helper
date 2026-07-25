@@ -1,4 +1,9 @@
 import { RivenRoll, RivenStatLine, RivenTier } from '../../shared/types'
+import {
+  applyPrefDesirability,
+  gradeWithPreferences,
+  loadRivenPreferences,
+} from './riven-preferences'
 
 /**
  * Approximate max rolled values at ~1.0 disposition / rank 8 (community averages).
@@ -93,6 +98,24 @@ const STAT_META: Record<
   'combo duration': { aliases: ['combo duration'], max: 10, unit: 'flat', weight: 0.85 },
   'initial combo': { aliases: ['initial combo'], max: 30, unit: 'flat', weight: 0.9 },
   'finisher damage': { aliases: ['finisher damage'], max: 110, unit: '%', weight: 0.55 },
+  'heavy attack efficiency': {
+    aliases: ['heavy attack efficiency', 'heavy efficiency'],
+    max: 90,
+    unit: '%',
+    weight: 0.7,
+  },
+  'combo chance': {
+    aliases: ['combo chance', 'additional combo count chance', 'combo count chance'],
+    max: 110,
+    unit: '%',
+    weight: 0.85,
+  },
+  'slide critical chance': {
+    aliases: ['slide crit', 'slide critical', 'slide critical chance', 'slide attack critical chance'],
+    max: 180,
+    unit: '%',
+    weight: 0.55,
+  },
 }
 
 /** Fix common Warframe UI OCR mistakes before matching. */
@@ -352,23 +375,57 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
 
 /** Parse OCR block from one full riven card into structured stats + weapon guess. */
 export function parseRivenOcr(ocrText: string, side: 'current' | 'reroll'): RivenRoll {
+  loadRivenPreferences()
   const scrubbed = scrubOcr(ocrText)
   const stats = extractStatsFromBlob(scrubbed)
   const weapon = guessWeapon(scrubbed)
-  const { score, tier } = gradeRoll(stats)
+  const graded = gradeRoll(stats, weapon)
   return {
     side,
     weapon,
     ocrText,
     stats,
-    score,
-    tier,
+    score: graded.score,
+    tier: graded.tier,
+    prefsMatched: graded.prefsMatched,
+    prefsNotes: graded.prefsNotes,
   }
 }
 
-export function gradeRoll(stats: RivenStatLine[]): { score: number; tier: RivenTier } {
+/**
+ * Grade a roll. When `weapon` matches the Megrim/Valkyrial sheet (rows 20+, A–F),
+ * preferred positives/negatives drive the score; otherwise use generic weights.
+ */
+export function gradeRoll(
+  stats: RivenStatLine[],
+  weapon?: string,
+): {
+  score: number
+  tier: RivenTier
+  prefsMatched?: boolean
+  prefsNotes?: string
+} {
   if (!stats.length) return { score: 0, tier: 'F' }
 
+  const pref = weapon ? gradeWithPreferences(weapon, stats) : null
+  if (pref) {
+    applyPrefDesirability(pref.profile, stats)
+    // Blend sheet fit with raw roll quality so god-rolls still outrank trash values
+    const generic = gradeRollGeneric(stats)
+    const score = Math.round(pref.score * 0.72 + generic.score * 0.28)
+    return {
+      score,
+      tier: scoreToTier(score),
+      prefsMatched: true,
+      prefsNotes: pref.notes,
+    }
+  }
+
+  const generic = gradeRollGeneric(stats)
+  return { ...generic, prefsMatched: false }
+}
+
+function gradeRollGeneric(stats: RivenStatLine[]): { score: number; tier: RivenTier } {
   let weighted = 0
   let weightSum = 0
   let penalty = 0

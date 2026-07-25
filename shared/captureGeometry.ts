@@ -43,16 +43,33 @@ export function rivenCardStatsRegion(card: CaptureRegion): CaptureRegion {
   }
 }
 
-/** Place the grader panel just to the right of the in-game compare cards. */
+/**
+ * Horizontal grader strip spanning both Cycle cards (like the relic strip).
+ * Anchored just above the in-game current/reroll diamonds.
+ */
+export function rivenStripLayout(width: number, height: number) {
+  const regions = rivenCompareRegions(width, height)
+  const left = regions[0]
+  const right = regions[1]
+  const x = left.x
+  const stripWidth = right.x + right.width - left.x
+  // Compact horizontal cards are ~18–22% of screen height; sit just above the diamonds.
+  const stripH = Math.round(Math.min(height * 0.2, 220))
+  const gap = Math.round(height * 0.01)
+  const y = Math.max(8, left.y - stripH - gap)
+  return {
+    x,
+    y,
+    width: stripWidth,
+    height: stripH,
+  }
+}
+
+/** Place the grader strip above the in-game compare cards. */
 export function defaultRivenAnchor(
   width: number,
   height: number,
-  panelWidth = 360,
 ): { x: number; y: number } {
-  const regions = rivenCompareRegions(width, height)
-  const right = regions[1]
-  const pad = Math.round(width * 0.012)
-  const x = Math.max(0, Math.min(width - panelWidth, right.x + right.width + pad))
-  const y = Math.max(0, right.y)
-  return { x, y }
+  const layout = rivenStripLayout(width, height)
+  return { x: layout.x, y: layout.y }
 }

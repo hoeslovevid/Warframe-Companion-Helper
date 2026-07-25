@@ -82,7 +82,7 @@ Everything Warframe runs at below-normal process priority, pauses overlay clocks
 - **Baro Ki'Teer** — status + shop inventory
 - **Nightwave** — season / phase
 - **Relics** — OCR reward overlay with set + owned counts
-- **Riven Grader** — PaddleOCR (PP-OCRv4) reads current vs reroll; Tesseract fallback; slim side panel beside Cycle cards
+- **Riven Grader** — PaddleOCR (PP-OCRv4) reads current vs reroll; Tesseract fallback; horizontal strip above Cycle cards; grades against [Megrim & Valkyrial](https://docs.google.com/spreadsheets/d/1OQGKpWXeoPaN0Cy7mTvVZMRcwvZXgIC3EO1AIRAkwDg) preferred stats (sheet rows 20+, columns A–F)
 - **Foundry Planner** — inventory-first list (owned + ready), crafting trees, material totals
 - **Themes** — 4 dark + 4 light presets, plus a Custom palette with color pickers
 - **Per-overlay opacity** — individual opacity sliders under Settings → Appearance
@@ -111,6 +111,12 @@ Data stays on your PC.
 2. On the Kuva Cycle compare screen (current vs new), press **Alt+Shift+G**
 3. The overlay grades both rolls and recommends keep / take / similar
 4. EE.log may auto-detect; the hotkey is the reliable path. Dismiss with **Alt+Shift+H**
+
+Scoring uses community preferences from the Megrim & Valkyrial sheet (based on 44Bananas) when the weapon name matches — preferred positives by slot/`>` rank, and listed negatives as desirable curses. Refresh the bundled data after updating the CSV:
+
+```bash
+npm run build:riven-prefs
+```
 
 ## Linux / Proton
 
@@ -153,6 +159,7 @@ npm run release
 | --- | --- |
 | `npm start` | Dev companion + overlay |
 | `npm run build` | Production renderer + electron bundles |
+| `npm run build:riven-prefs` | Rebuild riven preference JSON from sheet CSV (rows 20+, A–F) |
 | `npm run dist` | Build Windows installer + portable (no publish) |
 | `npm run dist:linux` | Build Linux AppImage + deb (no publish) |
 | `npm run release:win` | Build and publish Windows artifacts |
@@ -163,5 +170,6 @@ npm run release
 - [warframestat.us](https://docs.warframestat.us) — worldstate / item catalog
 - [warframe-api-helper](https://github.com/Sainan/warframe-api-helper) — inventory sync
 - Warframe `EE.log` — relic reward / riven cycle detection
+- [Megrim & Valkyrial riven preferences](https://docs.google.com/spreadsheets/d/1OQGKpWXeoPaN0Cy7mTvVZMRcwvZXgIC3EO1AIRAkwDg) (based on 44Bananas) — preferred riven stats
 
 Unofficial and not affiliated with Digital Extremes.

@@ -1,6 +1,6 @@
 {
   "name": "everything-warframe",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "description": "Everything Warframe — overlay companion for Windows and Linux (Steam/Proton): worldstate, relics, rivens, foundry, inventory",
   "main": "dist-electron/main.cjs",
   "author": "Everything Warframe <hoeslovevid@users.noreply.github.com>",
@@ -15,6 +15,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run build:electron",
+    "build:riven-prefs": "node scripts/build-riven-preferences.mjs",
     "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --external:electron --external:tesseract.js --external:electron-updater --external:@repeato/ocr --external:sharp --external:onnxruntime-node --outdir=dist-electron --format=cjs --out-extension:.js=.cjs",
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && npm run build:electron && electron .\"",
