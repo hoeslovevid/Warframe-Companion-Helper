@@ -12,10 +12,11 @@ import { BaroPanel } from '../../modules/baro/BaroPanel'
 import { NightwavePanel } from '../../modules/nightwave/NightwavePanel'
 import { RelicsPanel } from '../../modules/relics/RelicsPanel'
 import { ArbitrationPanel } from '../../modules/arbitration/ArbitrationPanel'
+import { LayoutEditor } from './LayoutEditor'
 import '../../styles/companion.css'
 import '../../modules/cycles/module.css'
 
-type Tab = 'dashboard' | 'modules' | 'settings'
+type Tab = 'dashboard' | 'modules' | 'layout' | 'settings'
 
 const TIER_OPTIONS = ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem']
 
@@ -66,6 +67,12 @@ export function CompanionApp() {
             Modules
           </button>
           <button
+            className={`nav-btn ${tab === 'layout' ? 'active' : ''}`}
+            onClick={() => setTab('layout')}
+          >
+            Layout
+          </button>
+          <button
             className={`nav-btn ${tab === 'settings' ? 'active' : ''}`}
             onClick={() => setTab('settings')}
           >
@@ -94,13 +101,16 @@ export function CompanionApp() {
                 >
                   Toggle overlay
                 </button>
+                <button className="btn ghost" onClick={() => setTab('layout')}>
+                  Edit layout
+                </button>
                 <button
                   className="btn ghost"
                   onClick={() =>
                     void updateSettings({ layoutEditMode: !settings.layoutEditMode })
                   }
                 >
-                  {settings.layoutEditMode ? 'Lock overlay layout' : 'Edit overlay layout'}
+                  {settings.layoutEditMode ? 'Lock in-game edit' : 'In-game layout edit'}
                 </button>
                 <span className="pill">
                   <span className={`status-dot ${settings.overlayVisible ? '' : 'off'}`} />
@@ -202,6 +212,17 @@ export function CompanionApp() {
             </>
           ) : null}
 
+          {tab === 'layout' ? (
+            <LayoutEditor
+              settingsModules={settings.modules}
+              panelAnchors={settings.panelAnchors}
+              opacity={settings.opacity}
+              fissureTiers={settings.fissureTiers}
+              liveData={data}
+              onSaveAnchors={(panelAnchors) => void updateSettings({ panelAnchors })}
+            />
+          ) : null}
+
           {tab === 'settings' ? (
             <>
               <header className="page-header">
@@ -236,8 +257,8 @@ export function CompanionApp() {
                     onChange={(enabled) => void updateSettings({ overlayVisible: enabled })}
                   />
                   <ToggleRow
-                    label="Layout edit mode"
-                    description={`Disables click-through so you can drag overlay panels (${settings.hotkeys.editLayout})`}
+                    label="In-game layout edit"
+                    description={`Disables click-through on the live overlay (${settings.hotkeys.editLayout}). Prefer the Layout tab for a mock preview.`}
                     checked={settings.layoutEditMode}
                     onChange={(enabled) => void updateSettings({ layoutEditMode: enabled })}
                   />

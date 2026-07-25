@@ -8,6 +8,9 @@ import './relics.css'
 type Props = {
   opacity?: number
   compact?: boolean
+  /** When set (Layout preview), skip live scan state and show these rewards. */
+  previewMode?: boolean
+  previewRewards?: RewardEval[]
 }
 
 function ownershipLabel(reward: RewardEval) {
@@ -60,28 +63,32 @@ function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean
   )
 }
 
-export function RelicsPanel({ opacity, compact }: Props) {
+export function RelicsPanel({ opacity, compact, previewMode, previewRewards }: Props) {
   const { state, scan, clear } = useRelicScan()
+  const rewards = previewMode && previewRewards ? previewRewards : state.rewards
+  const scanning = previewMode ? false : state.scanning
 
   return (
     <Panel
       title="Relic Rewards"
       subtitle={
-        state.scanning
-          ? 'Scanning reward screen…'
-          : state.rewards.length
-            ? `${state.rewards.length} rewards · ${state.trigger}`
-            : 'Waiting for reward screen'
+        previewMode
+          ? 'Preview · sample rewards'
+          : scanning
+            ? 'Scanning reward screen…'
+            : rewards.length
+              ? `${rewards.length} rewards · ${state.trigger}`
+              : 'Waiting for reward screen'
       }
       opacity={opacity}
       className={compact ? undefined : 'baro-panel--wide'}
       actions={
-        compact ? undefined : (
+        compact || previewMode ? undefined : (
           <>
-            <button className="btn primary" disabled={state.scanning} onClick={() => void scan()}>
+            <button className="btn primary" disabled={scanning} onClick={() => void scan()}>
               Scan now
             </button>
-            <button className="btn ghost" disabled={!state.rewards.length} onClick={() => void clear()}>
+            <button className="btn ghost" disabled={!rewards.length} onClick={() => void clear()}>
               Clear
             </button>
           </>
@@ -89,16 +96,16 @@ export function RelicsPanel({ opacity, compact }: Props) {
       }
     >
       <div className="mod-stack">
-        {!state.inventoryLoaded ? (
+        {!previewMode && !state.inventoryLoaded ? (
           <p className="mod-empty">
             Sync inventory in Settings for accurate owned counts. You can still scan rewards without
             it.
           </p>
         ) : null}
 
-        {state.error ? <p className="mod-empty">Error: {state.error}</p> : null}
+        {!previewMode && state.error ? <p className="mod-empty">Error: {state.error}</p> : null}
 
-        {state.rewards.length === 0 && !state.scanning ? (
+        {rewards.length === 0 && !scanning ? (
           <div className="mod-stack">
             <p className="mod-empty">
               At the fissure reward pick screen, press <strong>Alt+Shift+F</strong> (or your Scan
@@ -109,15 +116,15 @@ export function RelicsPanel({ opacity, compact }: Props) {
               <li>Owned count from your inventory</li>
               <li>Highlights parts you still need</li>
             </ul>
-            {!compact ? (
-              <button className="btn" disabled={state.scanning} onClick={() => void scan()}>
+            {!compact && !previewMode ? (
+              <button className="btn" disabled={scanning} onClick={() => void scan()}>
                 Scan reward screen
               </button>
             ) : null}
           </div>
         ) : (
           <ul className={`relic-grid ${compact ? 'is-compact' : ''}`}>
-            {state.rewards.map((reward) => (
+            {rewards.map((reward) => (
               <RewardCard key={reward.slot} reward={reward} compact={compact} />
             ))}
           </ul>

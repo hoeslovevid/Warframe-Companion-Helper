@@ -1,0 +1,161 @@
+import {
+  ArbitrationInfo,
+  BaroInfo,
+  CycleInfo,
+  FissureInfo,
+  NightwaveInfo,
+  RewardEval,
+  WorldstateSnapshot,
+} from '../../shared/types'
+
+const inHours = (h: number) => new Date(Date.now() + h * 3600_000).toISOString()
+
+export const MOCK_CYCLES: CycleInfo[] = [
+  {
+    id: 'cetus',
+    name: 'Cetus',
+    state: 'night',
+    timeLeft: '12m',
+    expiry: inHours(0.2),
+  },
+  {
+    id: 'vallis',
+    name: 'Orb Vallis',
+    state: 'cold',
+    timeLeft: '8m',
+    expiry: inHours(0.15),
+  },
+  {
+    id: 'cambion',
+    name: 'Cambion Drift',
+    state: 'vome',
+    timeLeft: '22m',
+    expiry: inHours(0.35),
+  },
+]
+
+export const MOCK_FISSURES: FissureInfo[] = [
+  {
+    id: 'f1',
+    node: 'Ariel (Uranus)',
+    missionType: 'Survival',
+    enemy: 'Grineer',
+    tier: 'Lith',
+    eta: '45m',
+    expiry: inHours(0.75),
+    isHard: false,
+  },
+  {
+    id: 'f2',
+    node: 'Io (Jupiter)',
+    missionType: 'Defense',
+    enemy: 'Corpus',
+    tier: 'Neo',
+    eta: '1h',
+    expiry: inHours(1),
+    isHard: true,
+  },
+]
+
+export const MOCK_BARO: BaroInfo = {
+  active: true,
+  location: 'Larunda Relay (Mercury)',
+  arrival: inHours(-12),
+  departure: inHours(36),
+  eta: '1d 12h',
+  inventory: [
+    { uniqueName: '/Lotus/StoreItems/A', item: 'Primed Continuity', ducats: 350, credits: 100000 },
+    { uniqueName: '/Lotus/StoreItems/B', item: 'Prisma Skana', ducats: 475, credits: 175000 },
+  ],
+}
+
+export const MOCK_NIGHTWAVE: NightwaveInfo = {
+  active: true,
+  season: 1,
+  tag: 'Nora’s Mix',
+  expiry: inHours(72),
+  phase: 2,
+}
+
+export const MOCK_ARBITRATION: ArbitrationInfo = {
+  node: 'Tessera (Venus)',
+  type: 'Defense',
+  enemy: 'Corpus',
+  expiry: inHours(1),
+  eta: '1h',
+}
+
+/** Sample fissure reward pick — used only in the Layout preview. */
+export const MOCK_RELIC_REWARDS: RewardEval[] = [
+  {
+    slot: 0,
+    ocrText: 'Nikana Prime Blade',
+    name: 'Nikana Prime Blade',
+    uniqueName: null,
+    setName: 'Nikana Prime',
+    partName: 'Blade',
+    owned: 0,
+    needed: true,
+    setOwnedParts: 1,
+    setTotalParts: 3,
+    setParts: [],
+    matchScore: 1,
+    ducats: 65,
+  },
+  {
+    slot: 1,
+    ocrText: 'Forma Blueprint',
+    name: 'Forma Blueprint',
+    uniqueName: null,
+    setName: null,
+    partName: null,
+    owned: 12,
+    needed: false,
+    setOwnedParts: 0,
+    setTotalParts: 0,
+    setParts: [],
+    matchScore: 1,
+    ducats: null,
+  },
+  {
+    slot: 2,
+    ocrText: 'Carrier Prime Systems',
+    name: 'Carrier Prime Systems',
+    uniqueName: null,
+    setName: 'Carrier Prime',
+    partName: 'Systems',
+    owned: 2,
+    needed: false,
+    setOwnedParts: 3,
+    setTotalParts: 3,
+    setParts: [],
+    matchScore: 1,
+    ducats: 45,
+  },
+  {
+    slot: 3,
+    ocrText: 'Axi S8 Relic',
+    name: 'Axi S8 Relic',
+    uniqueName: null,
+    setName: null,
+    partName: null,
+    owned: 4,
+    needed: false,
+    setOwnedParts: 0,
+    setTotalParts: 0,
+    setParts: [],
+    matchScore: 0.8,
+    ducats: null,
+  },
+]
+
+export function buildPreviewWorldstate(live: WorldstateSnapshot): WorldstateSnapshot {
+  return {
+    fetchedAt: live.fetchedAt || new Date().toISOString(),
+    cycles: live.cycles.length ? live.cycles : MOCK_CYCLES,
+    fissures: live.fissures.length ? live.fissures : MOCK_FISSURES,
+    baro: live.baro ?? MOCK_BARO,
+    nightwave: live.nightwave ?? MOCK_NIGHTWAVE,
+    arbitration: live.arbitration ?? MOCK_ARBITRATION,
+  }
+}

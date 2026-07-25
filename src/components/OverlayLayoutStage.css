@@ -1,0 +1,112 @@
+.overlay-layout-stage.is-preview.overlay-root {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.overlay-layout-stage.is-preview {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  background:
+    radial-gradient(800px 400px at 20% 10%, rgba(47, 143, 136, 0.08), transparent 55%),
+    linear-gradient(165deg, #04070a 0%, #0a1218 55%, #020406 100%);
+  border: 1px solid rgba(184, 148, 79, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 18px 40px rgba(0, 0, 0, 0.45);
+  transform-origin: top left;
+  pointer-events: auto;
+}
+
+.overlay-layout-stage.is-preview .overlay-panel {
+  pointer-events: auto;
+}
+
+.overlay-layout-stage.is-preview .overlay-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.overlay-layout-stage.is-preview.layout-edit {
+  background:
+    radial-gradient(800px 400px at 20% 10%, rgba(47, 143, 136, 0.1), transparent 55%),
+    linear-gradient(165deg, #04070a 0%, #0a1218 55%, #020406 100%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 39px,
+      rgba(127, 150, 166, 0.04) 39px,
+      rgba(127, 150, 166, 0.04) 40px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 39px,
+      rgba(127, 150, 166, 0.04) 39px,
+      rgba(127, 150, 166, 0.04) 40px
+    );
+}
+
+.overlay-layout-stage__chrome {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 30;
+  pointer-events: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vl-mist-dim);
+  background: rgba(5, 9, 13, 0.75);
+  border: 1px solid rgba(127, 150, 166, 0.18);
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+
+.overlay-layout-stage .overlay-panel.is-draggable {
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.overlay-layout-stage .overlay-panel.is-dragging {
+  cursor: grabbing;
+  outline: 1px solid rgba(95, 208, 197, 0.55);
+  box-shadow: 0 0 0 1px rgba(184, 148, 79, 0.35);
+}
+
+.overlay-panel__badge {
+  display: none;
+}
+
+.overlay-layout-stage.is-preview .overlay-panel__badge {
+  display: block;
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  z-index: 2;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vl-gold-soft);
+  background: rgba(5, 9, 13, 0.92);
+  border: 1px solid rgba(184, 148, 79, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+  pointer-events: none;
+}
+
+.layout-preview-shell {
+  width: 100%;
+  overflow: auto;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.layout-preview-scale {
+  width: 100%;
+  overflow: hidden;
+}

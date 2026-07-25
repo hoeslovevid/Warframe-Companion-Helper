@@ -34,8 +34,10 @@ npm start
 
 This launches Vite, builds the Electron main/preload bundles, then opens:
 
-- **Companion** — dashboard, module toggles, settings
+- **Companion** — dashboard, module toggles, **Layout** mock preview, settings
 - **Overlay** — always-on-top click-through panels
+
+Use the companion **Layout** tab to drag every overlay panel (including Relic Rewards with sample cards) on a mock monitor. Positions save to the live overlay. In-game quick edit remains available via `Alt+Shift+E`.
 
 ### Build a local installer
 
