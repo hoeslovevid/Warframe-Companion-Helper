@@ -71,10 +71,30 @@ export const MOCK_BARO: BaroInfo = {
 
 export const MOCK_NIGHTWAVE: NightwaveInfo = {
   active: true,
-  season: 1,
-  tag: 'Nora’s Mix',
+  season: 17,
+  tag: 'Nightwave Intermission · S17',
   expiry: inHours(72),
-  phase: 2,
+  phase: 0,
+  challenges: [
+    {
+      id: 'daily-1',
+      title: 'Sword Dance',
+      description: 'Kill 150 Enemies with a Melee Weapon',
+      reputation: 1000,
+      isDaily: true,
+      isElite: false,
+      expiry: inHours(18),
+    },
+    {
+      id: 'weekly-1',
+      title: 'Eximus Eliminator',
+      description: 'Kill 30 Eximus',
+      reputation: 4500,
+      isDaily: false,
+      isElite: false,
+      expiry: inHours(48),
+    },
+  ],
 }
 
 export const MOCK_ARBITRATION: ArbitrationInfo = {

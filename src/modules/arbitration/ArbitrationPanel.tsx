@@ -13,13 +13,11 @@ export function ArbitrationPanel({ arbitration, opacity }: Props) {
   const now = useNow()
 
   return (
-    <Panel
-      title="Arbitration"
-      subtitle="Schedule · rare drops Phase 3"
-      opacity={opacity}
-    >
+    <Panel title="Arbitration" subtitle="Current node" opacity={opacity}>
       {!arbitration ? (
-        <p className="mod-empty">No active arbitration reported</p>
+        <p className="mod-empty">
+          No active arbitration right now. When one is scheduled, the node and timer appear here.
+        </p>
       ) : (
         <div className="mod-stack">
           <div className="mod-stat">
@@ -36,9 +34,6 @@ export function ArbitrationPanel({ arbitration, opacity }: Props) {
             <span className="mod-stat__label">Ends in</span>
             <span className="mod-stat__value">{formatCountdown(arbitration.expiry, now)}</span>
           </div>
-          <p className="mod-empty">
-            End-of-run rare item summaries from EE.log land in Phase 3.
-          </p>
         </div>
       )}
     </Panel>

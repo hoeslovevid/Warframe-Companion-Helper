@@ -237,7 +237,9 @@ export function OverlayLayoutStage({
         case 'baro':
           return <BaroPanel baro={data.baro} opacity={opacity} compact />
         case 'nightwave':
-          return <NightwavePanel nightwave={data.nightwave} opacity={opacity} />
+          return (
+            <NightwavePanel nightwave={data.nightwave} opacity={opacity} compact />
+          )
         case 'relics':
           return (
             <RelicsPanel

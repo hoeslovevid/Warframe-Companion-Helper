@@ -3,6 +3,7 @@ import {
   BaroInfo,
   CycleInfo,
   FissureInfo,
+  NightwaveChallenge,
   NightwaveInfo,
   WorldstateSnapshot,
 } from '../../shared/types'
@@ -122,6 +123,113 @@ function mapCycle(id: string, name: string, data: CyclePayload): CycleInfo {
   }
 }
 
+/** warframestat returns machine tags like "Radio Legion Intermission15 Syndicate". */
+function formatNightwaveTag(tag: string | undefined, season: number): string {
+  if (!tag) return season > 0 ? `Season ${season}` : 'Nightwave'
+  const cleaned = tag
+    .replace(/\s*Syndicate$/i, '')
+    .replace(/^Radio Legion\s+/i, '')
+    .replace(/Intermission(\d+)/i, 'Intermission $1')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (/^Intermission\s*\d+/i.test(cleaned)) {
+    return season > 0 ? `Nightwave Intermission · S${season}` : `Nightwave ${cleaned}`
+  }
+  return season > 0 ? `${cleaned} · S${season}` : cleaned
+}
+
+function isUsableExpiry(expiry?: string): boolean {
+  if (!expiry) return false
+  const ms = new Date(expiry).getTime()
+  if (Number.isNaN(ms)) return false
+  // Reject epoch / far-future API sentinels
+  if (ms < Date.UTC(2000, 0, 1)) return false
+  if (ms > Date.now() + 1000 * 60 * 60 * 24 * 365 * 5) return false
+  return true
+}
+
+function mapNightwave(payload: {
+  active?: boolean
+  season?: number
+  tag?: string
+  expiry?: string
+  activation?: string
+  phase?: number
+  activeChallenges?: Array<{
+    id?: string
+    title?: string
+    desc?: string
+    reputation?: number
+    isDaily?: boolean
+    isElite?: boolean
+    expiry?: string
+  }>
+} | null): NightwaveInfo | null {
+  if (!payload) return null
+
+  const season = payload.season ?? 0
+  const expiry = payload.expiry || ''
+  const expiryMs = expiry ? new Date(expiry).getTime() : NaN
+  const activationMs = payload.activation ? new Date(payload.activation).getTime() : NaN
+  const now = Date.now()
+
+  let active = Boolean(payload.active ?? true)
+  if (!Number.isNaN(expiryMs) && now >= expiryMs) active = false
+  if (!Number.isNaN(activationMs) && now < activationMs) active = false
+
+  const challenges: NightwaveChallenge[] = (payload.activeChallenges || [])
+    .map((c) => ({
+      id: c.id || `${c.title || 'challenge'}-${c.expiry || ''}`,
+      title: c.title || 'Challenge',
+      description: c.desc || '',
+      reputation: Number(c.reputation) || 0,
+      isDaily: Boolean(c.isDaily),
+      isElite: Boolean(c.isElite),
+      expiry: c.expiry || '',
+    }))
+    .filter((c) => c.title)
+    .sort((a, b) => {
+      // Dailies first, then elite, then by expiry
+      if (a.isDaily !== b.isDaily) return a.isDaily ? -1 : 1
+      if (a.isElite !== b.isElite) return a.isElite ? -1 : 1
+      return (a.expiry || '').localeCompare(b.expiry || '')
+    })
+
+  return {
+    active,
+    season,
+    tag: formatNightwaveTag(payload.tag, season),
+    expiry,
+    phase: payload.phase ?? 0,
+    challenges,
+  }
+}
+
+function mapArbitration(payload: {
+  node?: string
+  nodeKey?: string
+  type?: string
+  enemy?: string
+  expiry?: string
+  eta?: string
+  expired?: boolean
+} | null): ArbitrationInfo | null {
+  if (!payload?.node) return null
+  if (payload.expired) return null
+  // warframestat placeholder when no arbitration is scheduled
+  if (payload.node === 'SolNode000' || payload.nodeKey === 'SolNode000') return null
+  if (payload.type === 'Unknown' && payload.enemy === 'Tenno') return null
+  if (!isUsableExpiry(payload.expiry)) return null
+
+  return {
+    node: payload.node,
+    type: payload.type || 'Unknown',
+    enemy: payload.enemy || 'Unknown',
+    expiry: payload.expiry || '',
+    eta: payload.eta || etaFromExpiry(payload.expiry),
+  }
+}
+
 export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
   const [
     cetus,
@@ -161,14 +269,26 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
       season?: number
       tag?: string
       expiry?: string
+      activation?: string
       phase?: number
+      activeChallenges?: Array<{
+        id?: string
+        title?: string
+        desc?: string
+        reputation?: number
+        isDaily?: boolean
+        isElite?: boolean
+        expiry?: string
+      }>
     } | null>('/nightwave').catch(() => null),
     getJson<{
       node?: string
+      nodeKey?: string
       type?: string
       enemy?: string
       expiry?: string
       eta?: string
+      expired?: boolean
     } | null>('/arbitration').catch(() => null),
   ])
 
@@ -202,26 +322,8 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
   // warframestat often omits `active` — derive from activation/expiry windows
   const baro = mapBaro(voidTrader)
 
-  const nw: NightwaveInfo | null = nightwave
-    ? {
-        active: Boolean(nightwave.active ?? true),
-        season: nightwave.season ?? 0,
-        tag: nightwave.tag || 'Nightwave',
-        expiry: nightwave.expiry || '',
-        phase: nightwave.phase ?? 0,
-      }
-    : null
-
-  const arb: ArbitrationInfo | null =
-    arbitration && arbitration.node
-      ? {
-          node: arbitration.node,
-          type: arbitration.type || 'Unknown',
-          enemy: arbitration.enemy || 'Unknown',
-          expiry: arbitration.expiry || '',
-          eta: arbitration.eta || etaFromExpiry(arbitration.expiry),
-        }
-      : null
+  const nw = mapNightwave(nightwave)
+  const arb = mapArbitration(arbitration)
 
   return {
     fetchedAt: new Date().toISOString(),
@@ -244,9 +346,14 @@ export function hasExpiredWorldstate(data: WorldstateSnapshot, now = Date.now())
   }
   if (data.arbitration?.expiry) expiries.push(data.arbitration.expiry)
   if (data.nightwave?.expiry) expiries.push(data.nightwave.expiry)
+  for (const c of data.nightwave?.challenges || []) {
+    if (c.expiry) expiries.push(c.expiry)
+  }
 
   return expiries.some((e) => {
     const end = new Date(e).getTime()
-    return Number.isFinite(end) && end <= now
+    // Ignore absurd far-future API sentinels
+    if (!Number.isFinite(end) || end > now + 1000 * 60 * 60 * 24 * 365 * 5) return false
+    return end <= now
   })
 }

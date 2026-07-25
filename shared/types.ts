@@ -71,7 +71,7 @@ export const MODULE_META: Record<
   },
   nightwave: {
     label: 'Nightwave',
-    description: 'Current Nightwave season info',
+    description: 'Season status and active daily / weekly challenges',
     phase: 1,
   },
   relics: {
@@ -82,8 +82,8 @@ export const MODULE_META: Record<
   },
   arbitration: {
     label: 'Arbitration',
-    description: 'Schedule and end-of-run rare drop summary (Phase 3)',
-    phase: 3,
+    description: 'Current Arbitration node and countdown when one is active',
+    phase: 1,
   },
 }
 
@@ -92,9 +92,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     cycles: true,
     fissures: true,
     baro: true,
-    nightwave: false,
+    nightwave: true,
     relics: true,
-    arbitration: false,
+    arbitration: true,
   },
   panelAnchors: {
     cycles: { x: 24, y: 24 },
@@ -171,12 +171,23 @@ export type BaroInfo = {
   inventory: BaroInventoryItem[]
 }
 
+export type NightwaveChallenge = {
+  id: string
+  title: string
+  description: string
+  reputation: number
+  isDaily: boolean
+  isElite: boolean
+  expiry: string
+}
+
 export type NightwaveInfo = {
   active: boolean
   season: number
   tag: string
   expiry: string
   phase: number
+  challenges: NightwaveChallenge[]
 }
 
 export type ArbitrationInfo = {
