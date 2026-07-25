@@ -37,10 +37,10 @@
         <span>Everything Warframe</span>
       </a>
       <nav class="nav-links" aria-label="Primary">
-        <a href="#how">How it works</a>
-        <a href="#features">Features</a>
+        <a class="nav-link-secondary" href="#how">How it works</a>
+        <a class="nav-link-secondary" href="#features">Features</a>
         <a href="#trust">Safety</a>
-        <a href="#faq">FAQ</a>
+        <a class="nav-link-secondary" href="#faq">FAQ</a>
         <a
           class="nav-ext"
           href="https://github.com/hoeslovevid/Warframe-Companion-Helper"
@@ -54,91 +54,103 @@
 
     <main id="top">
       <section class="hero">
-        <div class="hero-visual" aria-hidden="true">
-          <div class="hero-atmosphere"></div>
-          <div class="hero-mock">
-            <div class="mock-bezel">
-              <div class="mock-chrome">
-                <span></span><span></span><span></span>
-                <em>Warframe · Borderless</em>
-              </div>
-              <div class="mock-screen">
-                <div class="mock-game-bg"></div>
-                <aside class="mock-panel mock-panel--cycles">
-                  <header>World Cycles</header>
-                  <ul>
-                    <li><span>Cetus</span><b>Night · 12m</b></li>
-                    <li><span>Vallis</span><b>Warm · 4m</b></li>
-                    <li><span>Cambion</span><b>Fass · 18m</b></li>
-                  </ul>
-                </aside>
-                <aside class="mock-panel mock-panel--fissures">
-                  <header>Fissures</header>
-                  <ul>
-                    <li><span>Axi · Survival</span><b>22m</b></li>
-                    <li><span>Neo · Capture</span><b>41m</b></li>
-                    <li><span>Meso · Exterm</span><b>1h</b></li>
-                  </ul>
-                </aside>
-                <div class="mock-strip">
-                  <div class="mock-strip__slot is-best">
-                    <span>Needed</span>
-                    <strong>Nikana P. Blade</strong>
-                    <em>42p · Best</em>
-                  </div>
-                  <div class="mock-strip__slot">
-                    <span>Owned ×12</span>
-                    <strong>Forma BP</strong>
-                    <em>—</em>
-                  </div>
-                  <div class="mock-strip__slot">
-                    <span>Set 3/3</span>
-                    <strong>Carrier P. Sys</strong>
-                    <em>12p</em>
-                  </div>
-                  <div class="mock-strip__slot">
-                    <span>Relic</span>
-                    <strong>Axi S8</strong>
-                    <em>—</em>
-                  </div>
+        <div class="hero-atmosphere" aria-hidden="true"></div>
+        <div class="hero-mock" aria-hidden="true">
+          <div class="mock-bezel">
+            <div class="mock-chrome">
+              <span></span><span></span><span></span>
+              <em>Warframe · Borderless</em>
+            </div>
+            <div class="mock-screen">
+              <div class="mock-game-bg"></div>
+              <aside class="mock-panel mock-panel--cycles">
+                <header>World Cycles</header>
+                <ul>
+                  <li><span>Cetus</span><b>Night · 12m</b></li>
+                  <li><span>Vallis</span><b>Warm · 4m</b></li>
+                  <li><span>Cambion</span><b>Fass · 18m</b></li>
+                </ul>
+              </aside>
+              <aside class="mock-panel mock-panel--fissures">
+                <header>Fissures</header>
+                <ul>
+                  <li><span>Axi · Survival</span><b>22m</b></li>
+                  <li><span>Neo · Capture</span><b>41m</b></li>
+                  <li><span>Meso · Exterm</span><b>1h</b></li>
+                </ul>
+              </aside>
+              <div class="mock-strip">
+                <div class="mock-strip__slot is-best">
+                  <span>Needed</span>
+                  <strong>Nikana P. Blade</strong>
+                  <em>42p · Best</em>
+                </div>
+                <div class="mock-strip__slot">
+                  <span>Owned ×12</span>
+                  <strong>Forma BP</strong>
+                  <em>—</em>
+                </div>
+                <div class="mock-strip__slot">
+                  <span>Set 3/3</span>
+                  <strong>Carrier P. Sys</strong>
+                  <em>12p</em>
+                </div>
+                <div class="mock-strip__slot">
+                  <span>Relic</span>
+                  <strong>Axi S8</strong>
+                  <em>—</em>
                 </div>
               </div>
             </div>
           </div>
         </div>
         <div class="hero-copy">
-          <p class="brand">Everything Warframe</p>
-          <h1>Stay in the fight. Keep the intel.</h1>
-          <p class="lede">
-            A Windows overlay for cycles, fissures, Baro, relic picks, and riven grading — open
-            source, local-first.
-          </p>
-          <div class="cta-row">
-            <a
-              id="download-setup"
-              class="btn primary"
-              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
-            >
-              Download for Windows
-            </a>
-            <a
-              id="download-portable"
-              class="btn ghost"
-              href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
-            >
-              Portable build
-            </a>
+          <div class="hero-copy__inner">
+            <p class="brand">Everything Warframe</p>
+            <h1>Stay in the fight. Keep the intel.</h1>
+            <p class="lede">
+              A Windows overlay for cycles, fissures, Baro, relic picks, and riven grading — open
+              source, local-first.
+            </p>
+            <div class="cta-row">
+              <a
+                id="download-setup"
+                class="btn primary"
+                href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+              >
+                Download for Windows
+              </a>
+              <a
+                id="download-portable"
+                class="btn ghost"
+                href="https://github.com/hoeslovevid/Warframe-Companion-Helper/releases/latest"
+              >
+                Portable build
+              </a>
+            </div>
+            <p class="version-line" id="version-line">Fetching latest release…</p>
           </div>
-          <p class="version-line" id="version-line">Fetching latest release…</p>
         </div>
       </section>
 
       <section class="trust-bar" aria-label="Trust signals">
         <div class="trust-bar__inner">
-          <p><strong>Open source</strong> · MIT on GitHub</p>
-          <p><strong>Local-first</strong> · inventory &amp; OCR stay on your PC</p>
-          <p><strong>No account</strong> · no telemetry, no login</p>
-          <p><strong>Unsigned build</strong> · SmartScreen may warn on first run</p>
+          <p>
+            <strong>Open source</strong>
+            <span>MIT on GitHub</span>
+          </p>
+          <p>
+            <strong>Local-first</strong>
+            <span>Inventory &amp; OCR stay on your PC</span>
+          </p>
+          <p>
+            <strong>No account</strong>
+            <span>No telemetry, no login</span>
+          </p>
+          <p>
+            <strong>Unsigned build</strong>
+            <span>SmartScreen may warn on first run</span>
+          </p>
         </div>
       </section>
 
