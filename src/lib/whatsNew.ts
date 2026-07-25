@@ -13,6 +13,12 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Baro wishlist, Steel Path fissure filter, Nightwave done marks',
     'Smarter relic auto-detect (Warframe focused) + dismiss hotkey',
   ],
+  '0.8.0': [
+    'Riven Grader popup: OCR current vs reroll, tier grades, keep/take tip',
+    'Hotkeys Alt+Shift+G (scan) and Alt+Shift+H (dismiss)',
+    'EE.log best-effort auto-detect for Kuva Cycle screens',
+    'Layout preview + presets include the riven compare panel',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

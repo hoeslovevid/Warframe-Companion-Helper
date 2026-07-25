@@ -17,6 +17,8 @@ export function HotkeySheet({ open, hotkeys, onClose }: Props) {
     { label: 'Refresh worldstate', key: hotkeys.refreshWorldstate },
     { label: 'Scan relic rewards', key: hotkeys.scanRelics },
     { label: 'Dismiss relic popup', key: hotkeys.dismissRelics },
+    { label: 'Scan riven compare', key: hotkeys.scanRivens },
+    { label: 'Dismiss riven popup', key: hotkeys.dismissRivens },
     { label: 'Move panels (unlock drag)', key: hotkeys.editLayout },
   ]
 

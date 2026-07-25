@@ -15,7 +15,11 @@ import {
   LAYOUT_PRESETS,
   LayoutPresetId,
 } from '../../lib/layoutPresets'
-import { buildPreviewWorldstate, MOCK_RELIC_REWARDS } from '../../lib/mockOverlayData'
+import {
+  buildPreviewWorldstate,
+  MOCK_RELIC_REWARDS,
+  MOCK_RIVEN_SCAN,
+} from '../../lib/mockOverlayData'
 import '../../styles/overlay.css'
 
 const FALLBACK_DISPLAY: PrimaryDisplayInfo = {
@@ -148,9 +152,10 @@ export function LayoutEditor({
           <strong>
             {designW}×{designH}
           </strong>
-          ). Drag the horizontal <strong>Relic Rewards</strong> strip under the reward cards. Presets
-          and reset scale to this resolution. In-game, press <strong>{interactionHotkey}</strong> to
-          unlock and drag during a popup.
+          ). Drag the <strong>Relic Rewards</strong> strip under the reward cards and the{' '}
+          <strong>Riven Grader</strong> compare panel where you want it. Presets and reset scale to
+          this resolution. In-game, press <strong>{interactionHotkey}</strong> to unlock and drag
+          during a popup.
         </p>
       </header>
 
@@ -216,6 +221,7 @@ export function LayoutEditor({
               designWidth={designW}
               designHeight={designH}
               relicPreviewRewards={MOCK_RELIC_REWARDS}
+              rivenPreviewState={MOCK_RIVEN_SCAN}
               dragHint="Drag to move (position saves)"
               hint={`Preview · ${designW}×${designH} primary display · left or right mouse`}
               onAnchorsChange={setAnchors}

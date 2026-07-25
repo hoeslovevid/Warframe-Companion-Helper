@@ -58,6 +58,9 @@ Outputs land in `release/` (NSIS setup + portable).
 | Open companion | `Alt+Shift+C` |
 | Refresh worldstate | `Alt+Shift+R` |
 | Scan relic rewards | `Alt+Shift+F` |
+| Dismiss relic popup | `Alt+Shift+D` |
+| Scan riven compare | `Alt+Shift+G` |
+| Dismiss riven popup | `Alt+Shift+H` |
 | Unlock overlay drag (interaction) | `Ctrl+Tab` |
 
 If a shortcut is taken, the app tries fallbacks. Change them under **Settings → Hotkeys**.
@@ -77,6 +80,7 @@ Everything Warframe runs at below-normal process priority, pauses overlay clocks
 - **Baro Ki'Teer** — status + shop inventory
 - **Nightwave** — season / phase
 - **Relics** — OCR reward overlay with set + owned counts
+- **Riven Grader** — OCR current vs reroll, tier grades, keep/take recommendation
 - **Arbitration** — schedule now; run analytics later
 
 ## Inventory
@@ -95,6 +99,13 @@ Data stays on your PC.
 2. Enable **Relic Rewards**
 3. Enable Item Labels in Warframe
 4. On the reward pick screen, press **Alt+Shift+F** (or wait for EE.log `Got rewards`)
+
+## Riven grader overlay
+
+1. Enable **Riven Grader**
+2. On the Kuva Cycle compare screen (current vs new), press **Alt+Shift+G**
+3. The overlay grades both rolls and recommends keep / take / similar
+4. EE.log may auto-detect; the hotkey is the reliable path. Dismiss with **Alt+Shift+H**
 
 ## Publishing a new release (maintainers)
 
@@ -129,6 +140,6 @@ npm run release
 
 - [warframestat.us](https://docs.warframestat.us) — worldstate / item catalog
 - [warframe-api-helper](https://github.com/Sainan/warframe-api-helper) — inventory sync
-- Warframe `EE.log` — relic reward detection
+- Warframe `EE.log` — relic reward / riven cycle detection
 
 Unofficial and not affiliated with Digital Extremes.

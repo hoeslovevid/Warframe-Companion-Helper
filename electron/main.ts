@@ -36,6 +36,12 @@ import {
   onRelicScanUpdated,
   scanRelicRewards,
 } from './services/relic-scanner'
+import {
+  clearRivenScan,
+  getRivenScanState,
+  onRivenScanUpdated,
+  scanRivens,
+} from './services/riven-scanner'
 import { isWarframeForeground, isWarframeRunning } from './services/warframe-process'
 import {
   checkForAppUpdates,
@@ -129,6 +135,42 @@ function broadcastRelicScan() {
   const state = getRelicScanState()
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('relics:updated', state)
+  }
+}
+
+async function runRivenScan(trigger: 'manual' | 'log') {
+  const settings = loadSettings()
+  if (!settings.modules.rivens) {
+    console.info('[Everything Warframe] Riven scan skipped — Rivens module disabled')
+    return getRivenScanState()
+  }
+  if (trigger === 'log') {
+    const fg = await isWarframeForeground()
+    if (!fg) {
+      console.info('[Everything Warframe] Riven auto-scan skipped — Warframe not focused')
+      return getRivenScanState()
+    }
+  }
+  if (!settings.overlayVisible) {
+    const next = updateSettings({ overlayVisible: true })
+    applyOverlayVisibility(true)
+    broadcastSettings(next)
+  }
+  const state = await scanRivens(trigger)
+  broadcastRivenScan()
+  return state
+}
+
+function dismissRivenPopup() {
+  const state = clearRivenScan()
+  broadcastRivenScan()
+  return state
+}
+
+function broadcastRivenScan() {
+  const state = getRivenScanState()
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('rivens:updated', state)
   }
 }
 
@@ -335,7 +377,9 @@ const HOTKEY_FALLBACKS: Record<keyof AppSettings['hotkeys'], string[]> = {
   openCompanion: ['Alt+Shift+C', 'Alt+Shift+L', 'F9', 'CommandOrControl+Alt+C'],
   refreshWorldstate: ['Alt+Shift+R', 'F10', 'CommandOrControl+Alt+R'],
   scanRelics: ['Alt+Shift+F', 'F2', 'CommandOrControl+Alt+F'],
-  dismissRelics: ['Alt+Shift+D', 'Alt+Shift+G', 'F3'],
+  dismissRelics: ['Alt+Shift+D', 'F3'],
+  scanRivens: ['Alt+Shift+G', 'F4', 'CommandOrControl+Alt+G'],
+  dismissRivens: ['Alt+Shift+H', 'F6'],
   editLayout: ['Control+Tab', 'Alt+Shift+E', 'Alt+Shift+X', 'F7'],
 }
 
@@ -412,6 +456,12 @@ function registerHotkeys() {
   })
   bind('dismissRelics', () => {
     dismissRelicPopup()
+  })
+  bind('scanRivens', () => {
+    void runRivenScan('manual')
+  })
+  bind('dismissRivens', () => {
+    dismissRivenPopup()
   })
   bind('editLayout', () => {
     toggleLayoutEditMode()
@@ -594,6 +644,9 @@ function registerIpc() {
     }
     return state
   })
+  ipcMain.handle('rivens:get', () => getRivenScanState())
+  ipcMain.handle('rivens:scan', async () => runRivenScan('manual'))
+  ipcMain.handle('rivens:clear', () => dismissRivenPopup())
   ipcMain.handle('hotkeys:status', () => lastHotkeyStatus)
   ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('update:status', () => getUpdateStatus())
@@ -625,6 +678,7 @@ app.whenReady().then(async () => {
     }
   })
   onRelicScanUpdated(() => broadcastRelicScan())
+  onRivenScanUpdated(() => broadcastRivenScan())
 
   const eePath = loadSettings().eeLogPath || detectEeLogPath()
   if (eePath) {
@@ -639,6 +693,13 @@ app.whenReady().then(async () => {
     } else if (event.type === 'relic_rewards_end') {
       console.info('[Everything Warframe] EE.log relic rewards ended — dismissing popup')
       dismissRelicPopup()
+    } else if (event.type === 'riven_reroll') {
+      if (!loadSettings().modules.rivens) return
+      console.info('[Everything Warframe] EE.log riven reroll detected — scanning')
+      void runRivenScan('log')
+    } else if (event.type === 'riven_reroll_end') {
+      console.info('[Everything Warframe] EE.log riven reroll ended — dismissing popup')
+      dismissRivenPopup()
     }
   })
   logWatcher.start(1500)

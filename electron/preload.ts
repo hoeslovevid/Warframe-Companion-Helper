@@ -7,6 +7,7 @@ import type {
   ModuleId,
   PrimaryDisplayInfo,
   RelicScanState,
+  RivenScanState,
   VoidLensApi,
   WorldstateSnapshot,
 } from '../shared/types'
@@ -35,6 +36,9 @@ const api: VoidLensApi = {
   scanRelicRewards: () => ipcRenderer.invoke('relics:scan'),
   clearRelicScan: () => ipcRenderer.invoke('relics:clear'),
   ackRelicCelebration: () => ipcRenderer.invoke('relics:ackCelebration'),
+  getRivenScan: () => ipcRenderer.invoke('rivens:get'),
+  scanRivens: () => ipcRenderer.invoke('rivens:scan'),
+  clearRivenScan: () => ipcRenderer.invoke('rivens:clear'),
   getHotkeyStatus: () => ipcRenderer.invoke('hotkeys:status') as Promise<HotkeyRegistration[]>,
   getAppVersion: () => ipcRenderer.invoke('app:version') as Promise<string>,
   getUpdateStatus: () => ipcRenderer.invoke('update:status'),
@@ -64,6 +68,11 @@ const api: VoidLensApi = {
     const listener = (_: Electron.IpcRendererEvent, state: RelicScanState) => cb(state)
     ipcRenderer.on('relics:updated', listener)
     return () => ipcRenderer.removeListener('relics:updated', listener)
+  },
+  onRivenScanUpdated: (cb) => {
+    const listener = (_: Electron.IpcRendererEvent, state: RivenScanState) => cb(state)
+    ipcRenderer.on('rivens:updated', listener)
+    return () => ipcRenderer.removeListener('rivens:updated', listener)
   },
   onUpdateStatus: (cb) => {
     const listener = (_: Electron.IpcRendererEvent, status: AppUpdateStatus) => cb(status)

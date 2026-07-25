@@ -26,8 +26,14 @@ async function getWorker(): Promise<Worker> {
   return loading
 }
 
+const RELIC_WHITELIST =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 '&-"
+const RIVEN_WHITELIST =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%+-.&' "
+
 export async function recognizeRewardNames(images: Buffer[]): Promise<string[]> {
   const w = await getWorker()
+  await w.setParameters({ tessedit_char_whitelist: RELIC_WHITELIST })
   const names: string[] = []
   for (const png of images) {
     const result = await w.recognize(png)
@@ -41,6 +47,26 @@ export async function recognizeRewardNames(images: Buffer[]): Promise<string[]> 
     names.push(text)
   }
   return names
+}
+
+/** Keep newlines — riven cards are multi-line (weapon + stats). */
+export async function recognizeRivenBlocks(images: Buffer[]): Promise<string[]> {
+  const w = await getWorker()
+  await w.setParameters({ tessedit_char_whitelist: RIVEN_WHITELIST })
+  const blocks: string[] = []
+  for (const png of images) {
+    const result = await w.recognize(png)
+    const text = (result.data.text || '')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .join('\n')
+      .trim()
+    blocks.push(text)
+  }
+  // Restore relic whitelist for subsequent relic scans
+  await w.setParameters({ tessedit_char_whitelist: RELIC_WHITELIST })
+  return blocks
 }
 
 export async function warmupOcr(): Promise<void> {

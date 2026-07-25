@@ -23,6 +23,8 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       ...(raw.hotkeys ?? {}),
       scanRelics: raw.hotkeys?.scanRelics || base.hotkeys.scanRelics,
       dismissRelics: raw.hotkeys?.dismissRelics || base.hotkeys.dismissRelics,
+      scanRivens: raw.hotkeys?.scanRivens || base.hotkeys.scanRivens,
+      dismissRivens: raw.hotkeys?.dismissRivens || base.hotkeys.dismissRivens,
       editLayout: raw.hotkeys?.editLayout || base.hotkeys.editLayout,
     },
     fissureTiers: raw.fissureTiers ?? base.fissureTiers,

@@ -4,6 +4,7 @@ import {
   ModuleId,
   PanelAnchor,
   RewardEval,
+  RivenScanState,
   WorldstateSnapshot,
 } from '../../shared/types'
 import { CyclesPanel } from '../modules/cycles/CyclesPanel'
@@ -15,6 +16,7 @@ import { ArbitrationPanel } from '../modules/arbitration/ArbitrationPanel'
 import { InvasionsPanel } from '../modules/invasions/InvasionsPanel'
 import { ArchonPanel } from '../modules/archon/ArchonPanel'
 import { DeepArchimedeaPanel } from '../modules/deepArchimedea/DeepArchimedeaPanel'
+import { RivenPanel } from '../modules/rivens/RivenPanel'
 import '../styles/overlay.css'
 import './OverlayLayoutStage.css'
 
@@ -35,6 +37,7 @@ export type OverlayLayoutStageProps = {
   designWidth?: number
   designHeight?: number
   relicPreviewRewards?: RewardEval[]
+  rivenPreviewState?: RivenScanState
   /** Bottom status pill (optional). */
   hint?: string
   /** Top teaching chip (WFHelper-style), e.g. "Ctrl + Tab, then drag to move". */
@@ -82,6 +85,7 @@ export function OverlayLayoutStage({
   designWidth = 1920,
   designHeight = 1080,
   relicPreviewRewards,
+  rivenPreviewState,
   hint,
   dragHint,
   onAnchorsChange,
@@ -290,6 +294,15 @@ export function OverlayLayoutStage({
               compact
             />
           )
+        case 'rivens':
+          return (
+            <RivenPanel
+              opacity={opacity}
+              compact
+              previewMode={mode === 'preview'}
+              previewState={rivenPreviewState}
+            />
+          )
         default:
           return null
       }
@@ -305,6 +318,7 @@ export function OverlayLayoutStage({
     nightwaveDoneIds,
     mode,
     relicPreviewRewards,
+    rivenPreviewState,
     designWidth,
   ])
 
@@ -356,7 +370,7 @@ export function OverlayLayoutStage({
             }}
             onPointerDown={(e) => onPointerDown(id, e)}
           >
-            {editable || id !== 'relics' ? (
+            {editable || (id !== 'relics' && id !== 'rivens') ? (
               <div className="overlay-panel__badge">{id}</div>
             ) : null}
             {panel(id)}

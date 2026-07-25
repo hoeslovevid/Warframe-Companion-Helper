@@ -1,7 +1,9 @@
 import fs from 'node:fs'
 import { EventEmitter } from 'node:events'
 
-export type LogEvent = { type: 'relic_rewards' | 'relic_rewards_end' }
+export type LogEvent = {
+  type: 'relic_rewards' | 'relic_rewards_end' | 'riven_reroll' | 'riven_reroll_end'
+}
 
 /** Markers that the fissure reward pick screen is up (AlecaFrame / WFInfo style). */
 const REWARD_START_PATTERNS = [
@@ -10,10 +12,6 @@ const REWARD_START_PATTERNS = [
   /ProjectionRewardChoice/i,
 ]
 
-/**
- * Markers that the pick screen is gone / mission moved on.
- * EE.log buffering makes these imperfect — pair with auto-hide timeout.
- */
 const REWARD_END_PATTERNS = [
   /ProjectionRewardChoice\.lua:.*(?:Selected|Choice made|Closing|closed|Select)/i,
   /EndOfMatch\.lua/i,
@@ -22,8 +20,25 @@ const REWARD_END_PATTERNS = [
 ]
 
 /**
- * Tail Warframe EE.log for fissure reward-screen markers.
- * Log writes are buffered by the game, so pair with a manual hotkey.
+ * Heuristic markers for riven Cycle UI. EE.log is inconsistent — pair with hotkey.
+ * Common script names vary by update; keep patterns broad but avoid relic lines.
+ */
+const RIVEN_START_PATTERNS = [
+  /Riven.*(?:Cycle|Reroll|Upgrade)/i,
+  /(?:Cycle|Reroll).*Riven/i,
+  /Mod.*Riven.*(?:Cycle|Roll)/i,
+  /Kuva.*(?:spent|cost).*Riven/i,
+  /Script \[Info\]:.*RivenMod/i,
+  /Lotus\/Types\/Game\/Riven/i,
+]
+
+const RIVEN_END_PATTERNS = [
+  /Riven.*(?:Accept|Decline|Confirm|Closed)/i,
+  /(?:Accept|Decline).*Riven/i,
+]
+
+/**
+ * Tail Warframe EE.log for fissure reward-screen and riven cycle markers.
  */
 export class LogWatcher extends EventEmitter {
   private path: string | null = null
@@ -31,12 +46,16 @@ export class LogWatcher extends EventEmitter {
   private timer: NodeJS.Timeout | null = null
   private lastStartEmit = 0
   private lastEndEmit = 0
+  private lastRivenStart = 0
+  private lastRivenEnd = 0
   private rewardScreenOpen = false
+  private rivenScreenOpen = false
 
   setPath(next: string | null) {
     this.path = next
     this.offset = 0
     this.rewardScreenOpen = false
+    this.rivenScreenOpen = false
     if (next && fs.existsSync(next)) {
       try {
         this.offset = fs.statSync(next).size
@@ -60,7 +79,7 @@ export class LogWatcher extends EventEmitter {
     if (!this.path || !fs.existsSync(this.path)) return
     try {
       const stat = fs.statSync(this.path)
-      if (stat.size < this.offset) this.offset = 0 // log rotated
+      if (stat.size < this.offset) this.offset = 0
       if (stat.size === this.offset) return
 
       const fd = fs.openSync(this.path, 'r')
@@ -79,10 +98,7 @@ export class LogWatcher extends EventEmitter {
           this.rewardScreenOpen = true
           this.emit('event', { type: 'relic_rewards' } satisfies LogEvent)
         }
-        return
-      }
-
-      if (
+      } else if (
         this.rewardScreenOpen &&
         REWARD_END_PATTERNS.some((re) => re.test(chunk)) &&
         now - this.lastEndEmit >= 2000
@@ -90,6 +106,22 @@ export class LogWatcher extends EventEmitter {
         this.lastEndEmit = now
         this.rewardScreenOpen = false
         this.emit('event', { type: 'relic_rewards_end' } satisfies LogEvent)
+      }
+
+      if (RIVEN_START_PATTERNS.some((re) => re.test(chunk))) {
+        if (now - this.lastRivenStart >= 4000) {
+          this.lastRivenStart = now
+          this.rivenScreenOpen = true
+          this.emit('event', { type: 'riven_reroll' } satisfies LogEvent)
+        }
+      } else if (
+        this.rivenScreenOpen &&
+        RIVEN_END_PATTERNS.some((re) => re.test(chunk)) &&
+        now - this.lastRivenEnd >= 2000
+      ) {
+        this.lastRivenEnd = now
+        this.rivenScreenOpen = false
+        this.emit('event', { type: 'riven_reroll_end' } satisfies LogEvent)
       }
     } catch (err) {
       console.error('[Everything Warframe] EE.log watch error', err)

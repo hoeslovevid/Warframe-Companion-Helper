@@ -8,6 +8,7 @@ export type ModuleId =
   | 'invasions'
   | 'archon'
   | 'deepArchimedea'
+  | 'rivens'
 
 export type PanelAnchor = {
   x: number
@@ -20,7 +21,42 @@ export type HotkeyConfig = {
   refreshWorldstate: string
   scanRelics: string
   dismissRelics: string
+  scanRivens: string
+  dismissRivens: string
   editLayout: string
+}
+
+export type RivenTier = 'S' | 'A' | 'B' | 'C' | 'D' | 'F'
+
+export type RivenStatLine = {
+  raw: string
+  name: string
+  value: number
+  unit: '%' | 'flat'
+  negative: boolean
+  /** 0–100 quality for this line vs typical max (approx). */
+  quality: number
+  desirable: boolean
+}
+
+export type RivenRoll = {
+  side: 'current' | 'reroll'
+  weapon: string
+  ocrText: string
+  stats: RivenStatLine[]
+  score: number
+  tier: RivenTier
+}
+
+export type RivenScanState = {
+  active: boolean
+  scanning: boolean
+  scannedAt: string
+  trigger: 'manual' | 'log' | 'none'
+  error: string | null
+  current: RivenRoll | null
+  reroll: RivenRoll | null
+  recommendation: 'keep' | 'take' | 'similar' | 'none'
 }
 
 export type InventorySource = 'none' | 'manual' | 'detected' | 'helper' | 'alecaframe'
@@ -122,6 +158,12 @@ export const MODULE_META: Record<
     description: 'Current Deep Archimedea missions and modifiers',
     phase: 1,
   },
+  rivens: {
+    label: 'Riven Grader',
+    description:
+      'Popup while rerolling: grades current vs new roll and recommends which to keep',
+    phase: 2,
+  },
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -135,6 +177,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     invasions: false,
     archon: true,
     deepArchimedea: false,
+    rivens: true,
   },
   panelAnchors: {
     cycles: { x: 24, y: 24 },
@@ -146,6 +189,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     invasions: { x: 720, y: 24 },
     archon: { x: 720, y: 320 },
     deepArchimedea: { x: 720, y: 560 },
+    rivens: { x: 480, y: 200 },
   },
   opacity: 0.92,
   overlayScale: 1,
@@ -155,6 +199,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     refreshWorldstate: 'Alt+Shift+R',
     scanRelics: 'Alt+Shift+F',
     dismissRelics: 'Alt+Shift+D',
+    scanRivens: 'Alt+Shift+G',
+    dismissRivens: 'Alt+Shift+H',
     editLayout: 'Control+Tab',
   },
   eeLogPath: '',
@@ -408,6 +454,9 @@ export type VoidLensApi = {
   scanRelicRewards: () => Promise<RelicScanState>
   clearRelicScan: () => Promise<RelicScanState>
   ackRelicCelebration: () => Promise<RelicScanState>
+  getRivenScan: () => Promise<RivenScanState>
+  scanRivens: () => Promise<RivenScanState>
+  clearRivenScan: () => Promise<RivenScanState>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>
   getAppVersion: () => Promise<string>
   getUpdateStatus: () => Promise<AppUpdateStatus>
@@ -418,6 +467,7 @@ export type VoidLensApi = {
   onOverlayVisibilityChanged: (cb: (visible: boolean) => void) => () => void
   onInventoryUpdated: (cb: (status: InventoryStatus) => void) => () => void
   onRelicScanUpdated: (cb: (state: RelicScanState) => void) => () => void
+  onRivenScanUpdated: (cb: (state: RivenScanState) => void) => () => void
   onUpdateStatus: (cb: (status: AppUpdateStatus) => void) => () => void
   onRelicSound: (cb: () => void) => () => void
 }

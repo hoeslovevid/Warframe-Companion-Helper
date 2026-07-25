@@ -66,6 +66,15 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
             for set” tags.
           </p>
         </div>
+        <div className="help-block">
+          <h3>5. Riven grader</h3>
+          <p>
+            On the Kuva Cycle compare screen (current vs new), press{' '}
+            <strong>{prettyHotkey(hk.scanRivens)}</strong>. The overlay grades both rolls and
+            recommends which to keep. EE.log may auto-detect; the hotkey is the reliable path.
+            Dismiss with <strong>{prettyHotkey(hk.dismissRivens)}</strong>.
+          </p>
+        </div>
       </Panel>
 
       <div className="section-gap" />

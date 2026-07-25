@@ -117,3 +117,32 @@ export async function captureRewardRegionPngs(): Promise<Buffer[]> {
   const regions = relicRewardRegions(shot.width, shot.height)
   return regions.map((region) => cropPng(shot.png, region))
 }
+
+/**
+ * Left = current / kept roll, right = new reroll — typical Cycle UI.
+ * Tuned for 16:9; Layout can still position the result popup.
+ */
+export function rivenCompareRegions(width: number, height: number): CaptureRegion[] {
+  const cardW = width * 0.22
+  const cardH = height * 0.42
+  const y = height * 0.28
+  const gap = width * 0.06
+  const total = cardW * 2 + gap
+  const startX = (width - total) / 2
+  return [
+    { x: Math.round(startX), y: Math.round(y), width: Math.round(cardW), height: Math.round(cardH) },
+    {
+      x: Math.round(startX + cardW + gap),
+      y: Math.round(y),
+      width: Math.round(cardW),
+      height: Math.round(cardH),
+    },
+  ]
+}
+
+export async function captureRivenComparePngs(): Promise<Buffer[]> {
+  const shot = await captureBestDisplay()
+  if (!shot) return []
+  const regions = rivenCompareRegions(shot.width, shot.height)
+  return regions.map((region) => cropPng(shot.png, region))
+}

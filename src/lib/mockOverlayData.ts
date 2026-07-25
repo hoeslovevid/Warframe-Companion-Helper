@@ -5,6 +5,7 @@ import {
   FissureInfo,
   NightwaveInfo,
   RewardEval,
+  RivenScanState,
   WorldstateSnapshot,
 } from '../../shared/types'
 
@@ -103,6 +104,97 @@ export const MOCK_ARBITRATION: ArbitrationInfo = {
   enemy: 'Corpus',
   expiry: inHours(1),
   eta: '1h',
+}
+
+/** Sample riven compare — used only in the Layout preview. */
+export const MOCK_RIVEN_SCAN: RivenScanState = {
+  active: true,
+  scanning: false,
+  scannedAt: new Date().toISOString(),
+  trigger: 'manual',
+  error: null,
+  recommendation: 'take',
+  current: {
+    side: 'current',
+    weapon: 'Lato',
+    ocrText: '',
+    score: 62,
+    tier: 'B',
+    stats: [
+      {
+        raw: '+Damage 168.2%',
+        name: 'Damage',
+        value: 168.2,
+        unit: '%',
+        negative: false,
+        quality: 72,
+        desirable: true,
+      },
+      {
+        raw: '+Multishot 92.4%',
+        name: 'Multishot',
+        value: 92.4,
+        unit: '%',
+        negative: false,
+        quality: 68,
+        desirable: true,
+      },
+      {
+        raw: '-Zoom 48.1%',
+        name: 'Zoom',
+        value: -48.1,
+        unit: '%',
+        negative: true,
+        quality: 80,
+        desirable: true,
+      },
+    ],
+  },
+  reroll: {
+    side: 'reroll',
+    weapon: 'Lato',
+    ocrText: '',
+    score: 84,
+    tier: 'A',
+    stats: [
+      {
+        raw: '+Critical Chance 187.6%',
+        name: 'Critical Chance',
+        value: 187.6,
+        unit: '%',
+        negative: false,
+        quality: 88,
+        desirable: true,
+      },
+      {
+        raw: '+Critical Damage 142.3%',
+        name: 'Critical Damage',
+        value: 142.3,
+        unit: '%',
+        negative: false,
+        quality: 86,
+        desirable: true,
+      },
+      {
+        raw: '+Multishot 110.8%',
+        name: 'Multishot',
+        value: 110.8,
+        unit: '%',
+        negative: false,
+        quality: 82,
+        desirable: true,
+      },
+      {
+        raw: '-Reload Speed 36.2%',
+        name: 'Reload Speed',
+        value: -36.2,
+        unit: '%',
+        negative: true,
+        quality: 55,
+        desirable: false,
+      },
+    ],
+  },
 }
 
 /** Sample fissure reward pick — used only in the Layout preview. */

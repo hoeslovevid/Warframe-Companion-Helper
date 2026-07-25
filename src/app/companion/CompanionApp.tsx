@@ -24,6 +24,7 @@ import { ArbitrationPanel } from '../../modules/arbitration/ArbitrationPanel'
 import { InvasionsPanel } from '../../modules/invasions/InvasionsPanel'
 import { ArchonPanel } from '../../modules/archon/ArchonPanel'
 import { DeepArchimedeaPanel } from '../../modules/deepArchimedea/DeepArchimedeaPanel'
+import { RivenPanel } from '../../modules/rivens/RivenPanel'
 import { LayoutEditor } from './LayoutEditor'
 import { prettyHotkey } from '../../lib/hotkey'
 import '../../styles/companion.css'
@@ -39,6 +40,8 @@ const HOTKEY_LABELS: Record<HotkeyRegistration['id'], string> = {
   refreshWorldstate: 'Refresh worldstate',
   scanRelics: 'Scan relic rewards',
   dismissRelics: 'Dismiss relic popup',
+  scanRivens: 'Scan riven compare',
+  dismissRivens: 'Dismiss riven popup',
   editLayout: 'Move panels (unlock drag)',
 }
 
@@ -59,13 +62,13 @@ const TOUR_STEPS: TourStep[] = [
     target: 'nav-layout',
     tab: 'layout',
     title: 'Layout',
-    body: 'Drag every panel on the mock monitor — including Relic Rewards. Try a preset if you want a quick start.',
+    body: 'Drag every panel on the mock monitor — including Relic Rewards and Riven Grader. Try a preset if you want a quick start.',
   },
   {
     target: 'toolbar-hotkeys',
     tab: 'dashboard',
     title: 'Hotkeys',
-    body: 'Press ? anytime for the cheat sheet. In-game: toggle overlay, unlock drag, and scan relics.',
+    body: 'Press ? anytime for the cheat sheet. In-game: toggle overlay, unlock drag, scan relics, and grade rivens.',
   },
   {
     target: 'nav-help',
@@ -424,6 +427,12 @@ export function CompanionApp() {
                       dismissHotkey={prettyHotkey(settings.hotkeys.dismissRelics)}
                     />
                   ) : null}
+                  {enabledIds.includes('rivens') ? (
+                    <RivenPanel
+                      scanHotkey={prettyHotkey(settings.hotkeys.scanRivens)}
+                      dismissHotkey={prettyHotkey(settings.hotkeys.dismissRivens)}
+                    />
+                  ) : null}
                   {enabledIds.includes('arbitration') ? (
                     <ArbitrationPanel arbitration={data.arbitration} />
                   ) : null}
@@ -674,6 +683,30 @@ export function CompanionApp() {
                       />
                     </div>
                     <div className="field">
+                      <label htmlFor="hk-rivens">Scan riven compare</label>
+                      <input
+                        id="hk-rivens"
+                        value={settings.hotkeys.scanRivens}
+                        onChange={(e) =>
+                          void updateSettings({
+                            hotkeys: { ...settings.hotkeys, scanRivens: e.target.value },
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="hk-dismiss-rivens">Dismiss riven popup</label>
+                      <input
+                        id="hk-dismiss-rivens"
+                        value={settings.hotkeys.dismissRivens}
+                        onChange={(e) =>
+                          void updateSettings({
+                            hotkeys: { ...settings.hotkeys, dismissRivens: e.target.value },
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="field">
                       <label htmlFor="hk-layout">Move panels (unlock drag)</label>
                       <input
                         id="hk-layout"
@@ -709,11 +742,11 @@ export function CompanionApp() {
                     ) : null}
                     <p className="muted">
                       Press <strong>?</strong> for the cheat sheet. Defaults: overlay Alt+Shift+V,
-                      move panels Ctrl+Tab, relics Alt+Shift+F
+                      move panels Ctrl+Tab, relics Alt+Shift+F, rivens Alt+Shift+G
                     </p>
                   </Panel>
 
-                  <Panel title="EE.log path" subtitle="Used by Relics & Arbitration">
+                  <Panel title="EE.log path" subtitle="Used by Relics, Rivens & Arbitration">
                     <div className="field">
                       <label htmlFor="eelog">Log file</label>
                       <div className="path-row">

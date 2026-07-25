@@ -5,6 +5,7 @@ export type LayoutPresetId = 'left-stack' | 'corners' | 'right-rail'
 export const LAYOUT_DESIGN = { width: 1920, height: 1080 } as const
 
 const RELIC_STRIP: PanelAnchor = { x: 410, y: 640 }
+const RIVEN_COMPARE: PanelAnchor = { x: 480, y: 200 }
 
 type PresetDef = {
   label: string
@@ -22,6 +23,7 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       baro: { x: 24, y: 520 },
       nightwave: { x: 24, y: 760 },
       relics: { ...RELIC_STRIP },
+      rivens: { ...RIVEN_COMPARE },
       arbitration: { x: 320, y: 520 },
       invasions: { x: 320, y: 24 },
       archon: { x: 320, y: 280 },
@@ -37,6 +39,7 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       baro: { x: 1500, y: 24 },
       nightwave: { x: 1500, y: 280 },
       relics: { ...RELIC_STRIP },
+      rivens: { ...RIVEN_COMPARE },
       arbitration: { x: 1500, y: 720 },
       invasions: { x: 700, y: 24 },
       archon: { x: 700, y: 280 },
@@ -52,6 +55,7 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       baro: { x: 1520, y: 560 },
       nightwave: { x: 1520, y: 780 },
       relics: { ...RELIC_STRIP },
+      rivens: { ...RIVEN_COMPARE },
       arbitration: { x: 640, y: 420 },
       invasions: { x: 24, y: 24 },
       archon: { x: 24, y: 320 },

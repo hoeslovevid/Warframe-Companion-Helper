@@ -1,7 +1,7 @@
 {
   "name": "everything-warframe",
-  "version": "0.7.0",
-  "description": "Everything Warframe — overlay companion for worldstate, relics, and inventory",
+  "version": "0.8.0",
+  "description": "Everything Warframe — overlay companion for worldstate, relics, rivens, and inventory",
   "main": "dist-electron/main.cjs",
   "author": "Everything Warframe",
   "license": "MIT",

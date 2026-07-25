@@ -3,6 +3,7 @@ import { ModuleId, PanelAnchor } from '../../../shared/types'
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { NowProvider } from '../../hooks/NowContext'
 import { useRelicScan } from '../../hooks/useRelicScan'
+import { useRivenScan } from '../../hooks/useRivenScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
 import { prettyHotkey } from '../../lib/hotkey'
 import '../../styles/overlay.css'
@@ -11,6 +12,7 @@ export function OverlayApp() {
   const { settings, ready, updateSettings } = useSettings()
   const { data } = useWorldstate()
   const { state: relicScan } = useRelicScan()
+  const { state: rivenScan } = useRivenScan()
   const [anchors, setAnchors] = useState<Partial<Record<ModuleId, PanelAnchor>>>(
     settings.panelAnchors,
   )
@@ -19,14 +21,16 @@ export function OverlayApp() {
     setAnchors(settings.panelAnchors)
   }, [settings.panelAnchors])
 
-  // Relics is a transient popup (like AlecaFrame), not a always-on panel.
+  // Relics / Rivens are transient popups (AlecaFrame-style), not always-on panels.
   const modules = useMemo(() => {
     const enabled = (Object.keys(settings.modules) as ModuleId[]).filter(
-      (id) => settings.modules[id] && id !== 'relics',
+      (id) => settings.modules[id] && id !== 'relics' && id !== 'rivens',
     )
-    const showRelicPopup = settings.modules.relics && relicScan.active
-    return showRelicPopup ? [...enabled, 'relics' as ModuleId] : enabled
-  }, [settings.modules, relicScan.active])
+    const next = [...enabled]
+    if (settings.modules.relics && relicScan.active) next.push('relics')
+    if (settings.modules.rivens && rivenScan.active) next.push('rivens')
+    return next
+  }, [settings.modules, relicScan.active, rivenScan.active])
 
   const commitAnchors = useCallback(
     (next: Partial<Record<ModuleId, PanelAnchor>>) => {
