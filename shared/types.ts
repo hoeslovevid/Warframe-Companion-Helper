@@ -64,7 +64,7 @@ export type InventorySource = 'none' | 'manual' | 'detected' | 'helper' | 'aleca
 
 export type FissureSort = 'eta' | 'tier'
 
-/** App + overlay color themes (4 dark, 4 light). */
+/** App + overlay color themes (4 dark, 4 light) + user custom. */
 export type ColorThemeId =
   | 'void'
   | 'ember'
@@ -74,6 +74,89 @@ export type ColorThemeId =
   | 'parchment'
   | 'mist'
   | 'harbor'
+  | 'custom'
+
+/** Seed colors for the Custom theme; other tokens are derived at apply time. */
+export type CustomPalette = {
+  mode: 'dark' | 'light'
+  background: string
+  text: string
+  muted: string
+  accentA: string
+  accentB: string
+}
+
+export type PresetColorThemeId = Exclude<ColorThemeId, 'custom'>
+
+/** Seed palettes used by presets and “Start from…” for Custom. */
+export const PRESET_PALETTE_SEEDS: Record<PresetColorThemeId, CustomPalette> = {
+  void: {
+    mode: 'dark',
+    background: '#060a0e',
+    text: '#c5d4de',
+    muted: '#7f96a6',
+    accentA: '#b8944f',
+    accentB: '#4ab5ac',
+  },
+  ember: {
+    mode: 'dark',
+    background: '#120a08',
+    text: '#efe2d4',
+    muted: '#a89888',
+    accentA: '#c87840',
+    accentB: '#e8a878',
+  },
+  glacier: {
+    mode: 'dark',
+    background: '#071018',
+    text: '#d4e4ec',
+    muted: '#8eb6c9',
+    accentA: '#8eb6c9',
+    accentB: '#5ec4d4',
+  },
+  obsidian: {
+    mode: 'dark',
+    background: '#010101',
+    text: '#d8dce0',
+    muted: '#9aa0a6',
+    accentA: '#9aa0a6',
+    accentB: '#6e7a84',
+  },
+  snow: {
+    mode: 'light',
+    background: '#f3f6f8',
+    text: '#2a3540',
+    muted: '#5a6f7e',
+    accentA: '#1a6b66',
+    accentB: '#2a9a92',
+  },
+  parchment: {
+    mode: 'light',
+    background: '#f2efe8',
+    text: '#2c2924',
+    muted: '#6a6358',
+    accentA: '#8a6a32',
+    accentB: '#a08048',
+  },
+  mist: {
+    mode: 'light',
+    background: '#eef2f5',
+    text: '#243040',
+    muted: '#6a7a88',
+    accentA: '#9a8048',
+    accentB: '#5a8a88',
+  },
+  harbor: {
+    mode: 'light',
+    background: '#f7fbfb',
+    text: '#1e3338',
+    muted: '#4f6a6e',
+    accentA: '#2a8f86',
+    accentB: '#1ea89c',
+  },
+}
+
+export const DEFAULT_CUSTOM_PALETTE: CustomPalette = { ...PRESET_PALETTE_SEEDS.void }
 
 export const COLOR_THEME_META: Record<
   ColorThemeId,
@@ -127,6 +210,12 @@ export const COLOR_THEME_META: Record<
     description: 'Bright coastal white with seafoam accents',
     swatches: ['#f7fbfb', '#2a8f86', '#1e3338'],
   },
+  custom: {
+    label: 'Custom',
+    mode: 'dark',
+    description: 'Your own palette — pick accents below',
+    swatches: ['#060a0e', '#b8944f', '#4ab5ac'],
+  },
 }
 
 /** Modules that can appear on the live overlay (excludes companion-only). */
@@ -157,6 +246,8 @@ export type AppSettings = {
   overlayScale: number
   /** Companion + overlay color palette. */
   colorTheme: ColorThemeId
+  /** Seed colors when `colorTheme` is `custom`. */
+  customPalette: CustomPalette
   hotkeys: HotkeyConfig
   eeLogPath: string
   inventoryPath: string
@@ -302,6 +393,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   overlayScale: 1,
   colorTheme: 'void',
+  customPalette: { ...DEFAULT_CUSTOM_PALETTE },
   hotkeys: {
     toggleOverlay: 'Alt+Shift+V',
     openCompanion: 'Alt+Shift+C',

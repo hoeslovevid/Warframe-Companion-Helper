@@ -14,7 +14,7 @@ export function OverlayApp() {
   const { data } = useWorldstate()
   const { state: relicScan } = useRelicScan()
   const { state: rivenScan } = useRivenScan()
-  useColorTheme(settings.colorTheme)
+  useColorTheme(settings.colorTheme, settings.customPalette)
   const [anchors, setAnchors] = useState<Partial<Record<ModuleId, PanelAnchor>>>(
     settings.panelAnchors,
   )

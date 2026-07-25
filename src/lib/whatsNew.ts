@@ -30,6 +30,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Per-overlay opacity sliders in Settings → Appearance',
     'Foundry defaults to My inventory (owned + ready) for much faster lists',
   ],
+  '0.9.2': [
+    'Custom theme palette: pick background, text, muted, and accent colors',
+    'Start from any preset, then tune — applies to companion and overlay',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

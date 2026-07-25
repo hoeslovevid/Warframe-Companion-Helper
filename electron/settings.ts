@@ -4,6 +4,8 @@ import { app } from 'electron'
 import {
   AppSettings,
   ColorThemeId,
+  CustomPalette,
+  DEFAULT_CUSTOM_PALETTE,
   DEFAULT_SETTINGS,
   ModuleId,
   OVERLAY_MODULE_IDS,
@@ -18,7 +20,29 @@ const COLOR_THEMES: ColorThemeId[] = [
   'parchment',
   'mist',
   'harbor',
+  'custom',
 ]
+
+const HEX_RE = /^#?[0-9a-fA-F]{6}$/
+
+function mergeCustomPalette(
+  raw: Partial<CustomPalette> | null | undefined,
+  fallback: CustomPalette = DEFAULT_CUSTOM_PALETTE,
+): CustomPalette {
+  const normalize = (value: unknown, fb: string) => {
+    if (typeof value !== 'string' || !HEX_RE.test(value.trim())) return fb
+    const hex = value.trim()
+    return hex.startsWith('#') ? hex.toLowerCase() : `#${hex.toLowerCase()}`
+  }
+  return {
+    mode: raw?.mode === 'light' ? 'light' : 'dark',
+    background: normalize(raw?.background, fallback.background),
+    text: normalize(raw?.text, fallback.text),
+    muted: normalize(raw?.muted, fallback.muted),
+    accentA: normalize(raw?.accentA, fallback.accentA),
+    accentB: normalize(raw?.accentB, fallback.accentB),
+  }
+}
 
 let cache: AppSettings | null = null
 
@@ -99,6 +123,7 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       raw.colorTheme && COLOR_THEMES.includes(raw.colorTheme as ColorThemeId)
         ? (raw.colorTheme as ColorThemeId)
         : base.colorTheme,
+    customPalette: mergeCustomPalette(raw.customPalette, base.customPalette),
     overlayDragHintDismissed: raw.overlayDragHintDismissed ?? base.overlayDragHintDismissed,
     baroWishlist: Array.isArray(raw.baroWishlist) ? raw.baroWishlist : base.baroWishlist,
     nightwaveDoneIds: Array.isArray(raw.nightwaveDoneIds)
@@ -150,6 +175,10 @@ export function updateSettings(partial: Partial<AppSettings>): AppSettings {
     modules: { ...current.modules, ...(partial.modules ?? {}) },
     panelAnchors: { ...current.panelAnchors, ...(partial.panelAnchors ?? {}) },
     moduleOpacity: { ...current.moduleOpacity, ...(partial.moduleOpacity ?? {}) },
+    customPalette: {
+      ...current.customPalette,
+      ...(partial.customPalette ?? {}),
+    },
     hotkeys: { ...current.hotkeys, ...(partial.hotkeys ?? {}) },
     onboarding: {
       ...current.onboarding,

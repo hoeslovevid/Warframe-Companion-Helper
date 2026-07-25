@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   COLOR_THEME_META,
   ColorThemeId,
+  CustomPalette,
   HotkeyRegistration,
   MODULE_META,
   ModuleId,
   OVERLAY_MODULE_IDS,
+  PRESET_PALETTE_SEEDS,
+  PresetColorThemeId,
 } from '../../../shared/types'
-import { themeIdsByMode } from '../../lib/theme'
+import { customSwatches, seedFromPreset, themeIdsByMode } from '../../lib/theme'
 import { useColorTheme } from '../../hooks/useColorTheme'
 import { Panel } from '../../components/Panel'
 import { ToggleRow } from '../../components/ToggleRow'
@@ -124,7 +127,14 @@ export function CompanionApp() {
   const { data, loading, error, refresh } = useWorldstate()
   const { status: inventory } = useInventory()
   const { state: relicScan, ackCelebration } = useRelicScan()
-  useColorTheme(settings.colorTheme)
+  useColorTheme(settings.colorTheme, settings.customPalette)
+
+  const updateCustomPalette = (partial: Partial<CustomPalette>) => {
+    void updateSettings({
+      colorTheme: 'custom',
+      customPalette: { ...settings.customPalette, ...partial },
+    })
+  }
 
   const enabledIds = useMemo(
     () => (Object.keys(settings.modules) as ModuleId[]).filter((id) => settings.modules[id]),
@@ -636,6 +646,108 @@ export function CompanionApp() {
                       )
                     })}
                   </div>
+                  <p className="theme-group-label">Custom palette</p>
+                  <div className="theme-grid theme-grid--custom">
+                    <button
+                      type="button"
+                      className={`theme-card ${settings.colorTheme === 'custom' ? 'is-selected' : ''}`}
+                      onClick={() => void updateSettings({ colorTheme: 'custom' })}
+                    >
+                      <div className="theme-card__swatches" aria-hidden>
+                        {customSwatches(settings.customPalette).map((c) => (
+                          <span key={c} style={{ background: c }} />
+                        ))}
+                      </div>
+                      <div className="theme-card__label">{COLOR_THEME_META.custom.label}</div>
+                      <div className="theme-card__meta">{COLOR_THEME_META.custom.description}</div>
+                    </button>
+                  </div>
+                  {settings.colorTheme === 'custom' ? (
+                    <div className="custom-palette">
+                      <div className="custom-palette__toolbar">
+                        <div className="field" style={{ margin: 0, minWidth: 160 }}>
+                          <label htmlFor="custom-mode">Mode</label>
+                          <select
+                            id="custom-mode"
+                            value={settings.customPalette.mode}
+                            onChange={(e) =>
+                              updateCustomPalette({
+                                mode: e.target.value === 'light' ? 'light' : 'dark',
+                              })
+                            }
+                          >
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                          </select>
+                        </div>
+                        <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                          <label htmlFor="custom-start-from">Start from preset</label>
+                          <select
+                            id="custom-start-from"
+                            defaultValue=""
+                            onChange={(e) => {
+                              const id = e.target.value as PresetColorThemeId | ''
+                              if (!id || !(id in PRESET_PALETTE_SEEDS)) return
+                              void updateSettings({
+                                colorTheme: 'custom',
+                                customPalette: seedFromPreset(id),
+                              })
+                              e.target.value = ''
+                            }}
+                          >
+                            <option value="" disabled>
+                              Choose a preset…
+                            </option>
+                            {(Object.keys(PRESET_PALETTE_SEEDS) as PresetColorThemeId[]).map(
+                              (id) => (
+                                <option key={id} value={id}>
+                                  {COLOR_THEME_META[id].label}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="custom-palette__pickers">
+                        {(
+                          [
+                            ['background', 'Background'],
+                            ['text', 'Text'],
+                            ['muted', 'Muted text'],
+                            ['accentA', 'Accent A'],
+                            ['accentB', 'Accent B'],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <label key={key} className="custom-palette__swatch" htmlFor={`custom-${key}`}>
+                            <span>{label}</span>
+                            <span className="custom-palette__controls">
+                              <input
+                                id={`custom-${key}`}
+                                type="color"
+                                value={settings.customPalette[key]}
+                                onChange={(e) => updateCustomPalette({ [key]: e.target.value })}
+                              />
+                              <input
+                                key={`${key}-${settings.customPalette[key]}`}
+                                type="text"
+                                className="custom-palette__hex"
+                                defaultValue={settings.customPalette[key]}
+                                spellCheck={false}
+                                onBlur={(e) => {
+                                  const value = e.target.value.trim()
+                                  if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+                                    updateCustomPalette({ [key]: value.toLowerCase() })
+                                  } else {
+                                    e.target.value = settings.customPalette[key]
+                                  }
+                                }}
+                              />
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <p className="theme-group-label" style={{ marginTop: 16 }}>
                     Overlay opacity
                   </p>

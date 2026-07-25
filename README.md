@@ -82,7 +82,7 @@ Everything Warframe runs at below-normal process priority, pauses overlay clocks
 - **Relics** — OCR reward overlay with set + owned counts
 - **Riven Grader** — OCR current vs reroll; slim side panel beside the Cycle cards
 - **Foundry Planner** — inventory-first list (owned + ready), crafting trees, material totals
-- **Themes** — 4 dark + 4 light palettes for companion and overlay (Settings → Appearance)
+- **Themes** — 4 dark + 4 light presets, plus a Custom palette with color pickers
 - **Per-overlay opacity** — individual opacity sliders under Settings → Appearance
 - **Arbitration** — schedule now; run analytics later
 
