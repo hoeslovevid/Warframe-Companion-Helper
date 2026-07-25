@@ -63,7 +63,7 @@ export class LogWatcher extends EventEmitter {
       this.lastEmit = now
       this.emit('event', { type: 'relic_rewards' } satisfies LogEvent)
     } catch (err) {
-      console.error('[VoidLens] EE.log watch error', err)
+      console.error('[Everything Warframe] EE.log watch error', err)
     }
   }
 }

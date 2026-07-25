@@ -37,11 +37,11 @@ export function createOverlayWindow(devUrl: string | null): BrowserWindow {
   win.setIgnoreMouseEvents(true, { forward: true })
 
   win.webContents.on('did-fail-load', (_e, code, desc, url) => {
-    console.error(`[VoidLens] Overlay failed to load (${code}): ${desc} — ${url}`)
+    console.error(`[Everything Warframe] Overlay failed to load (${code}): ${desc} — ${url}`)
   })
 
   win.webContents.on('did-finish-load', () => {
-    console.info(`[VoidLens] Overlay loaded: ${win.webContents.getURL()}`)
+    console.info(`[Everything Warframe] Overlay loaded: ${win.webContents.getURL()}`)
   })
 
   if (devUrl) {

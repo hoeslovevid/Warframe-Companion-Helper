@@ -1,9 +1,9 @@
 {
-  "name": "warframe-companion-helper",
-  "version": "0.2.0",
-  "description": "Warframe Companion Helper (VoidLens) — overlay for worldstate, relics, and inventory",
+  "name": "everything-warframe",
+  "version": "0.3.0",
+  "description": "Everything Warframe — overlay companion for worldstate, relics, and inventory",
   "main": "dist-electron/main.cjs",
-  "author": "VoidLens",
+  "author": "Everything Warframe",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -44,8 +44,8 @@
   },
   "build": {
     "appId": "com.voidlens.warframe-companion-helper",
-    "productName": "Warframe Companion Helper",
-    "copyright": "Copyright © VoidLens contributors",
+    "productName": "Everything Warframe",
+    "copyright": "Copyright © Everything Warframe contributors",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -89,7 +89,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Warframe Companion Helper",
+      "shortcutName": "Everything Warframe",
       "artifactName": "${productName}-${version}-Setup-${os}-${arch}.${ext}"
     },
     "portable": {

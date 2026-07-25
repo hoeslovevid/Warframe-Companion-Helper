@@ -1,4 +1,4 @@
-# Warframe Companion Helper (VoidLens)
+# Everything Warframe
 
 Windows companion + transparent overlay for Warframe: worldstate panels, Baro inventory, account inventory sync, and relic reward scanning.
 
@@ -14,7 +14,7 @@ Windows companion + transparent overlay for Warframe: worldstate panels, Baro in
 
 1. Open [Releases](https://github.com/hoeslovevid/Warframe-Companion-Helper/releases)
 2. Download the latest **Setup** `.exe` (installer) or **portable** build
-3. Install / run **Warframe Companion Helper**
+3. Install / run **Everything Warframe**
 4. Keep Warframe in Borderless Windowed
 
 ### Auto-updates
@@ -59,7 +59,7 @@ If a shortcut is taken, the app tries fallbacks. Change them under **Settings â†
 
 ## Performance tips
 
-VoidLens runs at below-normal process priority, pauses overlay clocks when the overlay is hidden, and loads OCR only on the first relic scan. For the lightest footprint while playing:
+Everything Warframe runs at below-normal process priority, pauses overlay clocks when the overlay is hidden, and loads OCR only on the first relic scan. For the lightest footprint while playing:
 
 - Minimize or close the **Companion** window (hotkeys still work)
 - Disable modules you do not need

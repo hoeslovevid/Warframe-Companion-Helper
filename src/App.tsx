@@ -16,8 +16,8 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('is-overlay', mode === 'overlay')
     document.body.classList.toggle('is-overlay', mode === 'overlay')
-    document.title = mode === 'overlay' ? 'VoidLens Overlay' : 'VoidLens'
-    console.info(`[VoidLens] renderer mode=${mode} url=${window.location.href}`)
+    document.title = mode === 'overlay' ? 'Everything Warframe Overlay' : 'Everything Warframe'
+    console.info(`[Everything Warframe] renderer mode=${mode} url=${window.location.href}`)
   }, [mode])
 
   return mode === 'overlay' ? <OverlayApp /> : <CompanionApp />

@@ -59,7 +59,7 @@ export function InventorySettings() {
 
         <ToggleRow
           label="Allow game inventory sync"
-          description="With permission, VoidLens can run warframe-api-helper to read a short-lived session token from the running game (not your password), download your inventory, and store it locally. Community tools warn this may conflict with Warframe TOS — use at your own risk."
+          description="With permission, Everything Warframe can run warframe-api-helper to read a short-lived session token from the running game (not your password), download your inventory, and store it locally. Community tools warn this may conflict with Warframe TOS — use at your own risk."
           checked={status.consent}
           onChange={(v) => void setConsent(v)}
         />
@@ -90,7 +90,7 @@ export function InventorySettings() {
           </p>
         ) : (
           <p className="muted">
-            Log into Warframe first, then sync. VoidLens downloads Sainan’s warframe-api-helper into
+            Log into Warframe first, then sync. Everything Warframe downloads Sainan’s warframe-api-helper into
             app data on first use{status.helperReady ? ' (already downloaded)' : ''}.
           </p>
         )}

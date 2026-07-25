@@ -78,9 +78,10 @@
 
 .brand {
   font-family: var(--vl-font-display);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-size: 1.12rem;
+  font-size: 0.92rem;
+  line-height: 1.25;
   color: var(--vl-gold-soft);
   margin: 0;
 }

@@ -47,8 +47,9 @@ try {
 } catch {
   // ignore
 }
-app.setName('VoidLens')
+app.setName('Everything Warframe')
 if (process.platform === 'win32') {
+  // Keep stable AUMID so Windows taskbar/jump lists stay linked across renames
   app.setAppUserModelId('com.voidlens.app')
 }
 
@@ -67,9 +68,9 @@ const logWatcher = new LogWatcher()
 function preferLowerProcessPriority() {
   try {
     os.setPriority(os.constants.priority.PRIORITY_BELOW_NORMAL)
-    console.info('[VoidLens] Process priority set to below-normal')
+    console.info('[Everything Warframe] Process priority set to below-normal')
   } catch (err) {
-    console.warn('[VoidLens] Could not lower process priority', err)
+    console.warn('[Everything Warframe] Could not lower process priority', err)
   }
 }
 
@@ -150,9 +151,9 @@ function loadCompanionContent(win: BrowserWindow) {
   const distIndex = path.join(__dirname, '../dist/index.html')
 
   win.webContents.on('did-fail-load', (_e, code, desc, url) => {
-    console.error(`[VoidLens] Companion failed to load (${code}): ${desc} — ${url}`)
+    console.error(`[Everything Warframe] Companion failed to load (${code}): ${desc} — ${url}`)
     if (isDev && url.startsWith(DEV_URL)) {
-      console.warn('[VoidLens] Falling back to production dist build for companion')
+      console.warn('[Everything Warframe] Falling back to production dist build for companion')
       void win.loadFile(distIndex, { query: { window: 'companion' } })
     }
   })
@@ -177,7 +178,7 @@ function createCompanionWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#0b1218',
-    title: 'VoidLens',
+    title: 'Everything Warframe',
     show: false,
     autoHideMenuBar: true,
     icon: appIcon.isEmpty() ? undefined : appIcon,
@@ -242,7 +243,7 @@ function checkWorldstateExpiries() {
   if (now - lastExpiryRefresh < 5000) return
   lastExpiryRefresh = now
   void refreshWorldstate(true).catch((err) =>
-    console.error('[VoidLens] Expiry refresh failed', err),
+    console.error('[Everything Warframe] Expiry refresh failed', err),
   )
 }
 
@@ -280,18 +281,18 @@ function registerOneHotkey(
       if (ok) {
         if (accelerator !== preferred) {
           console.warn(
-            `[VoidLens] ${label}: "${preferred}" unavailable, using "${accelerator}"`,
+            `[Everything Warframe] ${label}: "${preferred}" unavailable, using "${accelerator}"`,
           )
         } else {
-          console.info(`[VoidLens] ${label}: registered "${accelerator}"`)
+          console.info(`[Everything Warframe] ${label}: registered "${accelerator}"`)
         }
         return accelerator
       }
     } catch (err) {
-      console.warn(`[VoidLens] ${label}: error registering "${accelerator}"`, err)
+      console.warn(`[Everything Warframe] ${label}: error registering "${accelerator}"`, err)
     }
   }
-  console.error(`[VoidLens] ${label}: all accelerators failed`)
+  console.error(`[Everything Warframe] ${label}: all accelerators failed`)
   return null
 }
 
@@ -378,13 +379,13 @@ function createTray() {
   try {
     let icon = getTrayIcon()
     if (icon.isEmpty()) {
-      console.warn('[VoidLens] Tray icon missing — using fallback glyph')
+      console.warn('[Everything Warframe] Tray icon missing — using fallback glyph')
       icon = nativeImage.createFromDataURL(
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAbElEQVR4Ae3XwQnAIAxA0Z7dO7iDR3ADZ3AEd3AER3AER3AHZ5DfQyCBhEBKeQehIeTjJUmSJEmS/g0A7gCuAO4ALgDOAI4A9gC2ANYAlgBmACYAhgA6AJoAKgCKAJIAYgDC/zvP8zzP8zzP8/wD2wM3J5oF2mYAAAAASUVORK5CYII=',
       )
     }
     tray = new Tray(icon)
-    tray.setToolTip('VoidLens — Warframe Companion Helper')
+    tray.setToolTip('Everything Warframe')
     const menu = Menu.buildFromTemplate([
       {
         label: 'Open Companion',
@@ -414,7 +415,7 @@ function createTray() {
     tray.on('double-click', () => createCompanionWindow())
     tray.on('click', () => createCompanionWindow())
   } catch (err) {
-    console.error('[VoidLens] Tray creation failed (non-fatal)', err)
+    console.error('[Everything Warframe] Tray creation failed (non-fatal)', err)
   }
 }
 
@@ -562,7 +563,7 @@ app.whenReady().then(async () => {
   }
   logWatcher.on('event', (event) => {
     if (event.type === 'relic_rewards') {
-      console.info('[VoidLens] EE.log relic rewards detected — scanning')
+      console.info('[Everything Warframe] EE.log relic rewards detected — scanning')
       void runRelicScan('log')
     }
   })

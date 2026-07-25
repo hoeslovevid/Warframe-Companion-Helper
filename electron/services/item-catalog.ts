@@ -94,7 +94,7 @@ function httpsGetJson(url: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const get = (target: string, redirects = 0) => {
       https
-        .get(target, { headers: { Accept: 'application/json', 'User-Agent': 'VoidLens' } }, (res) => {
+        .get(target, { headers: { Accept: 'application/json', 'User-Agent': 'EverythingWarframe' } }, (res) => {
           if (
             res.statusCode &&
             res.statusCode >= 300 &&
@@ -216,7 +216,7 @@ async function fetchAndCache(): Promise<void> {
   fs.mkdirSync(path.dirname(cachePath()), { recursive: true })
   const payload: CatalogCache = { fetchedAt: new Date().toISOString(), items }
   fs.writeFileSync(cachePath(), JSON.stringify(payload), 'utf8')
-  console.info(`[VoidLens] Item catalog ready (${items.length} entries)`)
+  console.info(`[Everything Warframe] Item catalog ready (${items.length} entries)`)
 }
 
 export function ensureItemCatalog(): Promise<void> {

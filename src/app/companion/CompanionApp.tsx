@@ -34,7 +34,7 @@ export function CompanionApp() {
       <div className="companion-root companion-main">
         <div className="brand-lockup">
           <div className="brand-mark" aria-hidden />
-          <h1 className="brand">VoidLens</h1>
+          <h1 className="brand">Everything Warframe</h1>
         </div>
         <p className="muted">Calibrating companion…</p>
       </div>
@@ -49,10 +49,10 @@ export function CompanionApp() {
           <div className="brand-lockup">
             <div className="brand-mark" aria-hidden />
             <div>
-              <h1 className="brand">VoidLens</h1>
+              <h1 className="brand">Everything Warframe</h1>
             </div>
           </div>
-          <p className="brand-sub">Warframe companion for cycles, relics, Baro, and more.</p>
+          <p className="brand-sub">Cycles, relics, Baro, inventory, and more — in one overlay.</p>
           <button
             className={`nav-btn ${tab === 'dashboard' ? 'active' : ''}`}
             onClick={() => setTab('dashboard')}
@@ -116,9 +116,9 @@ export function CompanionApp() {
               </div>
               {error ? <p className="muted">Worldstate error: {error}</p> : null}
 
-              <Panel title="Seeing FPS / Frame Time?" subtitle="That is not part of VoidLens">
+              <Panel title="Seeing FPS / Frame Time?" subtitle="That is not part of Everything Warframe">
                 <p className="muted" style={{ marginTop: 0 }}>
-                  VoidLens only draws Cycles, Fissures, Baro, etc. An FPS / Frame Time widget is
+                  Everything Warframe only draws Cycles, Fissures, Baro, etc. An FPS / Frame Time widget is
                   almost always Xbox Game Bar, NVIDIA Overlay, or MSI Afterburner / RTSS.
                 </p>
                 <ul className="mod-bullets">

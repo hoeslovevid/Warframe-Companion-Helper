@@ -132,8 +132,8 @@ export function detectInventoryCandidates(): InventoryCandidate[] {
   const desktop = path.join(home, 'Desktop')
   const list: InventoryCandidate[] = []
 
-  pushCandidate(list, managedInventoryPath(), 'VoidLens synced inventory', 'helper')
-  pushCandidate(list, path.join(inventoryWorkDir(), 'inventory.json'), 'VoidLens inventory folder', 'helper')
+  pushCandidate(list, managedInventoryPath(), 'Everything Warframe synced inventory', 'helper')
+  pushCandidate(list, path.join(inventoryWorkDir(), 'inventory.json'), 'Everything Warframe inventory folder', 'helper')
   pushCandidate(list, path.join(toolsDir(), 'inventory.json'), 'Helper tools folder', 'helper')
   pushCandidate(list, path.join(downloads, 'inventory.json'), 'Downloads\\inventory.json', 'detected')
   pushCandidate(list, path.join(desktop, 'inventory.json'), 'Desktop\\inventory.json', 'detected')
@@ -239,7 +239,7 @@ function downloadFile(url: string, dest: string): Promise<void> {
     const file = fs.createWriteStream(dest)
     const get = (target: string, redirects = 0) => {
       https
-        .get(target, { headers: { 'User-Agent': 'VoidLens' } }, (res) => {
+        .get(target, { headers: { 'User-Agent': 'EverythingWarframe' } }, (res) => {
           if (
             res.statusCode &&
             res.statusCode >= 300 &&
@@ -445,7 +445,7 @@ export function reloadConfiguredInventory(): void {
       uniqueCount: loaded.uniqueCount,
     }
   } catch (err) {
-    console.error('[VoidLens] Failed to reload inventory', err)
+    console.error('[Everything Warframe] Failed to reload inventory', err)
   }
 }
 
