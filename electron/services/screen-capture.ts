@@ -1,5 +1,10 @@
 import { desktopCapturer, nativeImage, screen } from 'electron'
 import { rivenCompareRegions, type CaptureRegion } from '../../shared/captureGeometry'
+import {
+  ensurePersistentCapture,
+  grabPersistentFrame,
+  isPersistentCaptureLive,
+} from './persistent-screen-capture'
 
 export type { CaptureRegion }
 
@@ -10,12 +15,23 @@ export function setCaptureOverlayPause(fn: (() => () => void) | null) {
   pauseOverlayForCapture = fn
 }
 
+/** Short desktopCapturer cache — avoids double portal/thumbnail work on retry scans. */
+let thumbCache: {
+  at: number
+  displayId: number
+  png: Buffer
+  width: number
+  height: number
+} | null = null
+const THUMB_CACHE_MS = 1500
+
 async function withOverlayPaused<T>(fn: () => Promise<T>): Promise<T> {
   const resume = pauseOverlayForCapture?.()
   try {
-    // Transparent always-on-top windows can linger in the capture compositor;
-    // give Windows time to drop them so OCR only sees the game.
-    await new Promise((r) => setTimeout(r, 220))
+    // Overlay is opacity-0 + moved off-screen; brief settle is enough.
+    // Persistent stream path needs less compositor settle time.
+    const settleMs = isPersistentCaptureLive() ? 60 : process.platform === 'linux' ? 120 : 100
+    await new Promise((r) => setTimeout(r, settleMs))
     return await fn()
   } finally {
     resume?.()
@@ -57,34 +73,66 @@ export function relicStripLayout(width: number, height: number) {
   }
 }
 
-async function captureDisplay(display: Electron.Display): Promise<{
+async function captureViaDesktopCapturer(preferred?: Electron.Display): Promise<{
   png: Buffer
   width: number
   height: number
 } | null> {
-  const { width, height } = display.size
-  const scale = display.scaleFactor || 1
-  const thumbW = Math.round(width * scale)
-  const thumbH = Math.round(height * scale)
+  const target = preferred || screen.getPrimaryDisplay()
+  const now = Date.now()
+  if (thumbCache && now - thumbCache.at < THUMB_CACHE_MS) {
+    return { png: thumbCache.png, width: thumbCache.width, height: thumbCache.height }
+  }
+
+  // Size thumbs for the largest display so one getSources call covers multi-monitor.
+  // (Calling getSources once per display re-triggers Wayland/PipeWire prompts.)
+  const displays = screen.getAllDisplays()
+  let thumbW = 0
+  let thumbH = 0
+  for (const d of displays) {
+    const scale = d.scaleFactor || 1
+    thumbW = Math.max(thumbW, Math.round(d.size.width * scale))
+    thumbH = Math.max(thumbH, Math.round(d.size.height * scale))
+  }
 
   const sources = await desktopCapturer.getSources({
     types: ['screen'],
     thumbnailSize: { width: thumbW, height: thumbH },
   })
 
-  const primaryId = String(display.id)
-  const source =
-    sources.find((s) => s.display_id === primaryId) ||
-    sources.find((s) => s.id.includes('screen')) ||
-    sources[0]
+  const preferredId = String(target.id)
+  const ordered = [
+    sources.find((s) => s.display_id === preferredId),
+    ...sources.filter((s) => s.display_id !== preferredId),
+  ].filter(Boolean) as Electron.DesktopCapturerSource[]
 
-  if (!source) return null
-  const png = source.thumbnail.toPNG()
-  if (!png?.length) return null
+  for (const source of ordered) {
+    const png = source.thumbnail.toPNG()
+    if (!png?.length) continue
+    const img = nativeImage.createFromBuffer(png)
+    const size = img.getSize()
+    if (size.width < 16 || size.height < 16) continue
+    const result = { png, width: size.width, height: size.height }
+    thumbCache = { at: now, displayId: target.id, ...result }
+    return result
+  }
+  return null
+}
 
-  const img = nativeImage.createFromBuffer(png)
-  const size = img.getSize()
-  return { png, width: size.width, height: size.height }
+/**
+ * Linux/Wayland: prefer persistent MediaStream (one portal prompt per session).
+ * Windows/macOS: desktopCapturer thumbnails (no share dialog).
+ */
+async function captureDisplay(display: Electron.Display): Promise<{
+  png: Buffer
+  width: number
+  height: number
+} | null> {
+  if (process.platform === 'linux') {
+    const persistent = await grabPersistentFrame()
+    if (persistent?.png?.length) return persistent
+  }
+  return captureViaDesktopCapturer(display)
 }
 
 export async function capturePrimaryDisplay(): Promise<{
@@ -95,25 +143,13 @@ export async function capturePrimaryDisplay(): Promise<{
   return captureDisplay(screen.getPrimaryDisplay())
 }
 
-/** Prefer primary; if needed callers can iterate — we capture largest display as fallback. */
+/** Prefer primary / persistent stream; one desktopCapturer fallback list if needed. */
 export async function captureBestDisplay(): Promise<{
   png: Buffer
   width: number
   height: number
 } | null> {
-  const displays = screen.getAllDisplays()
-  const ordered = [
-    screen.getPrimaryDisplay(),
-    ...displays.sort((a, b) => b.size.width * b.size.height - a.size.width * a.size.height),
-  ]
-  const seen = new Set<number>()
-  for (const d of ordered) {
-    if (seen.has(d.id)) continue
-    seen.add(d.id)
-    const shot = await captureDisplay(d)
-    if (shot) return shot
-  }
-  return null
+  return captureDisplay(screen.getPrimaryDisplay())
 }
 
 export function cropPng(png: Buffer, region: CaptureRegion): Buffer {
@@ -173,4 +209,9 @@ export async function captureRivenCompare(): Promise<RivenCaptureResult | null> 
       regions,
     }
   })
+}
+
+/** Warm the persistent capture stream (call when OCR modules are enabled). */
+export async function warmScreenCapture(): Promise<boolean> {
+  return ensurePersistentCapture()
 }

@@ -15,7 +15,8 @@ import path from 'node:path'
 import { getAppIcon, getTrayIcon } from './app-icon'
 import { createOverlayWindow, setOverlayClickThrough } from './overlay-window'
 import { loadSettings, setModuleEnabled, updateSettings } from './settings'
-import { setCaptureOverlayPause } from './services/screen-capture'
+import { setCaptureOverlayPause, warmScreenCapture } from './services/screen-capture'
+import { disposePersistentCapture } from './services/persistent-screen-capture'
 import { defaultRivenAnchor } from '../shared/captureGeometry'
 import { fetchWorldstate, hasExpiredWorldstate } from './services/worldstate'
 import { detectEeLogPath } from './services/log-path'
@@ -79,6 +80,8 @@ if (process.platform === 'win32') {
 if (process.platform === 'linux') {
   // Helps transparent always-on-top overlay above Proton / borderless clients
   app.commandLine.appendSwitch('enable-transparent-visuals')
+  // PipeWire capturer — needed for reliable Wayland screen share + restore tokens
+  app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
 }
 
 const isDev = !app.isPackaged
@@ -597,6 +600,9 @@ function registerIpc() {
   ipcMain.handle('settings:setModule', (_e, id: ModuleId, enabled: boolean) => {
     const next = setModuleEnabled(id, enabled)
     broadcastSettings(next)
+    if (enabled && process.platform === 'linux' && (id === 'relics' || id === 'rivens')) {
+      void warmScreenCapture()
+    }
     return next
   })
   ipcMain.handle('display:getPrimary', () => getPrimaryDisplayInfo())
@@ -817,6 +823,16 @@ app.whenReady().then(async () => {
 
   // OCR/catalog warmup deferred until first relic scan (avoids startup CPU/RAM spike)
 
+  // Linux/Wayland: keep one PipeWire share session alive so OCR does not re-prompt.
+  if (
+    process.platform === 'linux' &&
+    (loadSettings().modules.relics || loadSettings().modules.rivens)
+  ) {
+    setTimeout(() => {
+      void warmScreenCapture()
+    }, 1500)
+  }
+
   worldstateTimer = setInterval(() => {
     void refreshWorldstate(true).catch((err) => console.error(err))
   }, 60_000)
@@ -852,6 +868,7 @@ app.on('will-quit', () => {
   if (worldstateTimer) clearInterval(worldstateTimer)
   if (inventorySyncTimer) clearInterval(inventorySyncTimer)
   if (expiryTimer) clearInterval(expiryTimer)
+  disposePersistentCapture()
   void shutdownOcr()
 })
 

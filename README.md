@@ -124,7 +124,8 @@ npm run build:riven-prefs
 2. Run the AppImage or `.deb` build of Everything Warframe
 3. EE.log is auto-detected from the Proton prefix; process detection uses `pgrep` for `Warframe.x64.exe`
 4. Overlay + OCR work best on **X11** / XWayland with Warframe in Borderless
-5. Inventory sync from the game runs the Windows helper via Proton’s wine inside the Warframe prefix (or import `inventory.json` manually)
+5. On **Wayland**, grant screen share once when prompted — Everything Warframe keeps that capture session open for relic/riven OCR so you are not asked again each scan
+6. Inventory sync from the game runs the Windows helper via Proton’s wine inside the Warframe prefix (or import `inventory.json` manually)
 
 ## Foundry planner
 
