@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events'
 
 export type LogEvent = {
   type: 'relic_rewards' | 'relic_rewards_end' | 'riven_reroll' | 'riven_reroll_end'
+  /** Approximate squad size when known (relic reward screen). */
+  squadSize?: number | null
 }
 
 /** Markers that the fissure reward pick screen is up (AlecaFrame / WFInfo style). */
@@ -32,6 +34,16 @@ const RIVEN_CYCLE_CONFIRM =
 const RIVEN_CYCLE_PENDING_READY =
   /NavBar_QuickMatchPleaseWait|QuickMatchPleaseWait/i
 
+/** Squad join / leave / size hints commonly seen in EE.log. */
+const SQUAD_JOIN =
+  /(?:joined the squad|has joined|OnSquadMemberJoined|AddSquadMember)[^\n]{0,80}?([A-Za-z0-9_\-.]{2,24})/i
+const SQUAD_LEAVE =
+  /(?:left the squad|has left|OnSquadMemberLeft|RemoveSquadMember)[^\n]{0,80}?([A-Za-z0-9_\-.]{2,24})/i
+const SQUAD_SIZE_LINE =
+  /(?:SquadSize|PlayersInSquad|squad of|MatchingService.*Players)\D{0,12}([1-4])\b/i
+const VOID_PROJECTION =
+  /AddVoidProjection|VoidProjection|Selecting projection/i
+
 /**
  * Tail Warframe EE.log for fissure reward-screen and riven cycle markers.
  */
@@ -48,6 +60,17 @@ export class LogWatcher extends EventEmitter {
   /** True after the kuva "want to cycle" dialog appears; cleared on scan emit or timeout. */
   private rivenCycleArmed = false
   private rivenArmTimer: NodeJS.Timeout | null = null
+  private squadMembers = new Set<string>()
+  private squadSizeHint: number | null = null
+  private voidProjectionCount = 0
+
+  /** Latest best-guess squad size for relic OCR (1–4), or null. */
+  getSquadSizeHint(): number | null {
+    if (this.squadSizeHint != null) return this.squadSizeHint
+    if (this.voidProjectionCount > 0) return Math.min(4, Math.max(1, this.voidProjectionCount))
+    if (this.squadMembers.size > 0) return Math.min(4, Math.max(1, this.squadMembers.size))
+    return null
+  }
 
   setPath(next: string | null) {
     this.path = next
@@ -55,6 +78,9 @@ export class LogWatcher extends EventEmitter {
     this.rewardScreenOpen = false
     this.rivenScreenOpen = false
     this.rivenCycleArmed = false
+    this.squadMembers.clear()
+    this.squadSizeHint = null
+    this.voidProjectionCount = 0
     if (this.rivenArmTimer) {
       clearTimeout(this.rivenArmTimer)
       this.rivenArmTimer = null
@@ -124,11 +150,30 @@ export class LogWatcher extends EventEmitter {
       const chunk = buf.toString('utf8')
       const now = Date.now()
 
+      // Track squad size from recent lines (used when relic rewards open).
+      for (const line of chunk.split(/\r?\n/)) {
+        const sizeHit = line.match(SQUAD_SIZE_LINE)
+        if (sizeHit) {
+          const n = Number(sizeHit[1])
+          if (n >= 1 && n <= 4) this.squadSizeHint = n
+        }
+        if (VOID_PROJECTION.test(line)) {
+          this.voidProjectionCount = Math.min(4, this.voidProjectionCount + 1)
+        }
+        const join = line.match(SQUAD_JOIN)
+        if (join?.[1]) this.squadMembers.add(join[1].toLowerCase())
+        const leave = line.match(SQUAD_LEAVE)
+        if (leave?.[1]) this.squadMembers.delete(leave[1].toLowerCase())
+      }
+
       if (REWARD_START_PATTERNS.some((re) => re.test(chunk))) {
         if (now - this.lastStartEmit >= 5000) {
           this.lastStartEmit = now
           this.rewardScreenOpen = true
-          this.emit('event', { type: 'relic_rewards' } satisfies LogEvent)
+          this.emit('event', {
+            type: 'relic_rewards',
+            squadSize: this.getSquadSizeHint(),
+          } satisfies LogEvent)
         }
       } else if (
         this.rewardScreenOpen &&
@@ -137,6 +182,7 @@ export class LogWatcher extends EventEmitter {
       ) {
         this.lastEndEmit = now
         this.rewardScreenOpen = false
+        this.voidProjectionCount = 0
         this.emit('event', { type: 'relic_rewards_end' } satisfies LogEvent)
       }
 

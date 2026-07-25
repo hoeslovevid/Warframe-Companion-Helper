@@ -23,6 +23,15 @@ let state: RelicScanState = {
   rewards: [],
   inventoryLoaded: false,
   celebration: false,
+  squadSize: null,
+}
+
+/** Optional EE.log squad-size hint supplied by main before a log-triggered scan. */
+let pendingSquadSize: number | null = null
+
+export function setRelicSquadSizeHint(size: number | null) {
+  pendingSquadSize =
+    size != null && size >= 1 && size <= 4 ? Math.round(size) : null
 }
 
 function emit() {
@@ -109,6 +118,7 @@ export function onRelicScanUpdated(cb: Listener) {
 
 export function clearRelicScan(): RelicScanState {
   cancelAutoHide()
+  pendingSquadSize = null
   state = {
     active: false,
     scanning: false,
@@ -118,6 +128,7 @@ export function clearRelicScan(): RelicScanState {
     rewards: [],
     inventoryLoaded: Object.keys(getInventoryIndex()).length > 0,
     celebration: false,
+    squadSize: null,
   }
   emit()
   return state
@@ -141,6 +152,7 @@ export async function scanRelicRewards(
 
   cancelAutoHide()
 
+  const squadSize = pendingSquadSize
   state = {
     ...state,
     scanning: true,
@@ -149,6 +161,7 @@ export async function scanRelicRewards(
     error: null,
     celebration: false,
     inventoryLoaded: Object.keys(getInventoryIndex()).length > 0,
+    squadSize,
   }
   emit()
 
@@ -167,18 +180,20 @@ export async function scanRelicRewards(
 
     const ocrNames = await recognizeRewardNames(crops)
     let rewards: RewardEval[] = ocrNames.map((ocrText, slot) => {
-      const matched = matchCatalogItem(ocrText)
-      const name = matched?.item.name || ocrText || `Reward ${slot + 1}`
+      const cleaned = ocrText.replace(/\b(OWNED|CRAFTED|UNRANKED)\b/gi, '').replace(/\s+/g, ' ').trim()
+      const matched = matchCatalogItem(cleaned)
+      const name = matched?.item.name || cleaned || `Reward ${slot + 1}`
       const uniqueName = matched?.item.uniqueName || null
       const setName = matched?.item.setName || null
       const partName = matched?.item.partName || null
       const owned = ownedCount(uniqueName, name)
       const { setParts, setOwnedParts, setTotalParts } = buildSetParts(setName)
-      const matchScore = matched?.score ?? 0
+      // Confidence 0–1; unmatched OCR text stays low so the UI can warn.
+      const matchScore = matched?.score ?? (cleaned.length > 2 ? 0.2 : 0)
 
       return {
         slot,
-        ocrText,
+        ocrText: cleaned,
         name,
         uniqueName,
         setName,
@@ -196,14 +211,21 @@ export async function scanRelicRewards(
       }
     })
 
-    const useful = rewards.some(
-      (r) => (r.ocrText.trim().length > 1 && r.matchScore >= 0.35) || r.matchScore >= 0.55,
-    )
+    // Drop blank / HUD-noise slots; keep at most squadSize when EE.log hints it.
+    rewards = rewards.filter((r) => r.ocrText.trim().length > 2 || r.matchScore >= 0.5)
+    if (squadSize != null && rewards.length > squadSize) {
+      rewards = [...rewards]
+        .sort((a, b) => b.matchScore - a.matchScore)
+        .slice(0, squadSize)
+        .sort((a, b) => a.slot - b.slot)
+        .map((r, i) => ({ ...r, slot: i }))
+    }
+
+    const useful = rewards.some((r) => r.matchScore >= 0.45 || r.ocrText.trim().length > 3)
     if (!useful) {
       throw new Error('No reward names detected. Open the fissure pick screen, then scan again.')
     }
 
-    // Soft-confidence: keep low-confidence names but flag via matchScore in UI
     try {
       const prices = await lookupMarketPrices(rewards.map((r) => r.name))
       rewards = rewards.map((r) => {
@@ -227,6 +249,7 @@ export async function scanRelicRewards(
       rewards,
       inventoryLoaded: Object.keys(getInventoryIndex()).length > 0,
       celebration: true,
+      squadSize,
     }
     emit()
     scheduleAutoHide(AUTO_HIDE_SUCCESS_MS)

@@ -27,9 +27,17 @@ function ownershipLabel(reward: RewardEval, compact?: boolean) {
   if (!reward.setName) {
     return reward.owned > 0 ? `Owned ×${reward.owned}` : 'Unmatched'
   }
-  if (reward.owned <= 0) return compact ? 'Needed' : 'Needed for set'
+  if (reward.owned <= 0) {
+    if (compact && reward.setTotalParts > 0) {
+      return `Needed · ${reward.setOwnedParts}/${reward.setTotalParts}`
+    }
+    return compact ? 'Needed' : 'Needed for set'
+  }
   if (reward.setTotalParts > 0 && reward.setOwnedParts >= reward.setTotalParts) {
     return compact ? 'Complete' : `Owned ×${reward.owned} · Set complete`
+  }
+  if (compact && reward.setTotalParts > 0) {
+    return `Owned ×${reward.owned} · ${reward.setOwnedParts}/${reward.setTotalParts}`
   }
   return `Owned ×${reward.owned}`
 }
@@ -37,6 +45,12 @@ function ownershipLabel(reward: RewardEval, compact?: boolean) {
 function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean }) {
   const needed = reward.needed
   const lowConf = reward.matchScore > 0 && reward.matchScore < 0.55
+  const priceBits: string[] = []
+  if (reward.platinum != null) {
+    priceBits.push(`~${reward.platinum}p`)
+    if (reward.volume != null) priceBits.push(`${reward.volume} sells`)
+  }
+  if (reward.ducats != null) priceBits.push(`${reward.ducats}d`)
   return (
     <li
       className={`relic-card ${needed ? 'is-needed' : ''} ${reward.bestPick ? 'is-best' : ''} ${
@@ -49,7 +63,7 @@ function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean
       {reward.setName ? (
         <div className="relic-card__set">
           {reward.setName}
-          {!compact && reward.partName ? ` · ${reward.partName}` : ''}
+          {reward.partName ? ` · ${reward.partName}` : ''}
         </div>
       ) : (
         <div className="relic-card__set">{compact ? '—' : 'Non-set / unmatched'}</div>
@@ -57,13 +71,7 @@ function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean
       <div className={`relic-card__owned ${needed ? 'is-needed' : ''}`}>
         {ownershipLabel(reward, compact)}
       </div>
-      {reward.platinum != null ? (
-        <div className="relic-card__meta">
-          ~{reward.platinum}p{reward.volume != null ? ` · ${reward.volume} sells` : ''}
-        </div>
-      ) : reward.ducats != null ? (
-        <div className="relic-card__meta">{reward.ducats} ducats</div>
-      ) : null}
+      {priceBits.length ? <div className="relic-card__meta">{priceBits.join(' · ')}</div> : null}
       {lowConf ? <div className="relic-card__meta">Low OCR confidence</div> : null}
       {!compact && reward.setTotalParts > 0 ? (
         <div className="relic-card__progress">

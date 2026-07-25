@@ -693,6 +693,7 @@ export type RewardEval = {
   setOwnedParts: number
   setTotalParts: number
   setParts: SetPartOwned[]
+  /** Match confidence 0–1 (1 = exact catalog match). */
   matchScore: number
   ducats: number | null
   /** Median warframe.market platinum (sell orders), if available. */
@@ -711,6 +712,8 @@ export type RelicScanState = {
   rewards: RewardEval[]
   inventoryLoaded: boolean
   celebration: boolean
+  /** EE.log squad-size hint (1–4) when available. */
+  squadSize: number | null
 }
 
 export type AppUpdateStatus = {

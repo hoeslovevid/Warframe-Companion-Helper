@@ -39,6 +39,7 @@ import {
   getRelicScanState,
   onRelicScanUpdated,
   scanRelicRewards,
+  setRelicSquadSizeHint,
 } from './services/relic-scanner'
 import {
   clearRivenScan,
@@ -126,7 +127,7 @@ function applyOverlayPerformanceMode(visible: boolean) {
   overlayWindow.webContents.setBackgroundThrottling(!visible)
 }
 
-async function runRelicScan(trigger: 'manual' | 'log') {
+async function runRelicScan(trigger: 'manual' | 'log', squadSize?: number | null) {
   const settings = loadSettings()
   if (!settings.modules.relics) {
     console.info('[Everything Warframe] Relic scan skipped — Relics module disabled')
@@ -146,6 +147,7 @@ async function runRelicScan(trigger: 'manual' | 'log') {
     applyOverlayVisibility(true)
     broadcastSettings(next)
   }
+  setRelicSquadSizeHint(squadSize ?? logWatcher.getSquadSizeHint())
   const state = await scanRelicRewards(trigger)
   broadcastRelicScan()
   if (state.rewards.length && !state.error) {
@@ -909,8 +911,11 @@ app.whenReady().then(async () => {
   logWatcher.on('event', (event) => {
     if (event.type === 'relic_rewards') {
       if (!loadSettings().modules.relics) return
-      console.info('[Everything Warframe] EE.log relic rewards detected — scanning')
-      void runRelicScan('log')
+      console.info(
+        `[Everything Warframe] EE.log relic rewards detected — scanning` +
+          (event.squadSize ? ` (squad≈${event.squadSize})` : ''),
+      )
+      void runRelicScan('log', event.squadSize)
     } else if (event.type === 'relic_rewards_end') {
       console.info('[Everything Warframe] EE.log relic rewards ended — dismissing popup')
       dismissRelicPopup()

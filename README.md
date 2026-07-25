@@ -81,7 +81,7 @@ Everything Warframe runs at below-normal process priority, pauses overlay clocks
 - **Fissures** — filterable by tier
 - **Baro Ki'Teer** — status + shop inventory
 - **Nightwave** — season / phase
-- **Relics** — OCR reward overlay with set + owned counts
+- **Relics** — OCR reward overlay with plat/ducats, set progress, fuzzy catalog match, grayscale OCR prep, and EE.log squad-size hints
 - **Riven Grader** — PaddleOCR (PP-OCRv4) reads current vs reroll; Tesseract fallback; horizontal strip above Cycle cards; grades against [Megrim & Valkyrial](https://docs.google.com/spreadsheets/d/1OQGKpWXeoPaN0Cy7mTvVZMRcwvZXgIC3EO1AIRAkwDg) preferred stats (sheet rows 20+, columns A–F)
 - **Foundry Planner** — inventory-first list (owned + ready), crafting trees, material totals
 - **Themes** — 4 dark + 4 light presets, plus a Custom palette with color pickers

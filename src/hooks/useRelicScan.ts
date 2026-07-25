@@ -10,6 +10,7 @@ const empty: RelicScanState = {
   rewards: [],
   inventoryLoaded: false,
   celebration: false,
+  squadSize: null,
 }
 
 function api() {

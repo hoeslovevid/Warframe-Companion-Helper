@@ -59,6 +59,14 @@ function cachePath() {
 export function normalizeItemName(name: string): string {
   return name
     .toUpperCase()
+    // Common Warframe OCR / UI glitches before stripping punctuation
+    .replace(/@/g, 'BL')
+    .replace(/\bTEUROPTICS\b/g, 'NEUROPTICS')
+    .replace(/\bNEUROPTICS?\b/g, 'NEUROPTICS')
+    .replace(/\bCHASS[I1]S\b/g, 'CHASSIS')
+    .replace(/\bSYSTE[MN]S\b/g, 'SYSTEMS')
+    .replace(/\bBLUEPR[I1]NT\b/g, 'BLUEPRINT')
+    .replace(/\bPR[I1]ME\b/g, 'PRIME')
     .replace(/['’]/g, '')
     .replace(/[^A-Z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -249,34 +257,91 @@ function levenshtein(a: string, b: string): number {
   return row[b.length]
 }
 
+const SKIP_WORDS = new Set([
+  'OWNED',
+  'CRAFTED',
+  'UNRANKED',
+  'MASTERED',
+  'THE',
+  'AND',
+  'FOR',
+])
+
+function tokens(s: string): string[] {
+  return s.split(' ').filter((w) => w.length >= 2 && !SKIP_WORDS.has(w))
+}
+
+/** Fuzzy single-token match (typos / truncated OCR prefixes). */
+function tokenMatches(a: string, b: string): boolean {
+  if (a === b) return true
+  if (a.length >= 3 && b.length >= 3 && (a.startsWith(b) || b.startsWith(a))) return true
+  if (a.length >= 5 && b.length >= 5) {
+    const dist = levenshtein(a, b)
+    const maxLen = Math.max(a.length, b.length)
+    if (dist <= (maxLen >= 8 ? 2 : 1)) return true
+    // Distinctive suffixes: NEUROPTICS ↔ RUROPTICS / TEAROPTICS
+    if (a.length >= 6 && b.includes(a.slice(-5))) return true
+    if (b.length >= 6 && a.includes(b.slice(-5))) return true
+  }
+  return false
+}
+
+/**
+ * Match OCR reward text to the catalog.
+ * `score` is confidence in [0, 1] (1 = exact). Downstream thresholds use this ratio.
+ */
 export function matchCatalogItem(ocrText: string): { item: CatalogItem; score: number } | null {
   const needle = normalizeItemName(ocrText)
   if (!needle || needle.length < 3) return null
+  const needleToks = tokens(needle)
+  if (!needleToks.length) return null
 
   let best: CatalogItem | null = null
-  let bestScore = Infinity
+  let bestScore = 0
 
   for (const item of catalog) {
-    if (item.normalized === needle) return { item, score: 0 }
+    if (item.normalized === needle) return { item, score: 1 }
+
+    const itemToks = tokens(item.normalized)
+    if (!itemToks.length) continue
+
+    // Containment of the full normalized string
+    let score = 0
     if (item.normalized.includes(needle) || needle.includes(item.normalized)) {
-      const score = Math.abs(item.normalized.length - needle.length)
-      if (score < bestScore) {
-        best = item
-        bestScore = score
-      }
-      continue
+      const shorter = Math.min(item.normalized.length, needle.length)
+      const longer = Math.max(item.normalized.length, needle.length)
+      score = Math.max(score, shorter / longer)
     }
-    // Only run expensive distance for similar length strings
-    if (Math.abs(item.normalized.length - needle.length) > 8) continue
-    const dist = levenshtein(needle, item.normalized)
-    const threshold = Math.max(2, Math.floor(needle.length * 0.25))
-    if (dist <= threshold && dist < bestScore) {
+
+    // Token-set coverage (order-independent — "Chassis Mirage" vs "Mirage Chassis")
+    let matched = 0
+    for (const it of itemToks) {
+      if (needleToks.some((nt) => tokenMatches(it, nt))) matched++
+    }
+    const tokenScore = matched / Math.max(itemToks.length, needleToks.length)
+    // Prefer explaining catalog words when OCR is short/noisy
+    const catalogCoverage = matched / itemToks.length
+    score = Math.max(score, tokenScore, catalogCoverage * 0.95)
+
+    // Full-string Levenshtein ratio for near-misses of similar length
+    if (Math.abs(item.normalized.length - needle.length) <= 10) {
+      const dist = levenshtein(needle, item.normalized)
+      const maxLen = Math.max(item.normalized.length, needle.length)
+      const ratio = 1 - dist / maxLen
+      if (ratio >= 0.7) score = Math.max(score, ratio)
+    }
+
+    if (score < 0.42) continue
+    if (
+      score > bestScore + 1e-6 ||
+      (Math.abs(score - bestScore) < 1e-6 && best && item.name.length > best.name.length)
+    ) {
       best = item
-      bestScore = dist
+      bestScore = score
     }
   }
 
-  return best ? { item: best, score: bestScore } : null
+  return best ? { item: best, score: Math.min(1, bestScore) } : null
 }
 
 export function getSetParts(setName: string | null): CatalogItem[] {

@@ -25,6 +25,11 @@ let thumbCache: {
 } | null = null
 const THUMB_CACHE_MS = 1500
 
+/** Drop cached desktopCapturer thumbs so OCR always sees a fresh frame. */
+export function invalidateCaptureCache() {
+  thumbCache = null
+}
+
 async function withOverlayPaused<T>(fn: () => Promise<T>): Promise<T> {
   const resume = pauseOverlayForCapture?.()
   try {
@@ -44,12 +49,13 @@ async function withOverlayPaused<T>(fn: () => Promise<T>): Promise<T> {
  */
 export function relicRewardRegions(width: number, height: number): CaptureRegion[] {
   const slots = 4
-  const cardW = width * 0.155
-  const gap = width * 0.028
+  // Slightly taller/wider band so multi-line names + rarity diamonds stay in crop.
+  const cardW = width * 0.162
+  const gap = width * 0.024
   const total = slots * cardW + (slots - 1) * gap
   const startX = (width - total) / 2
-  const y = height * 0.445
-  const h = height * 0.085
+  const y = height * 0.435
+  const h = height * 0.1
 
   return Array.from({ length: slots }, (_, i) => ({
     x: Math.round(startX + i * (cardW + gap)),
@@ -164,6 +170,7 @@ export function cropPng(png: Buffer, region: CaptureRegion): Buffer {
 
 export async function captureRewardRegionPngs(): Promise<Buffer[]> {
   return withOverlayPaused(async () => {
+    invalidateCaptureCache()
     const shot = await captureBestDisplay()
     if (!shot) return []
     const regions = relicRewardRegions(shot.width, shot.height)
@@ -192,6 +199,7 @@ export async function captureRivenComparePngs(): Promise<Buffer[]> {
 
 export async function captureRivenCompare(): Promise<RivenCaptureResult | null> {
   return withOverlayPaused(async () => {
+    invalidateCaptureCache()
     const shot = await captureBestDisplay()
     if (!shot) return null
     const regions = rivenCompareRegions(shot.width, shot.height)

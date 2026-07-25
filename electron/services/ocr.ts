@@ -142,18 +142,32 @@ async function prepareRivenCard(png: Buffer, mode: 'normal' | 'harsh' = 'normal'
   }
 }
 
+/**
+ * Prep relic reward name crops: grayscale so elemental/icon glyphs don't
+ * poison OCR, mild contrast, then upscale for Paddle/Tesseract.
+ */
 async function prepareRelicPng(png: Buffer, scale: number): Promise<Buffer> {
   try {
     const sharp = nodeRequire('sharp') as typeof import('sharp')
     const meta = await sharp(png).metadata()
     const width = meta.width || 0
+    let pipeline = sharp(png).grayscale().normalize().linear(1.35, -18).sharpen({ sigma: 0.8 })
     if (width > 0 && scale !== 1) {
-      return sharp(png)
-        .resize({ width: Math.round(width * scale), kernel: 'lanczos3' })
-        .png()
-        .toBuffer()
+      pipeline = pipeline.resize({
+        width: Math.round(width * scale),
+        kernel: 'lanczos3',
+      })
     }
-    return sharp(png).png().toBuffer()
+    return pipeline
+      .extend({
+        top: 12,
+        bottom: 12,
+        left: 10,
+        right: 10,
+        background: { r: 0, g: 0, b: 0, alpha: 1 },
+      })
+      .png()
+      .toBuffer()
   } catch {
     const img = nativeImage.createFromBuffer(png)
     const { width, height } = img.getSize()
@@ -266,7 +280,8 @@ async function recognizeRelicsTess(images: Buffer[]): Promise<string[]> {
   })
   const names: string[] = []
   for (const png of images) {
-    const result = await w.recognize(png)
+    const prepared = await prepareRelicPng(png, 2.4)
+    const result = await w.recognize(prepared)
     const text = (result.data.text || '')
       .split(/\r?\n/)
       .map((l) => l.trim())
@@ -309,7 +324,7 @@ export async function recognizeRewardNames(images: Buffer[]): Promise<string[]> 
   if (engine) {
     const out: string[] = []
     for (const png of images) {
-      const prepared = await prepareRelicPng(png, 2)
+      const prepared = await prepareRelicPng(png, 2.4)
       const lines = await detectPrepared(engine, prepared)
       out.push(lines.join(' ').replace(/\s+/g, ' ').trim())
     }
