@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  FissurePathMode,
   FissureSort,
   MODULE_META,
   ModuleId,
@@ -38,7 +39,8 @@ type Props = {
   moduleOpacity: Partial<Record<ModuleId, number>>
   overlayScale: number
   fissureTiers: string[]
-  fissureShowSteelPath?: boolean
+  fissurePathMode?: FissurePathMode
+  fissureShowStorms?: boolean
   fissureSort?: FissureSort
   baroWishlist?: string[]
   nightwaveDoneIds?: string[]
@@ -54,7 +56,8 @@ export function LayoutEditor({
   moduleOpacity,
   overlayScale,
   fissureTiers,
-  fissureShowSteelPath = true,
+  fissurePathMode = 'both',
+  fissureShowStorms = true,
   fissureSort = 'eta',
   baroWishlist = [],
   nightwaveDoneIds = [],
@@ -218,7 +221,8 @@ export function LayoutEditor({
               moduleOpacity={moduleOpacity}
               overlayScale={overlayScale}
               fissureTiers={fissureTiers}
-              fissureShowSteelPath={fissureShowSteelPath}
+              fissurePathMode={fissurePathMode}
+              fissureShowStorms={fissureShowStorms}
               fissureSort={fissureSort}
               baroWishlist={baroWishlist}
               nightwaveDoneIds={nightwaveDoneIds}

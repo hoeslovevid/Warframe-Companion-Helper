@@ -34,6 +34,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Custom theme palette: pick background, text, muted, and accent colors',
     'Start from any preset, then tune — applies to companion and overlay',
   ],
+  '0.9.12': [
+    'Fissure filters: Normal / Steel Path / Both path mode',
+    'Toggle Railjack / Void Storm fissures on or off',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

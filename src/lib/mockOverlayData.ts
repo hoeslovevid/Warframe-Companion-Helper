@@ -45,6 +45,7 @@ export const MOCK_FISSURES: FissureInfo[] = [
     eta: '45m',
     expiry: inHours(0.75),
     isHard: false,
+    isStorm: false,
   },
   {
     id: 'f2',
@@ -55,6 +56,18 @@ export const MOCK_FISSURES: FissureInfo[] = [
     eta: '1h',
     expiry: inHours(1),
     isHard: true,
+    isStorm: false,
+  },
+  {
+    id: 'f3',
+    node: 'Kappa (Sedna)',
+    missionType: 'Exterminate',
+    enemy: 'Grineer',
+    tier: 'Axi',
+    eta: '30m',
+    expiry: inHours(0.5),
+    isHard: false,
+    isStorm: true,
   },
 ]
 

@@ -1,5 +1,6 @@
 import { PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  FissurePathMode,
   FissureSort,
   ModuleId,
   PanelAnchor,
@@ -30,7 +31,8 @@ export type OverlayLayoutStageProps = {
   moduleOpacity?: Partial<Record<ModuleId, number>>
   overlayScale?: number
   fissureTiers: string[]
-  fissureShowSteelPath?: boolean
+  fissurePathMode?: FissurePathMode
+  fissureShowStorms?: boolean
   fissureSort?: FissureSort
   baroWishlist?: string[]
   nightwaveDoneIds?: string[]
@@ -92,7 +94,8 @@ export function OverlayLayoutStage({
   moduleOpacity,
   overlayScale = 1,
   fissureTiers,
-  fissureShowSteelPath = true,
+  fissurePathMode = 'both',
+  fissureShowStorms = true,
   fissureSort = 'eta',
   baroWishlist = [],
   nightwaveDoneIds = [],
@@ -263,7 +266,8 @@ export function OverlayLayoutStage({
             <FissuresPanel
               fissures={data.fissures}
               tiers={fissureTiers}
-              showSteelPath={fissureShowSteelPath}
+              pathMode={fissurePathMode}
+              showStorms={fissureShowStorms}
               sort={fissureSort}
               opacity={op}
               compact
@@ -332,7 +336,8 @@ export function OverlayLayoutStage({
     opacity,
     moduleOpacity,
     fissureTiers,
-    fissureShowSteelPath,
+    fissurePathMode,
+    fissureShowStorms,
     fissureSort,
     baroWishlist,
     nightwaveDoneIds,

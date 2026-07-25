@@ -458,7 +458,8 @@ export function CompanionApp() {
                     <FissuresPanel
                       fissures={data.fissures}
                       tiers={settings.fissureTiers}
-                      showSteelPath={settings.fissureShowSteelPath}
+                      pathMode={settings.fissurePathMode}
+                      showStorms={settings.fissureShowStorms}
                       sort={settings.fissureSort}
                     />
                   ) : null}
@@ -555,11 +556,31 @@ export function CompanionApp() {
                       )
                     })}
                   </div>
+                  <p className="muted" style={{ margin: '10px 0 6px' }}>
+                    Path
+                  </p>
+                  <div className="toolbar">
+                    {(
+                      [
+                        ['normal', 'Normal'],
+                        ['steel', 'Steel Path'],
+                        ['both', 'Both'],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        className={`btn ${settings.fissurePathMode === mode ? 'primary' : 'ghost'}`}
+                        onClick={() => void updateSettings({ fissurePathMode: mode })}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                   <ToggleRow
-                    label="Show Steel Path fissures"
-                    description="Include Steel Path (hard mode) fissures in the list"
-                    checked={settings.fissureShowSteelPath}
-                    onChange={(enabled) => void updateSettings({ fissureShowSteelPath: enabled })}
+                    label="Show Railjack / Void Storms"
+                    description="Include Railjack Void Storm fissures in the list"
+                    checked={settings.fissureShowStorms}
+                    onChange={(enabled) => void updateSettings({ fissureShowStorms: enabled })}
                   />
                   <div className="toolbar" style={{ marginTop: 8 }}>
                     <button
@@ -594,7 +615,8 @@ export function CompanionApp() {
                 moduleOpacity={settings.moduleOpacity}
                 overlayScale={settings.overlayScale}
                 fissureTiers={settings.fissureTiers}
-                fissureShowSteelPath={settings.fissureShowSteelPath}
+                fissurePathMode={settings.fissurePathMode}
+                fissureShowStorms={settings.fissureShowStorms}
                 fissureSort={settings.fissureSort}
                 baroWishlist={settings.baroWishlist}
                 nightwaveDoneIds={settings.nightwaveDoneIds}

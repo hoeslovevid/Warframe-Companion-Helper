@@ -108,7 +108,19 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       editLayout: raw.hotkeys?.editLayout || base.hotkeys.editLayout,
     },
     fissureTiers: raw.fissureTiers ?? base.fissureTiers,
-    fissureShowSteelPath: raw.fissureShowSteelPath ?? base.fissureShowSteelPath,
+    fissurePathMode: (() => {
+      const mode = (raw as { fissurePathMode?: string }).fissurePathMode
+      if (mode === 'normal' || mode === 'steel' || mode === 'both') return mode
+      // Migrate legacy boolean: false → normal only, true/missing → both
+      if ((raw as { fissureShowSteelPath?: boolean }).fissureShowSteelPath === false) {
+        return 'normal' as const
+      }
+      return base.fissurePathMode
+    })(),
+    fissureShowStorms:
+      typeof (raw as { fissureShowStorms?: boolean }).fissureShowStorms === 'boolean'
+        ? (raw as { fissureShowStorms: boolean }).fissureShowStorms
+        : base.fissureShowStorms,
     fissureSort: raw.fissureSort ?? base.fissureSort,
     inventorySource: raw.inventorySource ?? base.inventorySource,
     inventoryConsent: raw.inventoryConsent ?? base.inventoryConsent,

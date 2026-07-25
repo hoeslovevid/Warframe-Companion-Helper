@@ -1,4 +1,4 @@
-import { FissureInfo, FissureSort } from '../../../shared/types'
+import { FissureInfo, FissurePathMode, FissureSort } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useNow } from '../../hooks/useNow'
 import { formatCountdown, isExpired } from '../../lib/time'
@@ -9,16 +9,24 @@ const TIER_ORDER = ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem']
 type Props = {
   fissures: FissureInfo[]
   tiers: string[]
-  showSteelPath?: boolean
+  pathMode?: FissurePathMode
+  showStorms?: boolean
   sort?: FissureSort
   opacity?: number
   compact?: boolean
 }
 
+function matchesPathMode(f: FissureInfo, pathMode: FissurePathMode): boolean {
+  if (pathMode === 'both') return true
+  if (pathMode === 'steel') return f.isHard
+  return !f.isHard
+}
+
 export function FissuresPanel({
   fissures,
   tiers,
-  showSteelPath = true,
+  pathMode = 'both',
+  showStorms = true,
   sort = 'eta',
   opacity,
   compact,
@@ -26,7 +34,8 @@ export function FissuresPanel({
   const now = useNow()
   const filtered = fissures
     .filter((f) => tiers.includes(f.tier))
-    .filter((f) => showSteelPath || !f.isHard)
+    .filter((f) => matchesPathMode(f, pathMode))
+    .filter((f) => showStorms || !f.isStorm)
     .filter((f) => !isExpired(f.expiry, now))
     .slice()
     .sort((a, b) => {
@@ -50,7 +59,8 @@ export function FissuresPanel({
             <div>
               <div className="mod-row__title">
                 {f.tier}
-                {f.isHard ? ' Steel Path' : ''} · {f.missionType}
+                {f.isHard ? ' Steel Path' : ''}
+                {f.isStorm ? ' Storm' : ''} · {f.missionType}
               </div>
               <div className="mod-row__meta">
                 {f.node} · {f.enemy}
@@ -61,7 +71,7 @@ export function FissuresPanel({
         ))}
         {filtered.length === 0 ? (
           <li className="mod-empty">
-            No fissures for your filters. Enable tiers / Steel Path under Modules, then refresh.
+            No fissures for your filters. Adjust tiers / path / storms under Modules, then refresh.
           </li>
         ) : null}
       </ul>

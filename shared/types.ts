@@ -67,6 +67,9 @@ export type InventorySource = 'none' | 'manual' | 'detected' | 'helper' | 'aleca
 
 export type FissureSort = 'eta' | 'tier'
 
+/** Which Void Fissure difficulty track(s) to list. */
+export type FissurePathMode = 'normal' | 'steel' | 'both'
+
 /** App + overlay color themes (4 dark, 4 light) + user custom. */
 export type ColorThemeId =
   | 'void'
@@ -258,8 +261,10 @@ export type AppSettings = {
   inventoryConsent: boolean
   inventoryLastSynced: string
   fissureTiers: string[]
-  /** When false, hide Steel Path fissures. */
-  fissureShowSteelPath: boolean
+  /** Normal (star chart), Steel Path only, or both. */
+  fissurePathMode: FissurePathMode
+  /** When false, hide Railjack / Void Storm fissures. */
+  fissureShowStorms: boolean
   fissureSort: FissureSort
   overlayVisible: boolean
   layoutEditMode: boolean
@@ -413,7 +418,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   inventoryConsent: false,
   inventoryLastSynced: '',
   fissureTiers: ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem'],
-  fissureShowSteelPath: true,
+  fissurePathMode: 'both',
+  fissureShowStorms: true,
   fissureSort: 'eta',
   overlayVisible: true,
   layoutEditMode: false,
@@ -452,6 +458,8 @@ export type FissureInfo = {
   tier: string
   eta: string
   isHard: boolean
+  /** Railjack / Void Storm fissure. */
+  isStorm: boolean
   expiry: string
 }
 

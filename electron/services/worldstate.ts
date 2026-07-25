@@ -353,6 +353,7 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
         tier: string
         eta: string
         isHard: boolean
+        isStorm?: boolean
         expiry: string
       }>
     >('/fissures'),
@@ -441,6 +442,7 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     tier: f.tier,
     eta: f.eta || etaFromExpiry(f.expiry),
     isHard: Boolean(f.isHard),
+    isStorm: Boolean(f.isStorm),
     expiry: f.expiry,
   }))
 
