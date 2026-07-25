@@ -352,6 +352,7 @@ a:hover {
 .hero-copy__inner {
   width: min(100%, var(--max));
   margin: 0 auto;
+  text-align: center;
 }
 
 .brand {
@@ -365,8 +366,8 @@ a:hover {
 }
 
 .hero h1 {
-  margin: 0 0 12px;
-  max-width: 16ch;
+  margin: 0 auto 12px;
+  max-width: 18ch;
   font-family: var(--font-display);
   font-size: clamp(1.35rem, 3.4vw, 2.05rem);
   font-weight: 600;
@@ -376,8 +377,8 @@ a:hover {
 }
 
 .lede {
-  margin: 0 0 24px;
-  max-width: 40ch;
+  margin: 0 auto 24px;
+  max-width: 42ch;
   font-size: 1.02rem;
   line-height: 1.55;
   color: var(--mist);
@@ -386,6 +387,7 @@ a:hover {
 .cta-row {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
   margin-bottom: 12px;
 }
@@ -451,12 +453,14 @@ a:hover {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px 24px;
+  text-align: center;
 }
 
 .trust-bar p {
   margin: 0;
   display: grid;
   gap: 4px;
+  justify-items: center;
   font-size: 0.86rem;
   line-height: 1.45;
 }
@@ -479,6 +483,7 @@ a:hover {
 .section-inner {
   width: min(100%, var(--max));
   margin: 0 auto;
+  text-align: center;
 }
 
 .section h2 {
@@ -491,7 +496,7 @@ a:hover {
 }
 
 .section-lede {
-  margin: 0 0 36px;
+  margin: 0 auto 36px;
   max-width: 48ch;
   color: var(--mist);
   line-height: 1.55;
@@ -506,17 +511,17 @@ a:hover {
 
 .steps {
   list-style: none;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   display: grid;
   gap: 28px;
+  max-width: 40rem;
 }
 
 .steps li {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 18px;
-  align-items: start;
+  gap: 10px;
+  justify-items: center;
   padding-bottom: 28px;
   border-bottom: 1px solid rgba(127, 150, 166, 0.1);
 }
@@ -531,7 +536,6 @@ a:hover {
   font-size: 0.85rem;
   letter-spacing: 0.12em;
   color: var(--teal-bright);
-  padding-top: 4px;
 }
 
 .steps h3 {
@@ -542,7 +546,8 @@ a:hover {
 }
 
 .steps p {
-  margin: 0;
+  margin: 0 auto;
+  max-width: 36ch;
   color: var(--mist);
   line-height: 1.5;
 }
@@ -572,8 +577,8 @@ a:hover {
 }
 
 .feature-block p {
-  margin: 0;
-  max-width: 54ch;
+  margin: 0 auto;
+  max-width: 48ch;
   color: var(--mist);
   line-height: 1.55;
   font-size: 1.02rem;
@@ -587,15 +592,17 @@ a:hover {
 
 .trust-list {
   list-style: none;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   display: grid;
   gap: 22px;
+  max-width: 48rem;
 }
 
 .trust-list li {
   padding-left: 0;
-  max-width: 58ch;
+  max-width: 48ch;
+  margin: 0 auto;
   color: var(--mist);
   line-height: 1.55;
 }
@@ -623,6 +630,7 @@ a:hover {
 .download-meta {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 18px 32px;
   margin: 0 0 24px;
 }
@@ -631,6 +639,7 @@ a:hover {
   margin: 0;
   display: grid;
   gap: 4px;
+  justify-items: center;
 }
 
 .meta-label {
@@ -647,7 +656,7 @@ a:hover {
 }
 
 .muted {
-  margin: 18px 0 0;
+  margin: 18px auto 0;
   color: var(--mist-dim);
   font-size: 0.9rem;
   line-height: 1.45;
@@ -667,7 +676,10 @@ a:hover {
 .faq-list {
   display: grid;
   gap: 0;
+  max-width: 40rem;
+  margin: 0 auto;
   border-top: 1px solid rgba(127, 150, 166, 0.12);
+  text-align: left;
 }
 
 .faq-item {
@@ -684,6 +696,7 @@ a:hover {
   padding: 18px 0;
   font-weight: 600;
   color: var(--frost);
+  text-align: left;
 }
 
 .faq-item summary::-webkit-details-marker {
@@ -720,6 +733,8 @@ a:hover {
   margin: 0 auto;
   display: grid;
   gap: 14px;
+  justify-items: center;
+  text-align: center;
   color: var(--mist-dim);
   font-size: 0.88rem;
   line-height: 1.5;
@@ -733,6 +748,7 @@ a:hover {
 .footer-links {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 10px 18px;
   margin: 0;
 }
