@@ -1,9 +1,9 @@
 {
   "name": "everything-warframe",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "description": "Everything Warframe — overlay companion for Windows and Linux (Steam/Proton): worldstate, relics, rivens, foundry, inventory",
   "main": "dist-electron/main.cjs",
-  "author": "Everything Warframe",
+  "author": "Everything Warframe <hoeslovevid@users.noreply.github.com>",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -117,6 +117,7 @@
       ],
       "category": "Game",
       "synopsis": "Warframe overlay companion for Windows and Linux (Steam/Proton)",
+      "maintainer": "Everything Warframe <hoeslovevid@users.noreply.github.com>",
       "executableName": "everything-warframe",
       "artifactName": "Everything-Warframe-${version}-${os}-${arch}.${ext}"
     },
