@@ -304,7 +304,9 @@ export function OverlayLayoutStage({
             }}
             onPointerDown={(e) => onPointerDown(id, e)}
           >
-            <div className="overlay-panel__badge">{id}</div>
+            {editable || id !== 'relics' ? (
+              <div className="overlay-panel__badge">{id}</div>
+            ) : null}
             {panel(id)}
           </div>
         )

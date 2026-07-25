@@ -3,15 +3,43 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
-.relic-grid.is-compact {
-  grid-template-columns: 1fr;
-  max-height: 420px;
-  overflow: auto;
-  padding-right: 4px;
+.relic-grid.is-dashboard {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Live overlay / Layout preview: one row under the four reward cards */
+.relic-strip {
+  width: min(1120px, 72vw);
+  pointer-events: none;
+}
+
+.relic-strip__status {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vl-gold-soft);
+}
+
+.relic-strip__error {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--vl-danger);
+}
+
+.relic-grid.is-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(18px, 2.6vw, 36px);
+  max-height: none;
+  overflow: visible;
+  width: 100%;
 }
 
 .relic-card {
@@ -117,6 +145,56 @@
   color: var(--vl-gold-soft);
 }
 
-.overlay-root .relic-grid.is-compact {
-  max-width: 320px;
+/* Slim labels meant to sit under each in-game reward card */
+.relic-grid.is-strip .relic-card {
+  text-align: center;
+  padding: 10px 8px 12px;
+  border-radius: 10px;
+  background: rgba(4, 8, 12, 0.82);
+  backdrop-filter: blur(12px) saturate(1.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.relic-grid.is-strip .relic-card__slot {
+  display: none;
+}
+
+.relic-grid.is-strip .relic-card__name {
+  font-size: 0.82rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.relic-grid.is-strip .relic-card__set {
+  font-size: 0.72rem;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.relic-grid.is-strip .relic-card__owned {
+  margin-top: 8px;
+  font-size: 0.76rem;
+  padding: 3px 8px;
+}
+
+.relic-grid.is-strip .relic-card__progress,
+.relic-grid.is-strip .relic-card__parts {
+  display: none;
+}
+
+.relic-grid.is-strip .relic-card__meta {
+  margin-top: 6px;
+  font-size: 0.7rem;
+}
+
+.overlay-root .relic-strip,
+.overlay-layout-stage .relic-strip {
+  width: 1100px;
+  max-width: none;
 }

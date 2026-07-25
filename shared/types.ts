@@ -101,7 +101,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     fissures: { x: 24, y: 280 },
     baro: { x: 24, y: 560 },
     nightwave: { x: 320, y: 24 },
-    relics: { x: 420, y: 180 },
+    // Horizontal strip under the four fissure reward cards (1920×1080)
+    relics: { x: 410, y: 640 },
     arbitration: { x: 420, y: 420 },
   },
   opacity: 0.92,

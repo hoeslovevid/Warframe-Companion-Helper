@@ -89,9 +89,10 @@ export function LayoutEditor({
         <h2 className="page-title">Layout</h2>
         <div className="page-title-rule" />
         <p className="page-desc">
-          Arrange overlays on this mock monitor (WFHelper-style: unlock, then drag). Left- or
-          right-drag any panel — including Relic Rewards with sample cards. Positions save to the
-          live overlay. In-game, press <strong>{interactionHotkey}</strong> to unlock and drag.
+          Arrange overlays on this mock monitor. Drag the horizontal <strong>Relic Rewards</strong>{' '}
+          strip so each label sits under an in-game reward card. Other panels stack wherever you
+          like. Positions save automatically. In-game, press <strong>{interactionHotkey}</strong>{' '}
+          to unlock and drag during a popup.
         </p>
       </header>
 
