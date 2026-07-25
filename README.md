@@ -1,24 +1,49 @@
-# VoidLens
+# Warframe Companion Helper (VoidLens)
 
-Windows companion + transparent overlay for Warframe. Toggleable worldstate panels now; relic reward OCR and arbitration run summaries next.
+Windows companion + transparent overlay for Warframe: worldstate panels, Baro inventory, account inventory sync, and relic reward scanning.
+
+**Downloads:** [GitHub Releases](https://github.com/hoeslovevid/Warframe-Companion-Helper/releases)
 
 ## Requirements
 
-- Node.js 18+
-- Windows
-- Warframe running in **Borderless Windowed** (exclusive fullscreen will hide the overlay)
+- Windows 10/11 (x64)
+- Warframe in **Borderless Windowed** (exclusive fullscreen hides the overlay)
+- For development: Node.js 20+ recommended (18 may work for `npm start`)
 
-## Quick start
+## Download (users)
+
+1. Open [Releases](https://github.com/hoeslovevid/Warframe-Companion-Helper/releases)
+2. Download the latest **Setup** `.exe` (installer) or **portable** build
+3. Install / run **Warframe Companion Helper**
+4. Keep Warframe in Borderless Windowed
+
+### Auto-updates
+
+Installed builds check [GitHub Releases](https://github.com/hoeslovevid/Warframe-Companion-Helper/releases) for newer versions.
+
+- Automatic check shortly after launch (and every few hours)
+- **Settings → Updates** → Check for updates / Restart & install
+- Dev mode (`npm start`) does **not** auto-update
+
+## Development
 
 ```bash
 npm install
 npm start
 ```
 
-This launches Vite on `http://localhost:5173`, builds the Electron main/preload bundles, then opens:
+This launches Vite, builds the Electron main/preload bundles, then opens:
 
 - **Companion** — dashboard, module toggles, settings
 - **Overlay** — always-on-top click-through panels
+
+### Build a local installer
+
+```bash
+npm run dist
+```
+
+Outputs land in `release/` (NSIS setup + portable).
 
 ## Default hotkeys
 
@@ -29,64 +54,67 @@ This launches Vite on `http://localhost:5173`, builds the Electron main/preload 
 | Refresh worldstate | `Alt+Shift+R` |
 | Scan relic rewards | `Alt+Shift+F` |
 
-If a shortcut is already taken by another app, VoidLens automatically tries fallbacks (and may switch to `F8` / `F9` / `F10`). Change accelerators in **Settings → Hotkeys**.
+If a shortcut is taken, the app tries fallbacks. Change them under **Settings → Hotkeys**.
 
-## Modules (Phase 1)
+## Modules
 
-Toggle in **Modules**:
-
-- **World Cycles** — Cetus, Orb Vallis, Cambion, Duviri, Zariman, Albrecht (when API provides them)
-- **Fissures** — filterable by Lith / Meso / Neo / Axi / Requiem
-- **Baro Ki'Teer** — arrival / departure status
+- **World Cycles** — Cetus, Vallis, Cambion, Duviri, Zariman, Albrecht (when available)
+- **Fissures** — filterable by tier
+- **Baro Ki'Teer** — status + shop inventory
 - **Nightwave** — season / phase
-- **Relics** — Phase 2 shell (OCR + prices + missing set parts)
-- **Arbitration** — live schedule now; rare-drop run summary in Phase 3
+- **Relics** — OCR reward overlay with set + owned counts
+- **Arbitration** — schedule now; run analytics later
 
-## Overlay tips
+## Inventory
 
-1. Enable the modules you want (Cycles / Fissures / Baro).
-2. Run Warframe in **Borderless Windowed**.
-3. You should see a **VoidLens** pill (top-right) plus glass info panels — not FPS counters.
-4. FPS / CPU / GPU graphs come from **Xbox Game Bar**, NVIDIA, or Steam — turn those off separately (`Win+G` → turn off FPS).
-5. Use **Edit overlay layout** to drag panels, then lock layout so clicks pass through.
-6. Adjust opacity under **Settings → Appearance**.
+In **Settings → Inventory**:
 
-## Phase 2 / 3 paths
+1. **Sync from running game** (permission required) via [warframe-api-helper](https://github.com/Sainan/warframe-api-helper)
+2. **Find existing exports** — `inventory.json` / AlecaFrame `lastData.dat`
+3. **Browse file…**
 
-In **Settings**:
+Data stays on your PC.
 
-- **EE.log path** — auto-detect or browse (`%LOCALAPPDATA%\Warframe\EE.log`)
-- **Inventory** — three ways to load your account inventory locally:
-  1. **Sync from running game** (permission required) — downloads [warframe-api-helper](https://github.com/Sainan/warframe-api-helper), reads a short-lived session token from `Warframe.x64.exe` (not your password), and saves `inventory.json` under VoidLens app data
-  2. **Find existing exports** — auto-detects `inventory.json` / AlecaFrame `lastData.dat` in common folders
-  3. **Browse file…** — manual JSON / `.dat` import
+## Relic reward overlay
 
-Inventory stays on your PC. Sync requires Warframe logged in and an explicit risk acknowledgment.
+1. Sync inventory (recommended)
+2. Enable **Relic Rewards**
+3. Enable Item Labels in Warframe
+4. On the reward pick screen, press **Alt+Shift+F** (or wait for EE.log `Got rewards`)
 
-## Data sources
+## Publishing a new release (maintainers)
 
-- [warframestat.us](https://docs.warframestat.us) — worldstate
-- Planned: [warframe.market](https://warframe.market), [WFCD/warframe-items](https://github.com/WFCD/warframe-items), EE.log
+1. Bump `"version"` in `package.json` (e.g. `0.2.0`)
+2. Commit and push to `master`
+3. Create and push a tag matching that version:
 
-VoidLens is unofficial and not affiliated with Digital Extremes.
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+4. GitHub Actions builds Windows artifacts and publishes a Release
+5. Installed apps pick up the update via electron-updater
+
+You can also build/publish locally (needs a GitHub token with `repo` scope):
+
+```bash
+npm run release
+```
 
 ## Scripts
 
 | Script | Purpose |
 | --- | --- |
-| `npm start` / `npm run electron:dev` | Dev companion + overlay |
+| `npm start` | Dev companion + overlay |
 | `npm run build` | Production renderer + electron bundles |
-| `npm run build:electron` | Bundle `electron/` with esbuild only |
+| `npm run dist` | Build Windows installer + portable (no publish) |
+| `npm run release` | Build and publish to GitHub Releases |
 
-## Roadmap
+## Data sources
 
-1. **Phase 1** — shell, toggles, cycles / fissures / baro / nightwave
-2. **Phase 2 (current)** — EE.log / hotkey relic scan, OCR, set + owned counts from inventory
-3. **Phase 3** — arbitration end-of-run rare drop summaries + favorited node alerts
+- [warframestat.us](https://docs.warframestat.us) — worldstate / item catalog
+- [warframe-api-helper](https://github.com/Sainan/warframe-api-helper) — inventory sync
+- Warframe `EE.log` — relic reward detection
 
-### Relic reward overlay
-
-1. Sync inventory in Settings (recommended).
-2. Enable **Relic Rewards** module.
-3. At the post-mission reward pick screen (Item Labels on in Warframe), press **Alt+Shift+F**, or wait for EE.log auto-detect (`Got rewards`).
-4. Overlay shows each reward’s set, part, owned count, and whether you still need it.
+Unofficial and not affiliated with Digital Extremes.

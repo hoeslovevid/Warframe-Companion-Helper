@@ -32,6 +32,12 @@ import {
   scanRelicRewards,
   warmupRelicScanner,
 } from './services/relic-scanner'
+import {
+  checkForAppUpdates,
+  getUpdateStatus,
+  initAutoUpdater,
+  quitAndInstallUpdate,
+} from './services/updater'
 import { AppSettings, ModuleId, WorldstateSnapshot } from '../shared/types'
 
 // Ensure Chromium's optional FPS HUD is not enabled
@@ -466,6 +472,9 @@ function registerIpc() {
     broadcastRelicScan()
     return state
   })
+  ipcMain.handle('update:status', () => getUpdateStatus())
+  ipcMain.handle('update:check', async () => checkForAppUpdates())
+  ipcMain.handle('update:install', () => quitAndInstallUpdate())
 }
 
 app.whenReady().then(async () => {
@@ -508,6 +517,7 @@ app.whenReady().then(async () => {
 
   registerHotkeys()
   createTray()
+  initAutoUpdater()
 
   try {
     await refreshWorldstate(true)

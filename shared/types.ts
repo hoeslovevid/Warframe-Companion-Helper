@@ -230,6 +230,19 @@ export type RelicScanState = {
   inventoryLoaded: boolean
 }
 
+export type AppUpdateStatus = {
+  supported: boolean
+  checking: boolean
+  available: boolean
+  downloading: boolean
+  downloaded: boolean
+  currentVersion: string
+  latestVersion: string | null
+  progress: number
+  error: string | null
+  message: string
+}
+
 export type VoidLensApi = {
   getSettings: () => Promise<AppSettings>
   updateSettings: (partial: Partial<AppSettings>) => Promise<AppSettings>
@@ -251,9 +264,13 @@ export type VoidLensApi = {
   getRelicScan: () => Promise<RelicScanState>
   scanRelicRewards: () => Promise<RelicScanState>
   clearRelicScan: () => Promise<RelicScanState>
+  getUpdateStatus: () => Promise<AppUpdateStatus>
+  checkForUpdates: () => Promise<AppUpdateStatus>
+  installUpdate: () => Promise<boolean>
   onSettingsChanged: (cb: (settings: AppSettings) => void) => () => void
   onWorldstateUpdated: (cb: (data: WorldstateSnapshot) => void) => () => void
   onOverlayVisibilityChanged: (cb: (visible: boolean) => void) => () => void
   onInventoryUpdated: (cb: (status: InventoryStatus) => void) => () => void
   onRelicScanUpdated: (cb: (state: RelicScanState) => void) => () => void
+  onUpdateStatus: (cb: (status: AppUpdateStatus) => void) => () => void
 }

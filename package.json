@@ -1,21 +1,30 @@
 {
-  "name": "voidlens",
+  "name": "warframe-companion-helper",
   "version": "0.1.0",
-  "description": "VoidLens — Warframe companion overlay for worldstate, relics, and arbitration",
+  "description": "Warframe Companion Helper (VoidLens) — overlay for worldstate, relics, and inventory",
   "main": "dist-electron/main.cjs",
   "author": "VoidLens",
   "license": "MIT",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hoeslovevid/Warframe-Companion-Helper.git"
+  },
+  "homepage": "https://github.com/hoeslovevid/Warframe-Companion-Helper",
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run build:electron",
-    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --external:electron --external:tesseract.js --outdir=dist-electron --format=cjs --out-extension:.js=.cjs",
+    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --external:electron --external:tesseract.js --external:electron-updater --outdir=dist-electron --format=cjs --out-extension:.js=.cjs",
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && npm run build:electron && electron .\"",
-    "start": "npm run electron:dev"
+    "start": "npm run electron:dev",
+    "dist": "npm run build && electron-builder --win -c.win.signAndEditExecutable=false",
+    "dist:dir": "npm run build && electron-builder --win --dir -c.win.signAndEditExecutable=false",
+    "release": "npm run build && electron-builder --win --publish always -c.win.signAndEditExecutable=false"
   },
   "dependencies": {
+    "electron-updater": "^6.6.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tesseract.js": "^5.1.1"
@@ -27,9 +36,61 @@
     "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^8.2.2",
     "electron": "^31.3.1",
+    "electron-builder": "^25.1.8",
     "esbuild": "^0.23.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.0",
     "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.voidlens.warframe-companion-helper",
+    "productName": "Warframe Companion Helper",
+    "copyright": "Copyright © VoidLens contributors",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/tesseract.js/**/*",
+      "**/node_modules/tesseract.js-core/**/*"
+    ],
+    "extraMetadata": {
+      "main": "dist-electron/main.cjs"
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Warframe Companion Helper"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "hoeslovevid",
+        "repo": "Warframe-Companion-Helper",
+        "releaseType": "release"
+      }
+    ]
   }
 }

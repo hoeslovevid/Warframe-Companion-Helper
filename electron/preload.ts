@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
+  AppUpdateStatus,
   InventoryStatus,
   ModuleId,
   RelicScanState,
@@ -30,6 +31,9 @@ const api: VoidLensApi = {
   getRelicScan: () => ipcRenderer.invoke('relics:get'),
   scanRelicRewards: () => ipcRenderer.invoke('relics:scan'),
   clearRelicScan: () => ipcRenderer.invoke('relics:clear'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:status'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
   onSettingsChanged: (cb) => {
     const listener = (_: Electron.IpcRendererEvent, settings: AppSettings) => cb(settings)
     ipcRenderer.on('settings:changed', listener)
@@ -54,6 +58,11 @@ const api: VoidLensApi = {
     const listener = (_: Electron.IpcRendererEvent, state: RelicScanState) => cb(state)
     ipcRenderer.on('relics:updated', listener)
     return () => ipcRenderer.removeListener('relics:updated', listener)
+  },
+  onUpdateStatus: (cb) => {
+    const listener = (_: Electron.IpcRendererEvent, status: AppUpdateStatus) => cb(status)
+    ipcRenderer.on('update:status', listener)
+    return () => ipcRenderer.removeListener('update:status', listener)
   },
 }
 

@@ -3,6 +3,7 @@ import { MODULE_META, ModuleId } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { ToggleRow } from '../../components/ToggleRow'
 import { InventorySettings } from '../../components/InventorySettings'
+import { UpdateSettings } from '../../components/UpdateSettings'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
 import { CyclesPanel } from '../../modules/cycles/CyclesPanel'
 import { FissuresPanel } from '../../modules/fissures/FissuresPanel'
@@ -297,6 +298,8 @@ export function CompanionApp() {
 
               <div style={{ height: 16 }} />
               <InventorySettings />
+              <div style={{ height: 16 }} />
+              <UpdateSettings />
             </>
           ) : null}
         </main>
