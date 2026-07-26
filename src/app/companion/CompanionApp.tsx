@@ -555,17 +555,29 @@ export function CompanionApp() {
                           key={tier}
                           className={`btn ${on ? 'primary' : 'ghost'}`}
                           onClick={() => {
+                            if (on && settings.fissureTiers.length <= 1) return
                             const next = on
                               ? settings.fissureTiers.filter((t) => t !== tier)
                               : [...settings.fissureTiers, tier]
                             void updateSettings({ fissureTiers: next })
                           }}
+                          title={
+                            on && settings.fissureTiers.length <= 1
+                              ? 'Keep at least one tier selected'
+                              : undefined
+                          }
                         >
                           {tier}
                         </button>
                       )
                     })}
                   </div>
+                  {settings.fissureTiers.length === 0 ? (
+                    <p className="muted" style={{ margin: '8px 0 0', fontSize: '0.78rem' }}>
+                      No tiers selected — turn on Lith / Meso / Neo / Axi (and Requiem if you want)
+                      or the fissure list stays empty.
+                    </p>
+                  ) : null}
                   <p className="muted" style={{ margin: '10px 0 6px' }}>
                     Path
                   </p>

@@ -71,7 +71,9 @@ export function FissuresPanel({
         ))}
         {filtered.length === 0 ? (
           <li className="mod-empty">
-            No fissures for your filters. Adjust tiers / path / storms under Modules, then refresh.
+            {tiers.length === 0
+              ? 'No tiers selected. Enable Lith / Meso / Neo / Axi under Modules → Fissure filters.'
+              : 'No fissures for your filters. Adjust tiers / path / storms under Modules, then refresh.'}
           </li>
         ) : null}
       </ul>

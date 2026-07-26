@@ -107,7 +107,11 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       dismissRivens: raw.hotkeys?.dismissRivens || base.hotkeys.dismissRivens,
       editLayout: raw.hotkeys?.editLayout || base.hotkeys.editLayout,
     },
-    fissureTiers: raw.fissureTiers ?? base.fissureTiers,
+    // Empty array would hide every fissure — treat as unset and restore defaults.
+    fissureTiers:
+      Array.isArray(raw.fissureTiers) && raw.fissureTiers.length > 0
+        ? raw.fissureTiers
+        : base.fissureTiers,
     fissurePathMode: (() => {
       const mode = (raw as { fissurePathMode?: string }).fissurePathMode
       if (mode === 'normal' || mode === 'steel' || mode === 'both') return mode

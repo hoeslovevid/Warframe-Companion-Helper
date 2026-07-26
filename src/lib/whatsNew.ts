@@ -44,6 +44,7 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Wider riven OCR crops + pick which monitor OCR/overlay uses',
     'Relic OCR: read reward names under the cards (not the icon art)',
     'Help → Report a bug opens a prefilled GitHub Issue',
+    'Fissure filters: can’t clear all tiers; empty tier lists reset to defaults',
   ],
 }
 

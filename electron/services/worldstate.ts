@@ -356,7 +356,7 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
         isStorm?: boolean
         expiry: string
       }>
-    >('/fissures'),
+    >('/fissures').catch(() => []),
     getJson<VoidTraderPayload>('/voidTrader'),
     getJson<{
       active?: boolean

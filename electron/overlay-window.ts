@@ -5,6 +5,10 @@ import { resolveOcrDisplay } from './services/display-target'
 export function createOverlayWindow(devUrl: string | null): BrowserWindow {
   const display = resolveOcrDisplay()
   const { width, height } = display.bounds
+  console.info(
+    `[Everything Warframe] Overlay on display id=${display.id} ` +
+      `bounds=(${display.bounds.x},${display.bounds.y} ${width}×${height}) scale=${display.scaleFactor}`,
+  )
 
   const win = new BrowserWindow({
     width,
