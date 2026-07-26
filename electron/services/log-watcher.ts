@@ -15,6 +15,10 @@ const REWARD_START_PATTERNS = [
   /Got rewards(?!\s+screen\s+closed)/i,
   /ProjectionRewardChoice\.lua/i,
   /Script \[Info\]:.*ProjectionRewardChoice/i,
+  // Proton / newer client variants
+  /RelicReward(?:s)?(?:Choice|Screen|UI)/i,
+  /UI_Open.*(?:Relic|Projection).*Reward/i,
+  /ShowProjectionReward/i,
 ]
 
 const REWARD_END_PATTERNS = [
@@ -23,6 +27,8 @@ const REWARD_END_PATTERNS = [
   /EndOfMatch\.lua:.*(?:initialized|started|begin|completed|destroyed|closed)/i,
   /Got rewards screen closed/i,
   /Script \[Info\]:.*Reward.*(?:closed|dismiss|selected)/i,
+  /RelicReward(?:s)?(?:Choice|Screen).*clos/i,
+  /HideProjectionReward/i,
 ]
 
 /**
@@ -34,9 +40,12 @@ const REWARD_END_PATTERNS = [
  * and must NOT be treated as dismiss — it was cancelling OCR mid-scan.
  */
 const RIVEN_CYCLE_CONFIRM =
-  /Are you sure you want to cycle .+ for/i
+  /Are you sure you want to cycle .+ for|Spend\s+[\d,]+\s+Kuva\s+to\s+cycle|cycle this Riven for/i
 const RIVEN_CYCLE_PENDING_READY =
   /NavBar_QuickMatchPleaseWait|QuickMatchPleaseWait/i
+/** Compare-screen chrome — fire when already armed (or same chunk as confirm). */
+const RIVEN_COMPARE_UI =
+  /Cycle Riven into current selection|Accept new Riven|Keep current Riven/i
 
 /** Squad join / leave / size hints commonly seen in EE.log. */
 const SQUAD_JOIN =
@@ -205,11 +214,17 @@ export class LogWatcher extends EventEmitter {
         this.emit('event', { type: 'relic_rewards_end' } satisfies LogEvent)
       }
 
-      // Kuva spend confirm dialog → arm; PleaseWait after confirm → compare UI ready.
-      if (RIVEN_CYCLE_CONFIRM.test(chunk)) {
+      // Kuva spend confirm dialog → arm; PleaseWait / compare chrome → scan.
+      const confirmHit = RIVEN_CYCLE_CONFIRM.test(chunk)
+      if (confirmHit) {
         this.armRivenCycle()
       }
       if (this.rivenCycleArmed && RIVEN_CYCLE_PENDING_READY.test(chunk)) {
+        this.emitRivenStart()
+      } else if (this.rivenCycleArmed && RIVEN_COMPARE_UI.test(chunk)) {
+        this.emitRivenStart()
+      } else if (confirmHit && RIVEN_COMPARE_UI.test(chunk)) {
+        // Confirm + compare text in one chunk (slow poll / Proton batching).
         this.emitRivenStart()
       }
 

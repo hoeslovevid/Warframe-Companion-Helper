@@ -10,6 +10,10 @@ export type ModuleId =
   | 'deepArchimedea'
   | 'rivens'
   | 'foundry'
+  | 'market'
+
+/** Soft UI chime style for relic / riven scan alerts. */
+export type SoundPackId = 'soft' | 'bright' | 'double' | 'low'
 
 export type PanelAnchor = {
   x: number
@@ -55,6 +59,10 @@ export type RivenRoll = {
   marketVolume?: number | null
   /** How tightly the auction query matched OCR stats. */
   marketMatch?: 'exact' | 'stats' | 'loose' | null
+  /** Madurai / Vazarin / Naramon / Zenurik when OCR sees polarity. */
+  polarity?: string | null
+  /** Deep-link into warframe.market riven auction search. */
+  marketUrl?: string | null
 }
 
 export type RivenScanState = {
@@ -66,6 +74,8 @@ export type RivenScanState = {
   current: RivenRoll | null
   reroll: RivenRoll | null
   recommendation: 'keep' | 'take' | 'similar' | 'none'
+  /** Extra tip when plat or prefs drove the recommendation. */
+  recommendationNote?: string | null
 }
 
 export type InventorySource = 'none' | 'manual' | 'detected' | 'helper' | 'alecaframe'
@@ -286,6 +296,16 @@ export type AppSettings = {
   nightwaveDoneIds: string[]
   /** Soft chime when relic popup appears. */
   relicSoundEnabled: boolean
+  /** Soft chime when riven compare popup appears. */
+  rivenSoundEnabled: boolean
+  /** Chime style for relic/riven alerts. */
+  soundPack: SoundPackId
+  /** Item names to track on the Market tab (warframe.market). */
+  marketWatchlist: string[]
+  /** Serve localhost HTML widgets for OBS / external overlays. */
+  widgetServerEnabled: boolean
+  /** Port for the widget HTTP server (127.0.0.1 only). */
+  widgetServerPort: number
   /** After first-run checklist, minimize companion to tray on launch. */
   quietMode: boolean
   /** Auto-resync inventory while Warframe is running. */
@@ -302,6 +322,8 @@ export type AppSettings = {
     tourCompleted: boolean
     trayTipShown: boolean
     firstRelicSuccessAck: boolean
+    /** Linux: finished or skipped the screen-capture wizard. */
+    linuxCaptureAck: boolean
   }
 }
 
@@ -367,6 +389,12 @@ export const MODULE_META: Record<
       'Companion crafting planner: browse recipes, owned/mastered status, and crafting trees',
     phase: 2,
   },
+  market: {
+    label: 'Market',
+    description:
+      'warframe.market watchlist with platinum quotes; ties into relic and riven scans',
+    phase: 3,
+  },
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -382,6 +410,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     deepArchimedea: false,
     rivens: true,
     foundry: true,
+    market: true,
   },
   panelAnchors: {
     cycles: { x: 24, y: 24 },
@@ -438,6 +467,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   baroWishlist: [],
   nightwaveDoneIds: [],
   relicSoundEnabled: false,
+  rivenSoundEnabled: false,
+  soundPack: 'soft',
+  marketWatchlist: [],
+  widgetServerEnabled: false,
+  widgetServerPort: 17862,
   quietMode: false,
   inventoryAutoSync: true,
   lastSeenVersion: '',
@@ -450,6 +484,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     tourCompleted: false,
     trayTipShown: false,
     firstRelicSuccessAck: false,
+    linuxCaptureAck: false,
   },
 }
 
@@ -836,6 +871,12 @@ export type VoidLensApi = {
   copyBugDiagnostics: (draft?: Partial<BugReportDraft>) => Promise<boolean>
   pickBugScreenshots: () => Promise<{ stagingDir: string; count: number } | null>
   openBugDebugFolders: () => Promise<string[]>
+  lookupMarketPrices: (
+    names: string[],
+  ) => Promise<Array<{ name: string; platinum: number; volume: number }>>
+  openExternal: (url: string) => Promise<boolean>
+  testScreenCapture: () => Promise<{ ok: boolean; message: string }>
+  getWidgetServerStatus: () => Promise<{ running: boolean; port: number; baseUrl: string }>
   onSettingsChanged: (cb: (settings: AppSettings) => void) => () => void
   onWorldstateUpdated: (cb: (data: WorldstateSnapshot) => void) => () => void
   onOverlayVisibilityChanged: (cb: (visible: boolean) => void) => () => void
@@ -844,4 +885,5 @@ export type VoidLensApi = {
   onRivenScanUpdated: (cb: (state: RivenScanState) => void) => () => void
   onUpdateStatus: (cb: (status: AppUpdateStatus) => void) => () => void
   onRelicSound: (cb: () => void) => () => void
+  onRivenSound: (cb: () => void) => () => void
 }

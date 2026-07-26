@@ -1,12 +1,22 @@
 /**
- * Phase 2: warframe.market price lookups with disk cache.
+ * Unified warframe.market helpers (item orders + re-exports).
  */
+import { lookupMarketPrices } from './market-prices'
+
 export type MarketQuote = {
-  slug: string
-  average: number | null
-  volume: number | null
+  name: string
+  platinum: number
+  volume: number
 }
 
-export async function fetchItemQuote(_slug: string): Promise<MarketQuote | null> {
-  return null
+export async function fetchItemQuotes(names: string[]): Promise<MarketQuote[]> {
+  const map = await lookupMarketPrices(names)
+  return names
+    .map((name) => {
+      const hit = map.get(name)
+      return hit ? { name, platinum: hit.platinum, volume: hit.volume } : null
+    })
+    .filter((x): x is MarketQuote => !!x)
 }
+
+export { lookupMarketPrices }

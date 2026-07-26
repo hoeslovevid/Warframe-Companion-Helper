@@ -127,6 +127,7 @@ export const MOCK_RIVEN_SCAN: RivenScanState = {
   trigger: 'manual',
   error: null,
   recommendation: 'take',
+  recommendationNote: 'Similar grade — new roll ~155p higher on market',
   current: {
     side: 'current',
     weapon: 'Lato',
@@ -136,6 +137,8 @@ export const MOCK_RIVEN_SCAN: RivenScanState = {
     platinum: 85,
     marketVolume: 12,
     marketMatch: 'stats',
+    polarity: 'Madurai',
+    marketUrl: 'https://warframe.market/auctions/search?type=riven&weapon_url_name=lato',
     stats: [
       {
         raw: '+Damage 168.2%',
@@ -175,6 +178,8 @@ export const MOCK_RIVEN_SCAN: RivenScanState = {
     platinum: 240,
     marketVolume: 7,
     marketMatch: 'exact',
+    polarity: 'Madurai',
+    marketUrl: 'https://warframe.market/auctions/search?type=riven&weapon_url_name=lato',
     stats: [
       {
         raw: '+Critical Chance 187.6%',

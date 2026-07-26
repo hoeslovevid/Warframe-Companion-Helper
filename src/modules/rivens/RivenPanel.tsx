@@ -39,15 +39,18 @@ function RollCard({
   roll,
   label,
   winner,
+  interactive,
 }: {
   roll: RivenRoll
   label: string
   winner?: boolean
+  interactive?: boolean
 }) {
   return (
     <div className={`riven-card ${winner ? 'is-winner' : ''}`}>
       <div className="riven-card__label">{label}</div>
       <div className="riven-card__weapon">{roll.weapon}</div>
+      {roll.polarity ? <div className="riven-card__polarity">{roll.polarity}</div> : null}
       <div className={`riven-card__tier is-${roll.tier}`}>
         {roll.tier}
         <span>{roll.score}/100</span>
@@ -67,7 +70,24 @@ function RollCard({
           {roll.marketVolume != null ? (
             <span className="riven-card__plat-vol">{roll.marketVolume} listings</span>
           ) : null}
+          {roll.marketUrl && interactive ? (
+            <button
+              type="button"
+              className="riven-card__market-link"
+              onClick={() => void window.voidlens.openExternal(roll.marketUrl!)}
+            >
+              market
+            </button>
+          ) : null}
         </div>
+      ) : roll.marketUrl && interactive ? (
+        <button
+          type="button"
+          className="riven-card__market-link alone"
+          onClick={() => void window.voidlens.openExternal(roll.marketUrl!)}
+        >
+          Open on warframe.market
+        </button>
       ) : null}
       {roll.prefsMatched ? (
         <div className="riven-card__prefs" title={roll.prefsNotes || 'Sheet preferences'}>
@@ -89,10 +109,11 @@ function RollCard({
   )
 }
 
-function recoText(rec: RivenScanState['recommendation']) {
-  if (rec === 'take') return 'Take the new roll'
-  if (rec === 'keep') return 'Keep the current roll'
-  if (rec === 'similar') return 'Similar quality — either is fine'
+function recoText(state: RivenScanState) {
+  if (state.recommendationNote) return state.recommendationNote
+  if (state.recommendation === 'take') return 'Take the new roll'
+  if (state.recommendation === 'keep') return 'Keep the current roll'
+  if (state.recommendation === 'similar') return 'Similar quality — either is fine'
   return null
 }
 
@@ -111,7 +132,7 @@ export function RivenPanel({
   const scanning = previewMode ? false : state.scanning
   const current = state.current
   const reroll = state.reroll
-  const reco = recoText(state.recommendation)
+  const reco = recoText(state)
   const winnerSide =
     state.recommendation === 'take'
       ? 'reroll'
@@ -119,6 +140,7 @@ export function RivenPanel({
         ? 'current'
         : null
   const strip = stripSize(layoutWidth, layoutHeight)
+  const interactive = !compact && !previewMode
 
   const body = (
     <div className="mod-stack">
@@ -133,6 +155,7 @@ export function RivenPanel({
                 roll={current}
                 label="Current"
                 winner={winnerSide === 'current'}
+                interactive={interactive}
               />
             ) : (
               <div className="riven-card">
@@ -141,7 +164,12 @@ export function RivenPanel({
             )}
             <div className="riven-vs">VS</div>
             {reroll ? (
-              <RollCard roll={reroll} label="Reroll" winner={winnerSide === 'reroll'} />
+              <RollCard
+                roll={reroll}
+                label="Reroll"
+                winner={winnerSide === 'reroll'}
+                interactive={interactive}
+              />
             ) : (
               <div className="riven-card">
                 <p className="mod-empty">Reroll not read yet</p>

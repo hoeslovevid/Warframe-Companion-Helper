@@ -124,6 +124,14 @@
   color: var(--vl-mist);
 }
 
+.riven-card__polarity {
+  margin: -4px 0 6px;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vl-mist-dim, #7f96a6);
+}
+
 .riven-card__plat {
   margin: -4px 0 8px;
   font-size: 0.78rem;
@@ -131,7 +139,25 @@
   color: #d8c48a;
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.riven-card__market-link {
+  border: 0;
+  background: transparent;
+  color: var(--vl-teal-bright, #5fd0c5);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+}
+
+.riven-card__market-link.alone {
+  display: inline-block;
+  margin: -4px 0 8px;
 }
 
 .riven-card__plat-vol {

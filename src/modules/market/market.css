@@ -1,0 +1,58 @@
+.market-page {
+  display: grid;
+  gap: 0;
+}
+
+.market-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.market-add input {
+  flex: 1;
+}
+
+.market-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.market-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(157, 180, 196, 0.12);
+}
+
+.market-list.compact li {
+  padding: 6px 0;
+}
+
+.market-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.market-plat {
+  color: #d8c48a;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.market-best {
+  color: var(--vl-teal-bright, #5fd0c5);
+  font-size: 0.75rem;
+  margin-left: 6px;
+}
+
+.market-error {
+  color: #d87a7a;
+  font-size: 0.85rem;
+}

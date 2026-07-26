@@ -149,6 +149,25 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       ? raw.nightwaveDoneIds
       : base.nightwaveDoneIds,
     relicSoundEnabled: raw.relicSoundEnabled ?? base.relicSoundEnabled,
+    rivenSoundEnabled: raw.rivenSoundEnabled ?? base.rivenSoundEnabled,
+    soundPack:
+      raw.soundPack === 'soft' ||
+      raw.soundPack === 'bright' ||
+      raw.soundPack === 'double' ||
+      raw.soundPack === 'low'
+        ? raw.soundPack
+        : base.soundPack,
+    marketWatchlist: Array.isArray(raw.marketWatchlist)
+      ? raw.marketWatchlist.filter((x): x is string => typeof x === 'string')
+      : base.marketWatchlist,
+    widgetServerEnabled: raw.widgetServerEnabled ?? base.widgetServerEnabled,
+    widgetServerPort:
+      typeof raw.widgetServerPort === 'number' &&
+      Number.isFinite(raw.widgetServerPort) &&
+      raw.widgetServerPort > 0 &&
+      raw.widgetServerPort < 65536
+        ? Math.floor(raw.widgetServerPort)
+        : base.widgetServerPort,
     quietMode: raw.quietMode ?? base.quietMode,
     inventoryAutoSync: raw.inventoryAutoSync ?? base.inventoryAutoSync,
     lastSeenVersion: raw.lastSeenVersion ?? base.lastSeenVersion,

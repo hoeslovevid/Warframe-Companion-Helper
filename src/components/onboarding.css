@@ -80,6 +80,38 @@
   color: var(--vl-frost);
 }
 
+.linux-wizard__steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 6px;
+  color: var(--vl-mist, #9db4c4);
+  font-size: 0.88rem;
+}
+
+.linux-wizard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.linux-wizard__ok {
+  margin: 10px 0 0;
+  color: var(--vl-teal-bright, #5fd0c5);
+  font-size: 0.85rem;
+}
+
+.linux-wizard__err {
+  margin: 10px 0 0;
+  color: #d87a7a;
+  font-size: 0.85rem;
+}
+
+.linux-wizard-card {
+  margin-bottom: 16px;
+}
+
 .getting-started__actions {
   display: flex;
   flex-wrap: wrap;

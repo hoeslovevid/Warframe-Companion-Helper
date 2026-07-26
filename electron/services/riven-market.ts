@@ -409,13 +409,39 @@ function matchRank(q: RivenMarketQuote) {
   return m * 1000 + Math.min(q.volume, 50)
 }
 
+/** Build a warframe.market auction search URL for a roll (best-effort). */
+export function buildRivenMarketUrl(roll: RivenRoll, weaponSlug?: string | null): string | null {
+  const slug = weaponSlug || null
+  if (!slug && !roll.weapon) return null
+  const { positives, negatives } = splitAttrs(roll.stats)
+  const qs = new URLSearchParams()
+  qs.set('type', 'riven')
+  if (slug) qs.set('weapon_url_name', slug)
+  if (positives.length) qs.set('positive_stats', positives.join(','))
+  if (negatives.length === 1) qs.set('negative_stats', negatives[0])
+  qs.set('polarity', 'any')
+  qs.set('sort_by', 'price_asc')
+  return `https://warframe.market/auctions/search?${qs.toString()}`
+}
+
 function withQuote(roll: RivenRoll, q: RivenMarketQuote | null): RivenRoll {
-  if (!q) return { ...roll, platinum: null, marketVolume: null, marketMatch: null }
+  const weaponSlug = q?.weaponSlug || null
+  const marketUrl = buildRivenMarketUrl(roll, weaponSlug)
+  if (!q) {
+    return {
+      ...roll,
+      platinum: null,
+      marketVolume: null,
+      marketMatch: null,
+      marketUrl,
+    }
+  }
   return {
     ...roll,
     platinum: q.platinum,
     marketVolume: q.volume,
     marketMatch: q.match,
+    marketUrl: buildRivenMarketUrl(roll, q.weaponSlug),
   }
 }
 
@@ -424,12 +450,19 @@ export async function enrichRivensWithMarket(
   current: RivenRoll | null,
   reroll: RivenRoll | null,
 ): Promise<{ current: RivenRoll | null; reroll: RivenRoll | null }> {
-  const [cq, rq] = await Promise.all([
+  const [cq, rq, cSlug, rSlug] = await Promise.all([
     current ? lookupRivenMarketQuote(current).catch(() => null) : Promise.resolve(null),
     reroll ? lookupRivenMarketQuote(reroll).catch(() => null) : Promise.resolve(null),
+    current ? resolveRivenWeaponSlug(current.weapon).catch(() => null) : Promise.resolve(null),
+    reroll ? resolveRivenWeaponSlug(reroll.weapon).catch(() => null) : Promise.resolve(null),
   ])
+  const attach = (roll: RivenRoll, q: RivenMarketQuote | null, slug: string | null) => {
+    const next = withQuote(roll, q)
+    const marketUrl = buildRivenMarketUrl(next, q?.weaponSlug || slug)
+    return { ...next, marketUrl }
+  }
   return {
-    current: current ? withQuote(current, cq) : null,
-    reroll: reroll ? withQuote(reroll, rq) : null,
+    current: current ? attach(current, cq, cSlug) : null,
+    reroll: reroll ? attach(reroll, rq, rSlug) : null,
   }
 }

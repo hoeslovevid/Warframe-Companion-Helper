@@ -53,6 +53,13 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.16': [
     'Riven grader: warframe.market platinum estimates for current vs reroll',
   ],
+  '0.9.17': [
+    'Riven grader polish: polarity, market links, plat-aware keep/take tips',
+    'New Market tab: watchlist platinum quotes + latest scan prices',
+    'Sound packs for relic/riven chimes + stronger EE.log auto-detect',
+    'Linux screen-capture onboarding wizard for PipeWire OCR',
+    'OBS widget server: localhost Browser Source panels for external overlays',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

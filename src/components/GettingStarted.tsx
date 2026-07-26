@@ -52,6 +52,23 @@ export function GettingStarted({
       actionLabel: 'Open Inventory',
       onAction: onGoInventory,
     },
+    ...(typeof navigator !== 'undefined' && /linux/i.test(navigator.userAgent)
+      ? [
+          {
+            key: 'linuxCaptureAck' as const,
+            label: 'Authorize Linux screen capture for OCR',
+            done: ob.linuxCaptureAck,
+            actionLabel: 'Open wizard',
+            onAction: () => {
+              /* wizard sits on the dashboard above this checklist */
+              onUpdate({ onboarding: { ...ob } })
+              document
+                .querySelector('[data-tour="linux-capture"]')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            },
+          },
+        ]
+      : []),
   ]
 
   const doneCount = steps.filter((s) => s.done).length

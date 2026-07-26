@@ -55,6 +55,10 @@ const api: VoidLensApi = {
     ipcRenderer.invoke('bugReport:copyDiagnostics', draft),
   pickBugScreenshots: () => ipcRenderer.invoke('bugReport:pickScreenshots'),
   openBugDebugFolders: () => ipcRenderer.invoke('bugReport:openDebugFolders'),
+  lookupMarketPrices: (names) => ipcRenderer.invoke('market:lookup', names),
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  testScreenCapture: () => ipcRenderer.invoke('capture:test'),
+  getWidgetServerStatus: () => ipcRenderer.invoke('widgets:status'),
   onSettingsChanged: (cb) => {
     const listener = (_: Electron.IpcRendererEvent, settings: AppSettings) => cb(settings)
     ipcRenderer.on('settings:changed', listener)
@@ -94,6 +98,11 @@ const api: VoidLensApi = {
     const listener = () => cb()
     ipcRenderer.on('relics:sound', listener)
     return () => ipcRenderer.removeListener('relics:sound', listener)
+  },
+  onRivenSound: (cb) => {
+    const listener = () => cb()
+    ipcRenderer.on('rivens:sound', listener)
+    return () => ipcRenderer.removeListener('rivens:sound', listener)
   },
 }
 

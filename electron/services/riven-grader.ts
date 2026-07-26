@@ -537,6 +537,13 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
   return dedupeStats(stats)
 }
 
+function guessPolarity(text: string): string | null {
+  const m = text.match(/\b(madurai|vazarin|naramon|zenurik)\b/i)
+  if (!m) return null
+  const p = m[1].toLowerCase()
+  return p.charAt(0).toUpperCase() + p.slice(1)
+}
+
 /** Parse OCR block from one full riven card into structured stats + weapon guess. */
 export function parseRivenOcr(ocrText: string, side: 'current' | 'reroll'): RivenRoll {
   loadRivenPreferences()
@@ -553,6 +560,7 @@ export function parseRivenOcr(ocrText: string, side: 'current' | 'reroll'): Rive
     tier: graded.tier,
     prefsMatched: graded.prefsMatched,
     prefsNotes: graded.prefsNotes,
+    polarity: guessPolarity(scrubbed),
   }
 }
 
@@ -624,12 +632,52 @@ export function scoreToTier(score: number): RivenTier {
   return 'F'
 }
 
+export type RivenRecommendation = {
+  recommendation: 'keep' | 'take' | 'similar' | 'none'
+  note: string | null
+}
+
+/**
+ * Prefer higher grade; when scores are close, break ties with market plat
+ * (and sheet-pref match as a soft hint).
+ */
 export function recommendRolls(
   current: RivenRoll | null,
   reroll: RivenRoll | null,
-): 'keep' | 'take' | 'similar' | 'none' {
-  if (!current || !reroll) return 'none'
+): RivenRecommendation {
+  if (!current || !reroll) return { recommendation: 'none', note: null }
   const delta = reroll.score - current.score
-  if (Math.abs(delta) < 4) return 'similar'
-  return delta > 0 ? 'take' : 'keep'
+  if (Math.abs(delta) >= 4) {
+    return {
+      recommendation: delta > 0 ? 'take' : 'keep',
+      note: null,
+    }
+  }
+
+  const cp = current.platinum
+  const rp = reroll.platinum
+  if (cp != null && rp != null && Math.abs(rp - cp) >= 25) {
+    const takeNew = rp > cp
+    return {
+      recommendation: takeNew ? 'take' : 'keep',
+      note: takeNew
+        ? `Similar grade — new roll ~${rp - cp}p higher on market`
+        : `Similar grade — current ~${cp - rp}p higher on market`,
+    }
+  }
+
+  if (reroll.prefsMatched && !current.prefsMatched) {
+    return {
+      recommendation: 'take',
+      note: 'Similar grade — new roll matches sheet prefs',
+    }
+  }
+  if (current.prefsMatched && !reroll.prefsMatched) {
+    return {
+      recommendation: 'keep',
+      note: 'Similar grade — current matches sheet prefs',
+    }
+  }
+
+  return { recommendation: 'similar', note: 'Similar quality — either is fine' }
 }

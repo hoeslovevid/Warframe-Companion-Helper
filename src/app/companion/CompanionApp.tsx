@@ -39,12 +39,15 @@ import { ArchonPanel } from '../../modules/archon/ArchonPanel'
 import { DeepArchimedeaPanel } from '../../modules/deepArchimedea/DeepArchimedeaPanel'
 import { RivenPanel } from '../../modules/rivens/RivenPanel'
 import { FoundryPage } from '../../modules/foundry/FoundryPage'
+import { MarketPage } from '../../modules/market/MarketPage'
+import { LinuxCaptureWizard } from '../../components/LinuxCaptureWizard'
 import { LayoutEditor } from './LayoutEditor'
 import { prettyHotkey } from '../../lib/hotkey'
+import { playScanSound } from '../../lib/sounds'
 import '../../styles/companion.css'
 import '../../modules/cycles/module.css'
 
-type Tab = 'dashboard' | 'modules' | 'foundry' | 'layout' | 'settings' | 'help'
+type Tab = 'dashboard' | 'modules' | 'foundry' | 'market' | 'layout' | 'settings' | 'help'
 
 const TIER_OPTIONS = ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem']
 
@@ -79,6 +82,12 @@ const TOUR_STEPS: TourStep[] = [
     body: 'Browse craftable gear, check ready-to-build status, and expand crafting trees against your synced inventory.',
   },
   {
+    target: 'nav-market',
+    tab: 'market',
+    title: 'Market',
+    body: 'Track warframe.market platinum for a watchlist, and see prices from your latest relic and riven scans.',
+  },
+  {
     target: 'nav-layout',
     tab: 'layout',
     title: 'Layout',
@@ -97,25 +106,6 @@ const TOUR_STEPS: TourStep[] = [
     body: 'Replay this tour, reopen Getting started, or jump to the website and update notes.',
   },
 ]
-
-function playRelicChime() {
-  try {
-    const ctx = new AudioContext()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = 784
-    gain.gain.value = 0.035
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18)
-    osc.stop(ctx.currentTime + 0.18)
-    void ctx.close()
-  } catch {
-    // Audio may be blocked until user gesture
-  }
-}
 
 export function CompanionApp() {
   const [tab, setTab] = useState<Tab>('dashboard')
@@ -253,8 +243,13 @@ export function CompanionApp() {
 
   useEffect(() => {
     if (!window.voidlens?.onRelicSound) return
-    return window.voidlens.onRelicSound(playRelicChime)
-  }, [])
+    return window.voidlens.onRelicSound(() => playScanSound('relic', settings.soundPack))
+  }, [settings.soundPack])
+
+  useEffect(() => {
+    if (!window.voidlens?.onRivenSound) return
+    return window.voidlens.onRivenSound(() => playScanSound('riven', settings.soundPack))
+  }, [settings.soundPack])
 
   useEffect(() => {
     const unsub = window.voidlens?.onOverlayVisibilityChanged((visible) => {
@@ -323,6 +318,14 @@ export function CompanionApp() {
               Foundry
             </button>
             <button
+              className={`nav-btn ${tab === 'market' ? 'active' : ''}`}
+              data-tour="nav-market"
+              title="warframe.market watchlist and scan prices"
+              onClick={() => goTab('market')}
+            >
+              Market
+            </button>
+            <button
               className={`nav-btn ${tab === 'layout' ? 'active' : ''}`}
               data-tour="nav-layout"
               title="Drag panels on a mock monitor"
@@ -372,6 +375,16 @@ export function CompanionApp() {
                   }}
                   onStartTour={() => setTourOpen(true)}
                 />
+
+                {typeof navigator !== 'undefined' &&
+                /linux/i.test(navigator.userAgent) &&
+                !settings.onboarding.linuxCaptureAck ? (
+                  <LinuxCaptureWizard
+                    settings={settings}
+                    displays={displays}
+                    onUpdate={(partial) => void updateSettings(partial)}
+                  />
+                ) : null}
 
                 {relicScan.celebration && !settings.onboarding.firstRelicSuccessAck ? (
                   <section className="getting-started" style={{ marginBottom: 16 }}>
@@ -626,6 +639,14 @@ export function CompanionApp() {
               <FoundryPage
                 enabled={settings.modules.foundry}
                 onOpenSettings={() => goTab('settings')}
+              />
+            ) : null}
+
+            {tab === 'market' ? (
+              <MarketPage
+                settings={settings}
+                enabled={settings.modules.market}
+                onUpdate={(partial) => void updateSettings(partial)}
               />
             ) : null}
 
@@ -912,6 +933,16 @@ export function CompanionApp() {
                       . On Linux, choose that same screen in the screen-share dialog.
                     </p>
                   </div>
+                  {typeof navigator !== 'undefined' && /linux/i.test(navigator.userAgent) ? (
+                    <div style={{ marginTop: 12 }}>
+                      <LinuxCaptureWizard
+                        compact
+                        settings={settings}
+                        displays={displays}
+                        onUpdate={(partial) => void updateSettings(partial)}
+                      />
+                    </div>
+                  ) : null}
                   <ToggleRow
                     label="Overlay visible"
                     description="Global hotkey also toggles this"
@@ -939,16 +970,84 @@ export function CompanionApp() {
                     />
                     <ToggleRow
                       label="Relic scan chime"
-                      description="Play a soft sound when relic rewards appear"
+                      description="Play a sound when relic rewards appear"
                       checked={settings.relicSoundEnabled}
                       onChange={(enabled) => void updateSettings({ relicSoundEnabled: enabled })}
                     />
+                    <ToggleRow
+                      label="Riven scan chime"
+                      description="Play a sound when a riven compare popup appears"
+                      checked={settings.rivenSoundEnabled}
+                      onChange={(enabled) => void updateSettings({ rivenSoundEnabled: enabled })}
+                    />
+                    <div className="field">
+                      <label htmlFor="sound-pack">Sound pack</label>
+                      <select
+                        id="sound-pack"
+                        value={settings.soundPack}
+                        onChange={(e) => {
+                          const pack = e.target.value as typeof settings.soundPack
+                          void updateSettings({ soundPack: pack })
+                          playScanSound('relic', pack)
+                        }}
+                      >
+                        <option value="soft">Soft</option>
+                        <option value="bright">Bright</option>
+                        <option value="double">Double tap</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </div>
                     <ToggleRow
                       label="Auto-sync inventory"
                       description="Resync inventory while Warframe is running"
                       checked={settings.inventoryAutoSync}
                       onChange={(enabled) => void updateSettings({ inventoryAutoSync: enabled })}
                     />
+                  </Panel>
+
+                  <Panel
+                    title="OBS / external widgets"
+                    subtitle="Local browser sources for Streamlabs / OBS"
+                  >
+                    <ToggleRow
+                      label="Widget server"
+                      description="Serve HTML widgets on localhost for Browser Source overlays"
+                      checked={settings.widgetServerEnabled}
+                      onChange={(enabled) => void updateSettings({ widgetServerEnabled: enabled })}
+                    />
+                    <div className="field">
+                      <label htmlFor="widget-port">Port</label>
+                      <input
+                        id="widget-port"
+                        type="number"
+                        min={1024}
+                        max={65535}
+                        value={settings.widgetServerPort}
+                        onChange={(e) =>
+                          void updateSettings({
+                            widgetServerPort: Number(e.target.value) || 17862,
+                          })
+                        }
+                      />
+                    </div>
+                    {settings.widgetServerEnabled ? (
+                      <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.78rem' }}>
+                        Open{' '}
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          style={{ padding: '0 4px', verticalAlign: 'baseline' }}
+                          onClick={() =>
+                            void window.voidlens.openExternal(
+                              `http://127.0.0.1:${settings.widgetServerPort}/`,
+                            )
+                          }
+                        >
+                          http://127.0.0.1:{settings.widgetServerPort}/
+                        </button>{' '}
+                        for widget URLs (fissures, cycles, relics, rivens, …).
+                      </p>
+                    ) : null}
                   </Panel>
 
                   <Panel title="Hotkeys">

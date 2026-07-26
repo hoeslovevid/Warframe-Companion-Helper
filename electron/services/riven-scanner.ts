@@ -43,6 +43,7 @@ let state: RivenScanState = {
   current: null,
   reroll: null,
   recommendation: 'none',
+  recommendationNote: null,
 }
 
 function emit() {
@@ -84,6 +85,7 @@ export function clearRivenScan(): RivenScanState {
     current: null,
     reroll: null,
     recommendation: 'none',
+    recommendationNote: null,
   }
   emit()
   return state
@@ -214,7 +216,7 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
 
     // Market is optional — show grades first, then refresh with plat estimates.
     const scannedAt = new Date().toISOString()
-    const recommendation = recommendRolls(current, reroll)
+    const reco = recommendRolls(current, reroll)
     state = {
       active: true,
       scanning: false,
@@ -223,7 +225,8 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
       error: null,
       current,
       reroll,
-      recommendation,
+      recommendation: reco.recommendation,
+      recommendationNote: reco.note,
     }
     emit()
     scheduleHide(AUTO_HIDE_MS)
@@ -231,10 +234,13 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
     try {
       const priced = await enrichRivensWithMarket(current, reroll)
       if (state.scannedAt === scannedAt && state.active && !state.scanning) {
+        const pricedReco = recommendRolls(priced.current, priced.reroll)
         state = {
           ...state,
           current: priced.current,
           reroll: priced.reroll,
+          recommendation: pricedReco.recommendation,
+          recommendationNote: pricedReco.note,
         }
         emit()
       }

@@ -77,6 +77,13 @@ import {
   openBugReport,
   pickBugScreenshots,
 } from './services/bug-report'
+import { fetchItemQuotes } from './services/market'
+import {
+  setWidgetWorldstateProvider,
+  syncWidgetServerFromSettings,
+  getWidgetServerStatus,
+  stopWidgetServer,
+} from './services/widget-server'
 import {
   AppSettings,
   FoundryListFilters,
@@ -222,6 +229,11 @@ async function runRivenScan(trigger: 'manual' | 'log') {
   }
   const state = await scanRivens(trigger)
   broadcastRivenScan()
+  if ((state.current || state.reroll) && !state.error && settings.rivenSoundEnabled) {
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send('rivens:sound')
+    }
+  }
   return state
 }
 
@@ -719,6 +731,12 @@ function registerIpc() {
         restoreOverlayGeometry(overlayWindow)
       }
     }
+    if (
+      partial.widgetServerEnabled !== undefined ||
+      partial.widgetServerPort !== undefined
+    ) {
+      void syncWidgetServerFromSettings()
+    }
     broadcastSettings(next)
     return next
   })
@@ -847,10 +865,42 @@ function registerIpc() {
   )
   ipcMain.handle('bugReport:pickScreenshots', async () => pickBugScreenshots())
   ipcMain.handle('bugReport:openDebugFolders', async () => openBugDebugFolders())
+  ipcMain.handle('market:lookup', async (_e, names: string[]) => {
+    const list = Array.isArray(names) ? names.filter((n) => typeof n === 'string') : []
+    return fetchItemQuotes(list)
+  })
+  ipcMain.handle('shell:openExternal', async (_e, url: string) => {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return false
+    await shell.openExternal(url)
+    return true
+  })
+  ipcMain.handle('capture:test', async () => {
+    try {
+      const ok = await warmScreenCapture()
+      if (ok) {
+        return {
+          ok: true,
+          message: 'Capture ready — screen share authorized for OCR.',
+        }
+      }
+      return {
+        ok: false,
+        message:
+          'Capture not ready. On Linux, accept the screen-share dialog and pick Warframe’s monitor.',
+      }
+    } catch (err) {
+      return {
+        ok: false,
+        message: err instanceof Error ? err.message : 'Capture test failed',
+      }
+    }
+  })
+  ipcMain.handle('widgets:status', () => getWidgetServerStatus())
 }
 
 app.whenReady().then(async () => {
   registerIpc()
+  setWidgetWorldstateProvider(() => worldstateCache)
 
   const settings = loadSettings()
   if (!settings.eeLogPath) {
@@ -860,6 +910,7 @@ app.whenReady().then(async () => {
 
   createCompanionWindow()
   overlayWindow = createOverlayWindow(isDev ? DEV_URL : null)
+  void syncWidgetServerFromSettings()
   setCaptureOverlayPause(() => {
     const win = overlayWindow
     if (!win || win.isDestroyed()) return () => {}
@@ -1034,6 +1085,7 @@ app.on('will-quit', () => {
   if (worldstateTimer) clearInterval(worldstateTimer)
   if (inventorySyncTimer) clearInterval(inventorySyncTimer)
   if (expiryTimer) clearInterval(expiryTimer)
+  void stopWidgetServer()
   disposePersistentCapture()
   void shutdownOcr()
 })
