@@ -899,13 +899,17 @@ export function CompanionApp() {
                       {displays.map((d) => (
                         <option key={d.id} value={String(d.id)}>
                           {d.label}
-                          {d.isPrimary ? ' · primary' : ''} — {d.width}×{d.height}
+                          {d.isPrimary ? ' · primary' : ''} — {d.width}×{d.height} (id {d.id})
                         </option>
                       ))}
                     </select>
                     <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.78rem' }}>
-                      Relic/riven OCR and the overlay use this monitor. Pick the screen Warframe
-                      is on when you run multi-monitor.
+                      Relic/riven OCR and the overlay use this monitor. Pick the screen Warframe is
+                      on when you run multi-monitor
+                      {displays.length > 1
+                        ? ' — junk OCR often means the wrong display is selected'
+                        : ''}
+                      . On Linux, choose that same screen in the screen-share dialog.
                     </p>
                   </div>
                   <ToggleRow

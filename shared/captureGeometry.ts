@@ -14,14 +14,15 @@ export type CaptureRegion = {
  * the diamond art so edge-hugging values like `x1.64` stay inside the frame.
  */
 export function rivenCompareRegions(width: number, height: number): CaptureRegion[] {
-  const gap = Math.round(width * 0.012)
-  const startX = Math.round(width * 0.36)
+  const gap = Math.round(width * 0.01)
+  // Slightly earlier / wider so edge-hugging "x1.64" multipliers stay in-frame.
+  const startX = Math.round(width * 0.348)
   const y = Math.round(height * 0.12)
 
   // Current / selected card is rendered larger than the reroll card.
-  const leftW = Math.round(width * 0.23)
+  const leftW = Math.round(width * 0.24)
   const leftH = Math.round(height * 0.7)
-  const rightW = Math.round(width * 0.215)
+  const rightW = Math.round(width * 0.22)
   const rightH = Math.round(height * 0.64)
   const rightY = y + Math.round(height * 0.03)
 

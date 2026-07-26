@@ -46,6 +46,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Help → Report a bug opens a prefilled GitHub Issue',
     'Fissure filters: can’t clear all tiers; empty tier lists reset to defaults',
   ],
+  '0.9.15': [
+    'Riven OCR: read faction multipliers (x1.64 Damage to Infested) more reliably',
+    'Relic OCR: ignore garbage unmatched text; clearer multi-monitor Linux hint',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

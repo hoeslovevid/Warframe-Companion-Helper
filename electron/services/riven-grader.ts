@@ -122,6 +122,8 @@ const STAT_META: Record<
 function scrubOcr(s: string) {
   return s
     .replace(/[|*·•‚’‘]/g, ' ')
+    // Faction multipliers often use a unicode times glyph instead of "x"
+    .replace(/[×✕✖⨯ⅹ]/g, 'x')
     // Elemental icon often splits "Cold" → "Col in" / "Col d" / bare "Col"
     .replace(/\bCol\s*i?n\b/gi, 'Cold')
     .replace(/\bCol\s*d\b/gi, 'Cold')
@@ -131,8 +133,8 @@ function scrubOcr(s: string) {
     .replace(/\bH0t\b|\bHea1\b/gi, 'Heat')
     .replace(/\bT0xin\b|\bToxln\b/gi, 'Toxin')
     .replace(/\bElec(?:tr(?:icity)?)?\b/gi, 'Electricity')
-    .replace(/lnfected|lnfeste[dc]?/gi, 'Infested')
-    .replace(/Grlneer/gi, 'Grineer')
+    .replace(/lnfected|lnfeste[dc]?|1nfested/gi, 'Infested')
+    .replace(/Grlneer|Grinecr/gi, 'Grineer')
     .replace(/Corp[uü]s/gi, 'Corpus')
     .replace(/\blgnis\b/gi, 'Ignis')
     .replace(/Mu1ti/gi, 'Multi')
@@ -140,8 +142,13 @@ function scrubOcr(s: string) {
     .replace(/Critica?\s*Cha(?:n(?:ce)?)?/gi, 'Critical Chance')
     .replace(/\bChanc[ec]\b/gi, 'Chance')
     .replace(/Damaqe|Damag[eo]/gi, 'Damage')
+    .replace(/\bDamageto\b/gi, 'Damage to')
+    .replace(/\bDamage\s*2\s*/gi, 'Damage to ')
     .replace(/Multish0t|Multisho(?:t)?/gi, 'Multishot')
     .replace(/Punch\s*Thr(?:ough)?/gi, 'Punch Through')
+    // "x1 64" / "x l.64" OCR slips before faction lines
+    .replace(/\bx\s*[lI|]\s*[.,](\d+)/gi, 'x1.$1')
+    .replace(/\bx\s*(\d)\s+(\d{1,2})\b/gi, 'x$1.$2')
     .replace(/%\s*\*/g, '% ')
     .replace(/\*\s*%/g, '%')
     .replace(/([+\-]\d+(?:[.,]\d+)?)(%?)([A-Za-z])/g, '$1$2 $3')
@@ -423,7 +430,7 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
         continue
       }
 
-      const left = blob.slice(Math.max(0, idx - 22), idx)
+      const left = blob.slice(Math.max(0, idx - 32), idx)
       const signed = left.match(/([+\-]\s*\d+(?:[.,]\d+)?)\s*(%?)\s*$/)
       if (signed) {
         tryPush(signed[1], signed[2] || '', canon, idx - signed[0].length, nameEnd)
@@ -431,7 +438,8 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
       }
 
       // Real faction mults are "x1.5 Damage to …"; other % stats often OCR as x-confused.
-      const xToken = left.match(/\bx\s*(\d+[.,]\d+)\s*$/i)
+      // Avoid \b before x — OCR often glues punctuation: ")x1.64" / "*x1.5".
+      const xToken = left.match(/[x×]\s*(\d+[.,]\d+)\s*$/i)
       if (xToken) {
         const n = Number(String(xToken[1]).replace(',', '.'))
         const resolved = resolveXToken(n, canon)
@@ -447,10 +455,33 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
     }
   }
 
+  // Dedicated faction-multiplier pass — Linux OCR often drops "Damage to" or uses ×.
+  {
+    const factionCanon: Record<string, string> = {
+      infested: 'damage to infested',
+      corpus: 'damage to corpus',
+      grineer: 'damage to grineer',
+    }
+    const factionRe =
+      /[x×]\s*(\d+[.,]\d+)\s+(?:damage\s+to\s+)?(infested|corpus|grineer)\b|(\d+[.,]\d+)\s*[x×]\s+(?:damage\s+to\s+)?(infested|corpus|grineer)\b/gi
+    let fm: RegExpExecArray | null
+    while ((fm = factionRe.exec(blob)) != null) {
+      const nRaw = fm[1] || fm[3]
+      const faction = (fm[2] || fm[4] || '').toLowerCase()
+      const canon = factionCanon[faction]
+      if (!canon || !nRaw) continue
+      const n = Number(String(nRaw).replace(',', '.'))
+      const resolved = resolveXToken(n, canon)
+      if (!resolved) continue
+      if (stats.some((s) => s.name === canon)) continue
+      tryPush(resolved.valueRaw, resolved.percent, canon, fm.index, fm.index + fm[0].length)
+    }
+  }
+
   // Fallback: each ±value / x-value chunk → fuzzy-match the following words
   if (stats.length < 4) {
     const chunks = blob
-      .split(/(?=[+\-]\s*\d|\bx\s*\d)/i)
+      .split(/(?=[+\-]\s*\d|[x×]\s*\d)/i)
       .map((c) => c.trim())
       .filter(Boolean)
     for (const chunk of chunks) {
@@ -459,21 +490,35 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
       let percent = m?.[2] || ''
       let namePart = m?.[3]
       if (!m) {
-        const xm = chunk.match(/^x\s*(\d+[.,]\d+)\s+(.+)$/i)
+        const xm = chunk.match(/^[x×]\s*(\d+[.,]\d+)\s+(.+)$/i)
         if (!xm) continue
         const n = Number(String(xm[1]).replace(',', '.'))
         namePart = xm[2]
-        const hitPreview = matchStat(namePart.replace(/\s*[+\-x]\s*\d[\s\S]*$/i, '').trim())
-        if (!hitPreview) continue
+        // Bare faction word after multiplier: "x1.64 Infested"
+        const factionOnly = namePart.match(/^(?:damage\s+to\s+)?(infested|corpus|grineer)\b/i)
+        const hitPreview = factionOnly
+          ? {
+              canon: `damage to ${factionOnly[1].toLowerCase()}`,
+              meta: STAT_META[`damage to ${factionOnly[1].toLowerCase()}`],
+            }
+          : matchStat(namePart.replace(/\s*[+\-x×]\s*\d[\s\S]*$/i, '').trim())
+        if (!hitPreview?.meta) continue
         const resolved = resolveXToken(n, hitPreview.canon)
         if (!resolved) continue
         valueRaw = resolved.valueRaw
         percent = resolved.percent
+        namePart = hitPreview.canon
       }
-      namePart = (namePart || '').replace(/\s*[+\-]\s*\d[\s\S]*$/i, '').replace(/\s*x\s*\d[\s\S]*$/i, '').trim()
+      namePart = (namePart || '')
+        .replace(/\s*[+\-]\s*\d[\s\S]*$/i, '')
+        .replace(/\s*[x×]\s*\d[\s\S]*$/i, '')
+        .trim()
       if (!valueRaw || !namePart || namePart.length > 40) continue
       if (findByValue(valueRaw) >= 0) continue
-      const hit = matchStat(namePart)
+      const hit =
+        STAT_META[namePart]
+          ? { canon: namePart, meta: STAT_META[namePart] }
+          : matchStat(namePart)
       if (!hit) continue
       if (stats.some((s) => s.name === hit.canon)) continue
       const stat = buildStatLine(

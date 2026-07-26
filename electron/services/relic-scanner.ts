@@ -281,8 +281,16 @@ export async function scanRelicRewards(
         }
       })
 
-      // Keep slots that produced anything readable; empty slots stay out of the strip.
-      next = next.filter((r) => r.ocrText.trim().length > 2 || r.matchScore >= 0.5)
+      // Drop garbage OCR (e.g. "HHI", "dit") — require a real catalog hit or a
+      // long prime-part-shaped string. Short unmatched blobs used to pollute the strip.
+      next = next.filter(
+        (r) =>
+          r.matchScore >= 0.42 ||
+          (r.ocrText.trim().length >= 10 &&
+            /prime|blueprint|systems|chassis|neuro|barrel|receiver|blade|stock|grip|hilt|link|string/i.test(
+              r.ocrText,
+            )),
+      )
 
       if (saveDebugOnWeak && next.every((r) => r.matchScore < 0.45)) {
         saveRelicDebugCrops(capture.bands, 'weak', capture.fullPng)
@@ -310,18 +318,25 @@ export async function scanRelicRewards(
     }
 
     let rewards = await buildRewards(false)
-    let useful = rewards.some((r) => r.matchScore >= 0.45 || r.ocrText.trim().length > 3)
+    // Catalog match required — length alone is not "useful" (junk like "449-e").
+    let useful = rewards.some((r) => r.matchScore >= 0.45)
 
     // Proton log flush / UI paint can lag — one retry when the first pass is empty.
     if (!useful) {
       console.info('[Everything Warframe] Relic OCR weak — retrying capture…')
       await new Promise((r) => setTimeout(r, process.platform === 'linux' ? 1400 : 1000))
       rewards = await buildRewards(true)
-      useful = rewards.some((r) => r.matchScore >= 0.45 || r.ocrText.trim().length > 3)
+      useful = rewards.some((r) => r.matchScore >= 0.45)
     }
 
     if (!useful) {
-      throw new Error('No reward names detected. Open the fissure pick screen, then scan again.')
+      const multi =
+        process.platform === 'linux'
+          ? ' On multi-monitor Linux, set Settings → Game/OCR monitor to the screen Warframe is on, and pick that same screen in the screen-share dialog.'
+          : ' If you use multiple monitors, set Settings → Game/OCR monitor to Warframe’s screen.'
+      throw new Error(
+        'No reward names detected. Open the fissure pick screen, then scan again.' + multi,
+      )
     }
 
     try {
