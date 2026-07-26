@@ -384,9 +384,10 @@ export async function recognizeRivenBlocks(images: Buffer[]): Promise<string[]> 
         ] as const) {
           const statsPng = await sharp(png)
             .extract({
-              left: Math.round(w * 0.04),
+              // Keep near-edge multipliers (x1.64) inside the OCR band.
+              left: Math.round(w * 0.015),
               top: Math.round(h * band.top),
-              width: Math.round(w * 0.92),
+              width: Math.round(w * 0.97),
               height: Math.round(h * band.height),
             })
             .toBuffer()

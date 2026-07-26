@@ -10,21 +10,20 @@ export type CaptureRegion = {
 /**
  * Left = current roll, right = reroll — full Kuva Cycle diamond cards.
  *
- * Tuned from 2560×1440 debug crops: pair sits right-of-center with a narrow gap.
- * The selected (left) card is larger in-game, so it needs a taller crop — the
- * third stat line (e.g. Critical Damage) was being clipped at the bottom.
+ * Tuned for multi-monitor / varied aspect ratios. Crops are slightly wider than
+ * the diamond art so edge-hugging values like `x1.64` stay inside the frame.
  */
 export function rivenCompareRegions(width: number, height: number): CaptureRegion[] {
-  const gap = Math.round(width * 0.014)
-  const startX = Math.round(width * 0.375)
-  const y = Math.round(height * 0.135)
+  const gap = Math.round(width * 0.012)
+  const startX = Math.round(width * 0.36)
+  const y = Math.round(height * 0.12)
 
   // Current / selected card is rendered larger than the reroll card.
-  const leftW = Math.round(width * 0.215)
-  const leftH = Math.round(height * 0.68)
-  const rightW = Math.round(width * 0.195)
-  const rightH = Math.round(height * 0.62)
-  const rightY = y + Math.round(height * 0.035)
+  const leftW = Math.round(width * 0.23)
+  const leftH = Math.round(height * 0.7)
+  const rightW = Math.round(width * 0.215)
+  const rightH = Math.round(height * 0.64)
+  const rightY = y + Math.round(height * 0.03)
 
   return [
     { x: startX, y, width: leftW, height: leftH },
@@ -34,12 +33,12 @@ export function rivenCompareRegions(width: number, height: number): CaptureRegio
 
 /** Lower portion of a card crop — where rolled stats usually sit. */
 export function rivenCardStatsRegion(card: CaptureRegion): CaptureRegion {
-  const topSkip = Math.round(card.height * 0.28)
+  const topSkip = Math.round(card.height * 0.26)
   return {
-    x: card.x + Math.round(card.width * 0.08),
+    x: card.x + Math.round(card.width * 0.03),
     y: card.y + topSkip,
-    width: Math.round(card.width * 0.84),
-    height: Math.round(card.height * 0.62),
+    width: Math.round(card.width * 0.94),
+    height: Math.round(card.height * 0.66),
   }
 }
 
@@ -71,5 +70,67 @@ export function defaultRivenAnchor(
   height: number,
 ): { x: number; y: number } {
   const layout = rivenStripLayout(width, height)
+  return { x: layout.x, y: layout.y }
+}
+
+/**
+ * Four reward-name bands on a typical fissure pick screen.
+ * Names sit under the item art and above player names (~50–63% on 16:9).
+ */
+export function relicRewardRegions(width: number, height: number): CaptureRegion[] {
+  const slots = 4
+  const cardW = width * 0.17
+  const gap = width * 0.018
+  const total = slots * cardW + (slots - 1) * gap
+  const startX = (width - total) / 2
+  const y = height * 0.505
+  const h = height * 0.125
+
+  return Array.from({ length: slots }, (_, i) => ({
+    x: Math.round(startX + i * (cardW + gap)),
+    y: Math.round(y),
+    width: Math.round(cardW),
+    height: Math.round(h),
+  }))
+}
+
+/**
+ * Per-slot vertical variants so UI scale / resolution still hits the name line.
+ * Order: slightly above, primary, slightly below.
+ */
+export function relicRewardRegionVariants(width: number, height: number): CaptureRegion[][] {
+  const primary = relicRewardRegions(width, height)
+  const deltas = [-0.04, 0, 0.035]
+  const bandH = Math.round(height * 0.12)
+  return primary.map((base) =>
+    deltas.map((dy) => ({
+      x: base.x,
+      y: Math.max(0, Math.min(height - bandH, Math.round(base.y + height * dy))),
+      width: base.width,
+      height: bandH,
+    })),
+  )
+}
+
+/** Strip geometry as fractions of display size (for overlay alignment). */
+export function relicStripLayout(width: number, height: number) {
+  const regions = relicRewardRegions(width, height)
+  const left = regions[0]?.x ?? 0
+  const right = (regions[3]?.x ?? 0) + (regions[3]?.width ?? 0)
+  const ocrBottom = regions[0] ? regions[0].y + regions[0].height : Math.round(height * 0.63)
+  return {
+    x: left,
+    y: Math.min(height - 80, ocrBottom + Math.round(height * 0.02)),
+    width: right - left,
+    gap: regions.length > 1 ? regions[1].x - (regions[0].x + regions[0].width) : 0,
+    cardWidth: regions[0]?.width ?? Math.round(width * 0.17),
+  }
+}
+
+export function defaultRelicAnchor(
+  width: number,
+  height: number,
+): { x: number; y: number } {
+  const layout = relicStripLayout(width, height)
   return { x: layout.x, y: layout.y }
 }

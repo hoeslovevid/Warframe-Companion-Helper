@@ -122,6 +122,11 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
         ? (raw as { fissureShowStorms: boolean }).fissureShowStorms
         : base.fissureShowStorms,
     fissureSort: raw.fissureSort ?? base.fissureSort,
+    ocrDisplayId: (() => {
+      const id = (raw as { ocrDisplayId?: number | null }).ocrDisplayId
+      if (id === null || id === undefined) return base.ocrDisplayId
+      return typeof id === 'number' && Number.isFinite(id) ? id : base.ocrDisplayId
+    })(),
     inventorySource: raw.inventorySource ?? base.inventorySource,
     inventoryConsent: raw.inventoryConsent ?? base.inventoryConsent,
     inventoryLastSynced: raw.inventoryLastSynced ?? base.inventoryLastSynced,

@@ -1,0 +1,62 @@
+name: Bug report
+description: Something broken in Everything Warframe (overlay, OCR, inventory, etc.)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Relic OCR / rewards
+        - Riven grader
+        - Overlay / layout
+        - Inventory / foundry
+        - Hotkeys / tray
+        - Linux / Proton
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Steps to reproduce and what you expected instead.
+      placeholder: |
+        1. Open Kuva Cycle compare
+        2. Press Alt+Shift+G
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: e.g. 0.9.12
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Windows 10/11
+        - Linux (native)
+        - Linux (Steam / Proton)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional)
+      description: Paste the block from Help → Report a Bug → Copy diagnostics. Attach screenshots or OCR debug crops if you have them.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues for a duplicate
+          required: false
+        - label: I am OK with maintainers seeing the diagnostics I pasted
+          required: true

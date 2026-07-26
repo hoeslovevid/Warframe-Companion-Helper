@@ -161,30 +161,67 @@ function normalize(s: string) {
     .trim()
 }
 
-/** Prefer longest alias match; allow truncated OCR prefixes ("critical cha", "multisho"). */
+/**
+ * Prefer exact / contained alias matches. Do NOT match a short OCR name into a
+ * longer alias (`critical chance` must not win `slide critical chance`).
+ * Slide crit requires an explicit "slide" token in the OCR name.
+ */
 function matchStat(rawName: string) {
   const n = normalize(rawName)
   if (!n || n.length < 3) return null
+  const hasSlide = /\bslide\b/.test(n)
   let best: { canon: string; meta: (typeof STAT_META)[string] } | null = null
-  let bestLen = 0
+  let bestScore = -1
   for (const [canon, meta] of Object.entries(STAT_META)) {
+    if (canon === 'slide critical chance' && !hasSlide) continue
     for (const alias of meta.aliases) {
-      const prefixOk =
-        (alias.startsWith(n) && n.length >= 4) || (n.startsWith(alias) && alias.length >= 4)
-      if (
-        n === alias ||
-        n.includes(alias) ||
-        (alias.includes(n) && n.length >= 4) ||
-        prefixOk
+      let score = -1
+      if (n === alias) score = 1000 + alias.length
+      else if (n.includes(alias) && alias.length >= 4) score = 700 + alias.length
+      else if (n.startsWith(alias) && alias.length >= 4) score = 600 + alias.length
+      else if (
+        alias.startsWith(n) &&
+        n.length >= Math.max(4, Math.ceil(alias.length * 0.55))
       ) {
-        if (alias.length > bestLen) {
-          bestLen = alias.length
-          best = { canon, meta }
-        }
+        // Truncated OCR of this alias ("critical cha", "multisho")
+        score = 400 + n.length
+      }
+      if (score > bestScore) {
+        bestScore = score
+        best = { canon, meta }
       }
     }
   }
   return best
+}
+
+function isFactionDamageCanon(canon: string) {
+  return canon.startsWith('damage to ')
+}
+
+/**
+ * Resolve OCR `x1.27` / real `x1.5 Damage to …` into a signed percent token.
+ * Faction damage is a true multiplier in-game (x1.5 = +50%); other % stats
+ * often OCR as x-confused (+12.7% → x1.27).
+ */
+function resolveXToken(
+  n: number,
+  canon: string,
+): { valueRaw: string; percent: string } | null {
+  const meta = STAT_META[canon]
+  if (!Number.isFinite(n) || n <= 0) return null
+  if (isFactionDamageCanon(canon) && n >= 1 && n < 3.5) {
+    const pct = Math.round((n - 1) * 1000) / 10
+    if (meta && pct > meta.max * 1.85) return null
+    return { valueRaw: `+${pct}`, percent: '%' }
+  }
+  if (meta?.unit === '%' && n < 3.5 && meta.max >= 20) {
+    const pct = Math.round(n * 100) / 10
+    if (pct > meta.max * 1.85) return null
+    return { valueRaw: `+${pct}`, percent: '%' }
+  }
+  if (meta && n > meta.max * 1.85) return null
+  return { valueRaw: `+${n}`, percent: meta?.unit === '%' ? '%' : '' }
 }
 
 function parseNumberToken(raw: string): number | null {
@@ -197,13 +234,18 @@ function buildStatLine(
   percentFlag: string,
   namePart: string,
   cleaned: string,
+  /** When set, use this canon directly (alias search already decided). */
+  trustedCanon?: string,
 ): RivenStatLine | null {
   const value = parseNumberToken(valueRaw)
   if (value == null) return null
   const unit: '%' | 'flat' = percentFlag === '%' ? '%' : 'flat'
   const negative = value < 0 || /^\s*-/.test(valueRaw) || /^\s*-/.test(cleaned)
   const abs = Math.abs(value)
-  const hit = matchStat(namePart)
+  const hit =
+    trustedCanon && STAT_META[trustedCanon]
+      ? { canon: trustedCanon, meta: STAT_META[trustedCanon] }
+      : matchStat(namePart)
   const max = hit?.meta.max || (unit === '%' ? 100 : 10)
   const quality = Math.max(0, Math.min(100, (abs / max) * 100))
   const desirable = hit ? (hit.meta.goodWhenNegative ? negative : !negative) : !negative
@@ -218,6 +260,36 @@ function buildStatLine(
     desirable,
   }
 }
+
+/** Rivens have ≤4 lines; drop duplicate values / slide↔crit twins from multi-pass OCR. */
+function dedupeStats(stats: RivenStatLine[]): RivenStatLine[] {
+  const out: RivenStatLine[] = []
+  for (const s of stats) {
+    const twin = out.findIndex((p) => {
+      if (Math.abs(Math.abs(p.value) - Math.abs(s.value)) > 0.051) return false
+      if (p.name === s.name) return true
+      const critPair =
+        (p.name === 'critical chance' && s.name === 'slide critical chance') ||
+        (p.name === 'slide critical chance' && s.name === 'critical chance')
+      return critPair
+    })
+    if (twin < 0) {
+      out.push(s)
+      continue
+    }
+    const prev = out[twin]
+    // Prefer plain critical chance over slide when values match.
+    if (prev.name === 'slide critical chance' && s.name === 'critical chance') {
+      out[twin] = s
+    } else if (s.quality > prev.quality) {
+      out[twin] = s
+    }
+  }
+  return out.slice(0, 4)
+}
+
+const STATISH_WORD =
+  /^(status|critical|cold|heat|toxin|damage|zoom|reload|puncture|impact|slash|electricity|multishot|magazine|ammo|fire|combo|range|recoil|slide|chance|speed|duration|efficiency|finisher|projectile|punch|through|corpus|grineer|infested|initial|heavy|attack|weapon)$/i
 
 const CARD_CHROME =
   /^(accept|decline|cycle|kuva|confirm|cancel|riven|keep|take|current|new|reroll|vs|ok|yes|no|polarity|disposition|mastery)$/i
@@ -240,11 +312,23 @@ function guessWeapon(text: string): string {
   )
   if (full) return `${full[1].trim()} ${full[2].trim()}`
 
+  // Solid Latin (no hyphen): "Latron Critadex", "Latron Herado", "Paris Puracron"
+  for (const m of text.matchAll(
+    /\b([A-Z][a-z]+(?:\s+(?:Prime|Wraith|Vandal|Prisma|Coda|Kuva))?)\s+([A-Z][a-z]{4,20})\b/g,
+  )) {
+    const weapon = m[1].trim()
+    const latin = m[2].trim()
+    if (STATISH_WORD.test(weapon) || STATISH_WORD.test(latin)) continue
+    if (matchStat(weapon) || matchStat(latin) || matchStat(`${weapon} ${latin}`)) continue
+    if (/chance|damage|speed|rate|duration|capacity|through|multishot/i.test(latin)) continue
+    return `${weapon} ${latin}`
+  }
+
   const latinOnly = text.match(/\b([A-Za-z]{3,}-[a-z]{3,})\b/)
   const weaponOnly = text.match(
     /\b([A-Z][a-z]+(?:\s+(?:Prime|Wraith|Vandal|Prisma|Coda|Kuva))?)\b/,
   )
-  if (weaponOnly && latinOnly && !matchStat(weaponOnly[1])) {
+  if (weaponOnly && latinOnly && !matchStat(weaponOnly[1]) && !STATISH_WORD.test(weaponOnly[1])) {
     return `${weaponOnly[1]} ${latinOnly[1]}`
   }
   if (latinOnly) return latinOnly[1]
@@ -279,6 +363,12 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
 
   const lower = blob.toLowerCase()
 
+  const findByValue = (valueRaw: string) => {
+    const v = parseNumberToken(valueRaw)
+    if (v == null) return -1
+    return stats.findIndex((s) => Math.abs(Math.abs(s.value) - Math.abs(v)) < 0.051)
+  }
+
   const tryPush = (
     valueRaw: string,
     percent: string,
@@ -287,16 +377,31 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
     nameEnd: number,
   ) => {
     if (overlaps(valueStart, nameEnd)) return
+    if (canon === 'slide critical chance' && !/\bslide\b/i.test(blob.slice(valueStart, nameEnd))) {
+      return
+    }
     const raw = blob.slice(valueStart, nameEnd).trim()
-    const stat = buildStatLine(valueRaw, percent, canon, raw)
+    const stat = buildStatLine(valueRaw, percent, canon, raw, canon)
     if (!stat) return
     const meta = STAT_META[canon]
     if (meta && Math.abs(stat.value) > meta.max * 1.85) return
+
+    const sameValue = findByValue(valueRaw)
+    if (sameValue >= 0) {
+      const prev = stats[sameValue]
+      // Same number again (multi-pass OCR) — keep one; prefer plain crit over slide.
+      if (prev.name === 'slide critical chance' && canon === 'critical chance') {
+        stats[sameValue] = stat
+      }
+      usedRanges.push({ start: valueStart, end: nameEnd })
+      return
+    }
+
     const existing = stats.findIndex((s) => s.name === stat.name)
     if (existing >= 0) {
       const prev = stats[existing]
-      const prevDist = Math.abs(Math.abs(prev.value) - meta.max * 0.55)
-      const nextDist = Math.abs(Math.abs(stat.value) - meta.max * 0.55)
+      const prevDist = Math.abs(Math.abs(prev.value) - (meta?.max ?? 100) * 0.55)
+      const nextDist = Math.abs(Math.abs(stat.value) - (meta?.max ?? 100) * 0.55)
       if (nextDist < prevDist) stats[existing] = stat
       usedRanges.push({ start: valueStart, end: nameEnd })
       return
@@ -313,6 +418,10 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
       const nameEnd = idx + alias.length
       from = idx + 1
       if (overlaps(idx, nameEnd)) continue
+      // Slide crit must actually say "slide" — never treat plain Critical Chance as slide.
+      if (canon === 'slide critical chance' && !/\bslide\b/.test(lower.slice(Math.max(0, idx - 6), nameEnd))) {
+        continue
+      }
 
       const left = blob.slice(Math.max(0, idx - 22), idx)
       const signed = left.match(/([+\-]\s*\d+(?:[.,]\d+)?)\s*(%?)\s*$/)
@@ -321,16 +430,19 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
         continue
       }
 
-      // OCR often turns "+12.7%" into "x1.27" (plus→x, digit slip) before the stat name.
-      const xConfused = left.match(/\bx\s*(\d+[.,]\d+)\s*$/i)
-      if (xConfused) {
-        const meta = STAT_META[canon]
-        let n = Number(String(xConfused[1]).replace(',', '.'))
-        if (!Number.isFinite(n) || n <= 0) continue
-        // Real disposition is ~1.0–1.55; rolled % stats are rarely that small.
-        if (meta?.unit === '%' && n < 3.5 && meta.max >= 20) n = Math.round(n * 100) / 10
-        if (meta && n > meta.max * 1.85) continue
-        tryPush(`+${n}`, '%', canon, idx - xConfused[0].length, nameEnd)
+      // Real faction mults are "x1.5 Damage to …"; other % stats often OCR as x-confused.
+      const xToken = left.match(/\bx\s*(\d+[.,]\d+)\s*$/i)
+      if (xToken) {
+        const n = Number(String(xToken[1]).replace(',', '.'))
+        const resolved = resolveXToken(n, canon)
+        if (!resolved) continue
+        tryPush(
+          resolved.valueRaw,
+          resolved.percent,
+          canon,
+          idx - xToken[0].length,
+          nameEnd,
+        )
       }
     }
   }
@@ -349,28 +461,35 @@ function extractStatsFromBlob(ocrText: string): RivenStatLine[] {
       if (!m) {
         const xm = chunk.match(/^x\s*(\d+[.,]\d+)\s+(.+)$/i)
         if (!xm) continue
-        let n = Number(String(xm[1]).replace(',', '.'))
+        const n = Number(String(xm[1]).replace(',', '.'))
         namePart = xm[2]
         const hitPreview = matchStat(namePart.replace(/\s*[+\-x]\s*\d[\s\S]*$/i, '').trim())
-        if (hitPreview?.meta.unit === '%' && n < 3.5 && hitPreview.meta.max >= 20) {
-          n = Math.round(n * 100) / 10
-        }
-        valueRaw = `+${n}`
-        percent = '%'
+        if (!hitPreview) continue
+        const resolved = resolveXToken(n, hitPreview.canon)
+        if (!resolved) continue
+        valueRaw = resolved.valueRaw
+        percent = resolved.percent
       }
       namePart = (namePart || '').replace(/\s*[+\-]\s*\d[\s\S]*$/i, '').replace(/\s*x\s*\d[\s\S]*$/i, '').trim()
       if (!valueRaw || !namePart || namePart.length > 40) continue
+      if (findByValue(valueRaw) >= 0) continue
       const hit = matchStat(namePart)
       if (!hit) continue
       if (stats.some((s) => s.name === hit.canon)) continue
-      const stat = buildStatLine(valueRaw, percent || (hit.meta.unit === '%' ? '%' : ''), hit.canon, chunk.slice(0, 56))
+      const stat = buildStatLine(
+        valueRaw,
+        percent || (hit.meta.unit === '%' ? '%' : ''),
+        hit.canon,
+        chunk.slice(0, 56),
+        hit.canon,
+      )
       if (!stat) continue
       if (Math.abs(stat.value) > hit.meta.max * 1.85) continue
       stats.push(stat)
     }
   }
 
-  return stats
+  return dedupeStats(stats)
 }
 
 /** Parse OCR block from one full riven card into structured stats + weapon guess. */

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, desktopCapturer, screen, session } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
+import { resolveOcrDisplay } from './display-target'
 
 /**
  * Keeps a single getDisplayMedia stream alive so Linux/Wayland (PipeWire portal)
@@ -91,9 +92,11 @@ function installDisplayMediaHandler() {
         types: ['screen'],
         thumbnailSize: { width: 0, height: 0 },
       })
-      const primaryId = String(screen.getPrimaryDisplay().id)
+      const target = resolveOcrDisplay()
+      const preferredId = String(target.id)
       const source =
-        sources.find((s) => s.display_id === primaryId) ||
+        sources.find((s) => s.display_id === preferredId) ||
+        sources.find((s) => Number(s.display_id) === target.id) ||
         sources.find((s) => s.id.includes('screen')) ||
         sources[0]
       if (!source) {

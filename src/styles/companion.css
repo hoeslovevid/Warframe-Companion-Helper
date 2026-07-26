@@ -315,6 +315,7 @@
 .field input:not([type]),
 .field input[type='password'],
 .field select,
+.field textarea,
 .field input[readonly] {
   border: 1px solid var(--vl-input-border);
   background: var(--vl-input-bg);
@@ -324,8 +325,17 @@
   transition: border-color 160ms var(--vl-ease), box-shadow 160ms var(--vl-ease);
 }
 
+.field textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.45;
+}
+
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--vl-teal-bright) 55%, transparent);
   box-shadow: 0 0 0 3px var(--vl-teal-dim);

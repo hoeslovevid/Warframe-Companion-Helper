@@ -1,12 +1,10 @@
+import { relicStripLayout } from '../../../shared/captureGeometry'
 import { RewardEval } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useRelicScan } from '../../hooks/useRelicScan'
 import '../cycles/module.css'
 import '../baro/baro.css'
 import './relics.css'
-
-const STRIP_DESIGN_WIDTH = 1100
-const STRIP_DESIGN_REF = 1920
 
 type Props = {
   opacity?: number
@@ -19,8 +17,13 @@ type Props = {
 }
 
 function stripWidthPx(layoutWidth?: number) {
-  const ref = layoutWidth && layoutWidth > 0 ? layoutWidth : window.innerWidth || STRIP_DESIGN_REF
-  return Math.round(ref * (STRIP_DESIGN_WIDTH / STRIP_DESIGN_REF))
+  const ref =
+    layoutWidth && layoutWidth > 0
+      ? layoutWidth
+      : typeof window !== 'undefined'
+        ? window.innerWidth || 1920
+        : 1920
+  return relicStripLayout(ref, Math.round((ref * 9) / 16)).width
 }
 
 function ownershipLabel(reward: RewardEval, compact?: boolean) {

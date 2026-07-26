@@ -1,9 +1,66 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { app } from 'electron'
 import { RelicScanState, RewardEval, SetPartOwned } from '../../shared/types'
 import { getInventoryIndex } from './inventory'
 import { ensureItemCatalog, getSetParts, matchCatalogItem } from './item-catalog'
 import { lookupMarketPrices } from './market-prices'
 import { recognizeRewardNames, warmupOcr } from './ocr'
-import { captureRewardRegionPngs } from './screen-capture'
+import { captureRewardRegionVariants } from './screen-capture'
+
+function cleanRelicOcr(ocrText: string): string {
+  return ocrText
+    .replace(/\b(OWNED|CRAFTED|UNRANKED|STEEL|PATH|BONUS|ESSENCE)\b/gi, '')
+    .replace(/\b\d+\s*Owned\b/gi, '')
+    .replace(/\bBlueprint\b/gi, 'Blueprint')
+    .replace(/[^A-Za-z0-9 '&-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function saveRelicDebugCrops(bands: Buffer[][], label: string, fullPng?: Buffer) {
+  try {
+    const dir = path.join(app.getPath('userData'), 'relic-debug')
+    fs.mkdirSync(dir, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    bands.forEach((slotBands, slot) => {
+      slotBands.forEach((buf, band) => {
+        fs.writeFileSync(path.join(dir, `${stamp}-${label}-s${slot}-b${band}.png`), buf)
+      })
+    })
+    if (fullPng?.length) {
+      fs.writeFileSync(path.join(dir, `${stamp}-${label}-full.png`), fullPng)
+    }
+    console.info(`[Everything Warframe] Saved relic debug crops → ${dir}`)
+  } catch (err) {
+    console.warn('[Everything Warframe] Could not save relic debug crops', err)
+  }
+}
+
+/** Pick the OCR string that best matches the item catalog (or longest fallback). */
+async function bestOcrForSlot(bandCrops: Buffer[]): Promise<string> {
+  if (!bandCrops.length) return ''
+  const texts = await recognizeRewardNames(bandCrops)
+  let best = ''
+  let bestScore = -1
+  for (const raw of texts) {
+    const cleaned = cleanRelicOcr(raw)
+    if (!cleaned) continue
+    const matched = matchCatalogItem(cleaned)
+    const score =
+      matched?.score ??
+      (cleaned.length >= 8 && /prime|blueprint|systems|chassis|neuro|barrel|receiver|blade|stock|link|grip|handle|string|hilt/i.test(cleaned)
+        ? 0.35
+        : cleaned.length > 4
+          ? 0.12
+          : 0)
+    if (score > bestScore || (score === bestScore && cleaned.length > best.length)) {
+      bestScore = score
+      best = cleaned
+    }
+  }
+  return best
+}
 
 type Listener = (state: RelicScanState) => void
 
@@ -173,22 +230,28 @@ export async function scanRelicRewards(
       await new Promise((r) => setTimeout(r, delay))
     }
 
-    const buildRewards = async (): Promise<RewardEval[]> => {
-      const crops = await captureRewardRegionPngs()
-      if (crops.length < 4) {
+    const buildRewards = async (
+      saveDebugOnWeak = false,
+    ): Promise<RewardEval[]> => {
+      const capture = await captureRewardRegionVariants()
+      if (!capture || capture.bands.length < 4) {
         throw new Error(
           process.platform === 'linux'
             ? 'Could not capture the reward screen. Allow screen share once and use Borderless Windowed.'
-            : 'Could not capture the reward screen. Is Warframe borderless on a captured display?',
+            : 'Could not capture the reward screen. Is Warframe borderless on the selected OCR monitor?',
         )
       }
 
-      const ocrNames = await recognizeRewardNames(crops)
-      let next: RewardEval[] = ocrNames.map((ocrText, slot) => {
-        const cleaned = ocrText
-          .replace(/\b(OWNED|CRAFTED|UNRANKED)\b/gi, '')
-          .replace(/\s+/g, ' ')
-          .trim()
+      const ocrNames: string[] = []
+      for (let slot = 0; slot < capture.bands.length; slot++) {
+        const best = await bestOcrForSlot(capture.bands[slot])
+        ocrNames.push(best)
+        console.info(
+          `[Everything Warframe] Relic OCR slot ${slot}: ${best || '(empty)'}`,
+        )
+      }
+
+      let next: RewardEval[] = ocrNames.map((cleaned, slot) => {
         const matched = matchCatalogItem(cleaned)
         const name = matched?.item.name || cleaned || `Reward ${slot + 1}`
         const uniqueName = matched?.item.uniqueName || null
@@ -218,25 +281,42 @@ export async function scanRelicRewards(
         }
       })
 
+      // Keep slots that produced anything readable; empty slots stay out of the strip.
       next = next.filter((r) => r.ocrText.trim().length > 2 || r.matchScore >= 0.5)
+
+      if (saveDebugOnWeak && next.every((r) => r.matchScore < 0.45)) {
+        saveRelicDebugCrops(capture.bands, 'weak', capture.fullPng)
+      }
+
+      // Squad-size hint: only trim when we have *extra* weak slots, never drop
+      // strong catalog matches below the real party size.
       if (squadSize != null && next.length > squadSize) {
-        next = [...next]
-          .sort((a, b) => b.matchScore - a.matchScore)
-          .slice(0, squadSize)
-          .sort((a, b) => a.slot - b.slot)
-          .map((r, i) => ({ ...r, slot: i }))
+        const strong = next.filter((r) => r.matchScore >= 0.45)
+        if (strong.length >= squadSize) {
+          next = [...strong]
+            .sort((a, b) => b.matchScore - a.matchScore)
+            .slice(0, squadSize)
+            .sort((a, b) => a.slot - b.slot)
+            .map((r, i) => ({ ...r, slot: i }))
+        } else {
+          next = [...next]
+            .sort((a, b) => b.matchScore - a.matchScore)
+            .slice(0, squadSize)
+            .sort((a, b) => a.slot - b.slot)
+            .map((r, i) => ({ ...r, slot: i }))
+        }
       }
       return next
     }
 
-    let rewards = await buildRewards()
+    let rewards = await buildRewards(false)
     let useful = rewards.some((r) => r.matchScore >= 0.45 || r.ocrText.trim().length > 3)
 
     // Proton log flush / UI paint can lag — one retry when the first pass is empty.
     if (!useful) {
       console.info('[Everything Warframe] Relic OCR weak — retrying capture…')
       await new Promise((r) => setTimeout(r, process.platform === 'linux' ? 1400 : 1000))
-      rewards = await buildRewards()
+      rewards = await buildRewards(true)
       useful = rewards.some((r) => r.matchScore >= 0.45 || r.ocrText.trim().length > 3)
     }
 

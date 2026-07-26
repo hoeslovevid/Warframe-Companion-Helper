@@ -1,8 +1,9 @@
-import { BrowserWindow, screen } from 'electron'
+import { BrowserWindow } from 'electron'
 import path from 'node:path'
+import { resolveOcrDisplay } from './services/display-target'
 
 export function createOverlayWindow(devUrl: string | null): BrowserWindow {
-  const display = screen.getPrimaryDisplay()
+  const display = resolveOcrDisplay()
   const { width, height } = display.bounds
 
   const win = new BrowserWindow({

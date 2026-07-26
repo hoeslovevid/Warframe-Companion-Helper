@@ -193,17 +193,21 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
       )
     }
 
-    // If only one side parsed, keep prior current when available
+    // Left crop = current, right crop = reroll (Kuva Cycle layout).
     const current = leftOk ? left : state.current
     const reroll = rightOk ? right : leftOk && !rightOk ? null : right
 
-    if (current) {
-      // Prefer shared weapon name
-      if (reroll && (!reroll.weapon || reroll.weapon === 'Unknown Riven')) {
-        reroll.weapon = current.weapon
+    if (current && reroll) {
+      // Only share the gun base name — never copy Latin riven titles across sides.
+      const baseOf = (weapon: string) =>
+        weapon.replace(/\s+[A-Za-z]{3,}-[a-z]{3,}\s*$/i, '').trim()
+      if (current.weapon === 'Unknown Riven') {
+        const base = baseOf(reroll.weapon)
+        if (base && base !== 'Unknown Riven') current.weapon = base
       }
-      if (current.weapon === 'Unknown Riven' && reroll?.weapon) {
-        current.weapon = reroll.weapon
+      if (reroll.weapon === 'Unknown Riven') {
+        const base = baseOf(current.weapon)
+        if (base && base !== 'Unknown Riven') reroll.weapon = base
       }
     }
 

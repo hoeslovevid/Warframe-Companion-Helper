@@ -2,10 +2,12 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
   AppUpdateStatus,
+  BugReportDraft,
   FoundryListFilters,
   HotkeyRegistration,
   InventoryStatus,
   ModuleId,
+  DisplayChoice,
   PrimaryDisplayInfo,
   RelicScanState,
   RivenScanState,
@@ -19,6 +21,7 @@ const api: VoidLensApi = {
   setModuleEnabled: (id: ModuleId, enabled: boolean) =>
     ipcRenderer.invoke('settings:setModule', id, enabled),
   getPrimaryDisplay: () => ipcRenderer.invoke('display:getPrimary') as Promise<PrimaryDisplayInfo>,
+  listDisplays: () => ipcRenderer.invoke('display:list') as Promise<DisplayChoice[]>,
   getWorldstate: () => ipcRenderer.invoke('worldstate:get'),
   refreshWorldstate: () => ipcRenderer.invoke('worldstate:refresh'),
   toggleOverlay: () => ipcRenderer.invoke('overlay:toggle'),
@@ -47,6 +50,11 @@ const api: VoidLensApi = {
   getUpdateStatus: () => ipcRenderer.invoke('update:status'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
+  openBugReport: (draft: BugReportDraft) => ipcRenderer.invoke('bugReport:open', draft),
+  copyBugDiagnostics: (draft?: Partial<BugReportDraft>) =>
+    ipcRenderer.invoke('bugReport:copyDiagnostics', draft),
+  pickBugScreenshots: () => ipcRenderer.invoke('bugReport:pickScreenshots'),
+  openBugDebugFolders: () => ipcRenderer.invoke('bugReport:openDebugFolders'),
   onSettingsChanged: (cb) => {
     const listener = (_: Electron.IpcRendererEvent, settings: AppSettings) => cb(settings)
     ipcRenderer.on('settings:changed', listener)

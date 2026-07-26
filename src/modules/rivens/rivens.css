@@ -64,6 +64,11 @@
   gap: 6px;
 }
 
+[data-riven-strip] .riven-stats li span:last-child {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 [data-riven-strip] .riven-vs {
   padding: 0 4px;
   letter-spacing: 0.16em;

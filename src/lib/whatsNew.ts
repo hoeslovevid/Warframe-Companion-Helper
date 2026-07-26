@@ -38,6 +38,13 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Fissure filters: Normal / Steel Path / Both path mode',
     'Toggle Railjack / Void Storm fissures on or off',
   ],
+  '0.9.13': [
+    'Riven grader: fix Critical Chance vs Slide Critical mix-ups',
+    'Faction damage shows as x1.5 multiplier (not a wrong %)',
+    'Wider riven OCR crops + pick which monitor OCR/overlay uses',
+    'Relic OCR: read reward names under the cards (not the icon art)',
+    'Help → Report a bug opens a prefilled GitHub Issue',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

@@ -17,7 +17,16 @@ import path from 'node:path'
 import { getAppIcon, getTrayIcon } from './app-icon'
 import { createOverlayWindow, setOverlayClickThrough } from './overlay-window'
 import { loadSettings, setModuleEnabled, updateSettings } from './settings'
-import { setCaptureOverlayPause, warmScreenCapture } from './services/screen-capture'
+import {
+  getOcrDisplayInfo,
+  listDisplayChoices,
+  resolveOcrDisplay,
+} from './services/display-target'
+import {
+  invalidateCaptureCache,
+  setCaptureOverlayPause,
+  warmScreenCapture,
+} from './services/screen-capture'
 import { disposePersistentCapture } from './services/persistent-screen-capture'
 import { defaultRivenAnchor } from '../shared/captureGeometry'
 import { fetchWorldstate, hasExpiredWorldstate } from './services/worldstate'
@@ -61,6 +70,13 @@ import {
   initAutoUpdater,
   quitAndInstallUpdate,
 } from './services/updater'
+import {
+  BugReportDraft,
+  copyBugDiagnostics,
+  openBugDebugFolders,
+  openBugReport,
+  pickBugScreenshots,
+} from './services/bug-report'
 import {
   AppSettings,
   FoundryListFilters,
@@ -389,7 +405,7 @@ function createCompanionWindow() {
 }
 
 function restoreOverlayGeometry(win: BrowserWindow) {
-  const display = screen.getPrimaryDisplay()
+  const display = resolveOcrDisplay()
   const { x, y, width, height } = display.bounds
   try {
     win.setBounds({ x, y, width, height })
@@ -526,7 +542,7 @@ function fixLegacyRivenAnchor() {
   const settings = loadSettings()
   const rivens = settings.panelAnchors.rivens
   if (!rivens) return
-  const { width, height } = screen.getPrimaryDisplay().bounds
+  const { width, height } = resolveOcrDisplay().bounds
   const next = defaultRivenAnchor(width, height)
   const knownSidePanel =
     (rivens.x === 1460 && rivens.y === 290) ||
@@ -684,12 +700,7 @@ function createTray() {
 }
 
 function getPrimaryDisplayInfo() {
-  const display = screen.getPrimaryDisplay()
-  return {
-    width: display.bounds.width,
-    height: display.bounds.height,
-    scaleFactor: display.scaleFactor,
-  }
+  return getOcrDisplayInfo()
 }
 
 function registerIpc() {
@@ -701,6 +712,12 @@ function registerIpc() {
     if (partial.overlayVisible !== undefined) {
       applyOverlayVisibility(next.overlayVisible)
       refreshTrayUi()
+    }
+    if (partial.ocrDisplayId !== undefined) {
+      invalidateCaptureCache()
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        restoreOverlayGeometry(overlayWindow)
+      }
     }
     broadcastSettings(next)
     return next
@@ -714,6 +731,7 @@ function registerIpc() {
     return next
   })
   ipcMain.handle('display:getPrimary', () => getPrimaryDisplayInfo())
+  ipcMain.handle('display:list', () => listDisplayChoices())
   ipcMain.handle('worldstate:get', async () => refreshWorldstate(false))
   ipcMain.handle('worldstate:refresh', async () => refreshWorldstate(true))
   ipcMain.handle('overlay:toggle', () => {
@@ -823,6 +841,12 @@ function registerIpc() {
   ipcMain.handle('update:status', () => getUpdateStatus())
   ipcMain.handle('update:check', async () => checkForAppUpdates())
   ipcMain.handle('update:install', () => quitAndInstallUpdate())
+  ipcMain.handle('bugReport:open', async (_e, draft: BugReportDraft) => openBugReport(draft))
+  ipcMain.handle('bugReport:copyDiagnostics', (_e, draft?: Partial<BugReportDraft>) =>
+    copyBugDiagnostics(draft),
+  )
+  ipcMain.handle('bugReport:pickScreenshots', async () => pickBugScreenshots())
+  ipcMain.handle('bugReport:openDebugFolders', async () => openBugDebugFolders())
 }
 
 app.whenReady().then(async () => {

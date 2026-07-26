@@ -1,4 +1,5 @@
 import { AppSettings } from '../../shared/types'
+import { BugReportPanel } from './BugReportPanel'
 import { Panel } from './Panel'
 import { prettyHotkey } from '../lib/hotkey'
 import './onboarding.css'
@@ -86,6 +87,10 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
           </p>
         </div>
       </Panel>
+
+      <div className="section-gap" />
+
+      <BugReportPanel />
 
       <div className="section-gap" />
 

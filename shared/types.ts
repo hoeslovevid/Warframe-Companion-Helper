@@ -266,6 +266,11 @@ export type AppSettings = {
   /** When false, hide Railjack / Void Storm fissures. */
   fissureShowStorms: boolean
   fissureSort: FissureSort
+  /**
+   * Electron `Display.id` used for OCR capture + overlay placement.
+   * `null` = system primary display.
+   */
+  ocrDisplayId: number | null
   overlayVisible: boolean
   layoutEditMode: boolean
   /** After the user has dragged a live overlay once, hide the move-hint chip. */
@@ -421,6 +426,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fissurePathMode: 'both',
   fissureShowStorms: true,
   fissureSort: 'eta',
+  ocrDisplayId: null,
   overlayVisible: true,
   layoutEditMode: false,
   overlayDragHintDismissed: false,
@@ -741,6 +747,19 @@ export type PrimaryDisplayInfo = {
   width: number
   height: number
   scaleFactor: number
+  /** Electron display id when available. */
+  id?: number
+  label?: string
+  isPrimary?: boolean
+}
+
+export type DisplayChoice = {
+  id: number
+  label: string
+  width: number
+  height: number
+  scaleFactor: number
+  isPrimary: boolean
 }
 
 export type HotkeyRegistration = {
@@ -750,11 +769,36 @@ export type HotkeyRegistration = {
   ok: boolean
 }
 
+export type BugReportCategory =
+  | 'relics'
+  | 'rivens'
+  | 'overlay'
+  | 'inventory'
+  | 'linux'
+  | 'other'
+
+export type BugReportDraft = {
+  title: string
+  category: BugReportCategory
+  description: string
+  includeDiagnostics: boolean
+}
+
+export type BugReportOpenResult = {
+  ok: boolean
+  url: string
+  truncated: boolean
+  stagingDir: string | null
+  debugDirs: string[]
+  error?: string
+}
+
 export type VoidLensApi = {
   getSettings: () => Promise<AppSettings>
   updateSettings: (partial: Partial<AppSettings>) => Promise<AppSettings>
   setModuleEnabled: (id: ModuleId, enabled: boolean) => Promise<AppSettings>
   getPrimaryDisplay: () => Promise<PrimaryDisplayInfo>
+  listDisplays: () => Promise<DisplayChoice[]>
   getWorldstate: () => Promise<WorldstateSnapshot>
   refreshWorldstate: () => Promise<WorldstateSnapshot>
   toggleOverlay: () => Promise<boolean>
@@ -783,6 +827,10 @@ export type VoidLensApi = {
   getUpdateStatus: () => Promise<AppUpdateStatus>
   checkForUpdates: () => Promise<AppUpdateStatus>
   installUpdate: () => Promise<boolean>
+  openBugReport: (draft: BugReportDraft) => Promise<BugReportOpenResult>
+  copyBugDiagnostics: (draft?: Partial<BugReportDraft>) => Promise<boolean>
+  pickBugScreenshots: () => Promise<{ stagingDir: string; count: number } | null>
+  openBugDebugFolders: () => Promise<string[]>
   onSettingsChanged: (cb: (settings: AppSettings) => void) => () => void
   onWorldstateUpdated: (cb: (data: WorldstateSnapshot) => void) => () => void
   onOverlayVisibilityChanged: (cb: (visible: boolean) => void) => () => void

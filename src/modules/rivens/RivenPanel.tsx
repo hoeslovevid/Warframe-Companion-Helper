@@ -2,6 +2,7 @@ import { rivenStripLayout } from '../../../shared/captureGeometry'
 import { RivenRoll, RivenScanState } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useRivenScan } from '../../hooks/useRivenScan'
+import { formatRivenStatValue } from '../../lib/rivenFormat'
 import '../cycles/module.css'
 import './rivens.css'
 
@@ -61,9 +62,7 @@ function RollCard({
           <li key={`${s.name}-${s.value}`} className={s.desirable ? 'is-good' : 'is-bad'}>
             <span>{s.name}</span>
             <span>
-              {s.negative || s.value < 0 ? '-' : '+'}
-              {Math.abs(s.value)}
-              {s.unit === '%' ? '%' : ''}
+              {formatRivenStatValue(s)}
               <span style={{ opacity: 0.65, marginLeft: 6 }}>{Math.round(s.quality)}%</span>
             </span>
           </li>

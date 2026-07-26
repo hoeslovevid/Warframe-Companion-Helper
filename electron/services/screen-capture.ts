@@ -1,5 +1,12 @@
 import { desktopCapturer, nativeImage, screen } from 'electron'
-import { rivenCompareRegions, type CaptureRegion } from '../../shared/captureGeometry'
+import {
+  relicRewardRegionVariants,
+  relicRewardRegions,
+  relicStripLayout,
+  rivenCompareRegions,
+  type CaptureRegion,
+} from '../../shared/captureGeometry'
+import { resolveOcrDisplay } from './display-target'
 import {
   ensurePersistentCapture,
   grabPersistentFrame,
@@ -42,41 +49,7 @@ async function withOverlayPaused<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-/**
- * Four reward-name bands on a typical fissure pick screen.
- * Also used by the overlay strip to size/gap labels under cards.
- */
-export function relicRewardRegions(width: number, height: number): CaptureRegion[] {
-  const slots = 4
-  // Slightly taller/wider band so multi-line names + rarity diamonds stay in crop.
-  const cardW = width * 0.162
-  const gap = width * 0.024
-  const total = slots * cardW + (slots - 1) * gap
-  const startX = (width - total) / 2
-  const y = height * 0.435
-  const h = height * 0.1
-
-  return Array.from({ length: slots }, (_, i) => ({
-    x: Math.round(startX + i * (cardW + gap)),
-    y: Math.round(y),
-    width: Math.round(cardW),
-    height: Math.round(h),
-  }))
-}
-
-/** Strip geometry as fractions of display size (for overlay alignment). */
-export function relicStripLayout(width: number, height: number) {
-  const regions = relicRewardRegions(width, height)
-  const left = regions[0]?.x ?? 0
-  const right = (regions[3]?.x ?? 0) + (regions[3]?.width ?? 0)
-  return {
-    x: left,
-    y: Math.round(height * 0.58),
-    width: right - left,
-    gap: regions.length > 1 ? regions[1].x - (regions[0].x + regions[0].width) : 0,
-    cardWidth: regions[0]?.width ?? Math.round(width * 0.155),
-  }
-}
+export { relicRewardRegions, relicRewardRegionVariants, relicStripLayout }
 
 async function captureViaDesktopCapturer(preferred?: Electron.Display): Promise<{
   png: Buffer
@@ -106,9 +79,13 @@ async function captureViaDesktopCapturer(preferred?: Electron.Display): Promise<
   })
 
   const preferredId = String(target.id)
+  const preferred =
+    sources.find((s) => s.display_id === preferredId) ||
+    sources.find((s) => Number(s.display_id) === target.id) ||
+    sources.find((s) => s.display_id && preferredId.endsWith(s.display_id))
   const ordered = [
-    sources.find((s) => s.display_id === preferredId),
-    ...sources.filter((s) => s.display_id !== preferredId),
+    preferred,
+    ...sources.filter((s) => s !== preferred),
   ].filter(Boolean) as Electron.DesktopCapturerSource[]
 
   let emptyThumbs = 0
@@ -173,16 +150,16 @@ export async function capturePrimaryDisplay(): Promise<{
   width: number
   height: number
 } | null> {
-  return captureDisplay(screen.getPrimaryDisplay())
+  return captureDisplay(resolveOcrDisplay())
 }
 
-/** Prefer primary / persistent stream; one desktopCapturer fallback list if needed. */
+/** Prefer configured OCR display / persistent stream; desktopCapturer fallback if needed. */
 export async function captureBestDisplay(): Promise<{
   png: Buffer
   width: number
   height: number
 } | null> {
-  return captureDisplay(screen.getPrimaryDisplay())
+  return captureDisplay(resolveOcrDisplay())
 }
 
 export function cropPng(png: Buffer, region: CaptureRegion): Buffer {
@@ -201,7 +178,43 @@ export async function captureRewardRegionPngs(): Promise<Buffer[]> {
     const shot = await captureBestDisplay()
     if (!shot) return []
     const regions = relicRewardRegions(shot.width, shot.height)
+    console.info(
+      `[Everything Warframe] Relic crop ${shot.width}×${shot.height}: ` +
+        regions
+          .map((r, i) => `slot${i}@(${r.x},${r.y},${r.width}x${r.height})`)
+          .join(' · '),
+    )
     return regions.map((region) => cropPng(shot.png, region))
+  })
+}
+
+/** Each slot → several vertical band crops (for best-of OCR). */
+export async function captureRewardRegionVariants(): Promise<{
+  bands: Buffer[][]
+  fullPng: Buffer
+  width: number
+  height: number
+} | null> {
+  return withOverlayPaused(async () => {
+    invalidateCaptureCache()
+    const shot = await captureBestDisplay()
+    if (!shot) return null
+    const variants = relicRewardRegionVariants(shot.width, shot.height)
+    console.info(
+      `[Everything Warframe] Relic variant crops ${shot.width}×${shot.height}: ` +
+        variants
+          .map(
+            (bands, i) =>
+              `slot${i}=[${bands.map((r) => `${r.y}:${r.height}`).join(',')}]`,
+          )
+          .join(' · '),
+    )
+    return {
+      bands: variants.map((regions) => regions.map((region) => cropPng(shot.png, region))),
+      fullPng: shot.png,
+      width: shot.width,
+      height: shot.height,
+    }
   })
 }
 

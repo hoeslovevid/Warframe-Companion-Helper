@@ -3,6 +3,7 @@ import {
   COLOR_THEME_META,
   ColorThemeId,
   CustomPalette,
+  DisplayChoice,
   HotkeyRegistration,
   MODULE_META,
   ModuleId,
@@ -124,6 +125,7 @@ export function CompanionApp() {
   const [appVersion, setAppVersion] = useState('')
   const [hotkeyStatus, setHotkeyStatus] = useState<HotkeyRegistration[]>([])
   const [overlayCue, setOverlayCue] = useState<'on' | 'off' | null>(null)
+  const [displays, setDisplays] = useState<DisplayChoice[]>([])
   const { settings, ready, updateSettings, setModuleEnabled } = useSettings()
   const { data, loading, error, refresh } = useWorldstate()
   const { status: inventory } = useInventory()
@@ -224,6 +226,14 @@ export function CompanionApp() {
     const boot = async () => {
       if (!window.voidlens?.getHotkeyStatus) return
       setHotkeyStatus(await window.voidlens.getHotkeyStatus())
+    }
+    void boot()
+  }, [])
+
+  useEffect(() => {
+    const boot = async () => {
+      if (!window.voidlens?.listDisplays) return
+      setDisplays(await window.voidlens.listDisplays())
     }
     void boot()
   }, [])
@@ -856,6 +866,35 @@ export function CompanionApp() {
                         void updateSettings({ overlayScale: Number(e.target.value) })
                       }
                     />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="ocr-display">Game / OCR monitor</label>
+                    <select
+                      id="ocr-display"
+                      value={
+                        settings.ocrDisplayId == null
+                          ? 'primary'
+                          : String(settings.ocrDisplayId)
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value
+                        void updateSettings({
+                          ocrDisplayId: v === 'primary' ? null : Number(v),
+                        })
+                      }}
+                    >
+                      <option value="primary">Primary display (default)</option>
+                      {displays.map((d) => (
+                        <option key={d.id} value={String(d.id)}>
+                          {d.label}
+                          {d.isPrimary ? ' · primary' : ''} — {d.width}×{d.height}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.78rem' }}>
+                      Relic/riven OCR and the overlay use this monitor. Pick the screen Warframe
+                      is on when you run multi-monitor.
+                    </p>
                   </div>
                   <ToggleRow
                     label="Overlay visible"
