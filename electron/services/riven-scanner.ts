@@ -4,6 +4,7 @@ import { app } from 'electron'
 import { RivenScanState } from '../../shared/types'
 import { recognizeRivenBlocks, warmupOcr } from './ocr'
 import { parseRivenOcr, recommendRolls } from './riven-grader'
+import { enrichRivensWithMarket } from './riven-market'
 import { captureRivenCompare } from './screen-capture'
 
 function saveRivenDebugCrops(crops: Buffer[], label: string, fullPng?: Buffer) {
@@ -211,12 +212,13 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
       }
     }
 
+    // Market is optional — show grades first, then refresh with plat estimates.
+    const scannedAt = new Date().toISOString()
     const recommendation = recommendRolls(current, reroll)
-
     state = {
       active: true,
       scanning: false,
-      scannedAt: new Date().toISOString(),
+      scannedAt,
       trigger,
       error: null,
       current,
@@ -225,6 +227,21 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
     }
     emit()
     scheduleHide(AUTO_HIDE_MS)
+
+    try {
+      const priced = await enrichRivensWithMarket(current, reroll)
+      if (state.scannedAt === scannedAt && state.active && !state.scanning) {
+        state = {
+          ...state,
+          current: priced.current,
+          reroll: priced.reroll,
+        }
+        emit()
+      }
+    } catch (err) {
+      console.warn('[Everything Warframe] Riven market enrich failed', err)
+    }
+
     return state
   } catch (err) {
     state = {

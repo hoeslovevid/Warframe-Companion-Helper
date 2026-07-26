@@ -50,6 +50,11 @@ export type RivenRoll = {
   /** True when Megrim/Valkyrial sheet prefs were used for this score. */
   prefsMatched?: boolean
   prefsNotes?: string
+  /** Median warframe.market buyout for similar auctions (estimate). */
+  platinum?: number | null
+  marketVolume?: number | null
+  /** How tightly the auction query matched OCR stats. */
+  marketMatch?: 'exact' | 'stats' | 'loose' | null
 }
 
 export type RivenScanState = {

@@ -52,6 +52,23 @@ function RollCard({
         {roll.tier}
         <span>{roll.score}/100</span>
       </div>
+      {roll.platinum != null ? (
+        <div
+          className="riven-card__plat"
+          title={
+            roll.marketMatch === 'exact'
+              ? `Median buyout for matching listings (${roll.marketVolume ?? 0} on warframe.market)`
+              : roll.marketMatch === 'stats'
+                ? `Median buyout for similar stat listings (${roll.marketVolume ?? 0} on warframe.market)`
+                : `Loose market estimate (${roll.marketVolume ?? 0} listings on warframe.market)`
+          }
+        >
+          ~{roll.platinum}p
+          {roll.marketVolume != null ? (
+            <span className="riven-card__plat-vol">{roll.marketVolume} listings</span>
+          ) : null}
+        </div>
+      ) : null}
       {roll.prefsMatched ? (
         <div className="riven-card__prefs" title={roll.prefsNotes || 'Sheet preferences'}>
           sheet prefs

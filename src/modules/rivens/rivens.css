@@ -124,6 +124,22 @@
   color: var(--vl-mist);
 }
 
+.riven-card__plat {
+  margin: -4px 0 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #d8c48a;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.riven-card__plat-vol {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--vl-mist-dim);
+}
+
 .riven-card__prefs {
   display: inline-block;
   margin: -4px 0 8px;
@@ -131,6 +147,15 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(95, 208, 197, 0.85);
+}
+
+[data-riven-strip] .riven-card__plat {
+  margin: -2px 0 4px;
+  font-size: 0.7rem;
+}
+
+[data-riven-strip] .riven-card__plat-vol {
+  font-size: 0.55rem;
 }
 
 [data-riven-strip] .riven-card__prefs {

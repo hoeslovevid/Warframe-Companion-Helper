@@ -50,6 +50,9 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Riven OCR: read faction multipliers (x1.64 Damage to Infested) more reliably',
     'Relic OCR: ignore garbage unmatched text; clearer multi-monitor Linux hint',
   ],
+  '0.9.16': [
+    'Riven grader: warframe.market platinum estimates for current vs reroll',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

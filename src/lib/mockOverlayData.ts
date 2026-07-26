@@ -133,6 +133,9 @@ export const MOCK_RIVEN_SCAN: RivenScanState = {
     ocrText: '',
     score: 62,
     tier: 'B',
+    platinum: 85,
+    marketVolume: 12,
+    marketMatch: 'stats',
     stats: [
       {
         raw: '+Damage 168.2%',
@@ -169,6 +172,9 @@ export const MOCK_RIVEN_SCAN: RivenScanState = {
     ocrText: '',
     score: 84,
     tier: 'A',
+    platinum: 240,
+    marketVolume: 7,
+    marketMatch: 'exact',
     stats: [
       {
         raw: '+Critical Chance 187.6%',
