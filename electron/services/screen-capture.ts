@@ -79,13 +79,13 @@ async function captureViaDesktopCapturer(preferred?: Electron.Display): Promise<
   })
 
   const preferredId = String(target.id)
-  const preferred =
+  const preferredSource =
     sources.find((s) => s.display_id === preferredId) ||
     sources.find((s) => Number(s.display_id) === target.id) ||
     sources.find((s) => s.display_id && preferredId.endsWith(s.display_id))
   const ordered = [
-    preferred,
-    ...sources.filter((s) => s !== preferred),
+    preferredSource,
+    ...sources.filter((s) => s !== preferredSource),
   ].filter(Boolean) as Electron.DesktopCapturerSource[]
 
   let emptyThumbs = 0
