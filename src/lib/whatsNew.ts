@@ -60,6 +60,11 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Linux screen-capture onboarding wizard for PipeWire OCR',
     'OBS widget server: localhost Browser Source panels for external overlays',
   ],
+  '0.9.18': [
+    'Relic OCR: WFInfo-style UI theme text isolation (much cleaner on Linux)',
+    'Relic prices from local WFInfo DB first — no market round-trip on every scan',
+    'Reward crop geometry aligned to WFInfo / wfinfo-ng layout math',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

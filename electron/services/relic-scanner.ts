@@ -7,6 +7,8 @@ import { ensureItemCatalog, getSetParts, matchCatalogItem } from './item-catalog
 import { lookupMarketPrices } from './market-prices'
 import { recognizeRewardNames, warmupOcr } from './ocr'
 import { captureRewardRegionVariants } from './screen-capture'
+import { detectUiTheme, type WfThemeId } from './wfinfo-theme'
+import { ensureWfinfoPrices, lookupWfinfoPrices } from './wfinfo-prices'
 
 function cleanRelicOcr(ocrText: string): string {
   return ocrText
@@ -38,9 +40,9 @@ function saveRelicDebugCrops(bands: Buffer[][], label: string, fullPng?: Buffer)
 }
 
 /** Pick the OCR string that best matches the item catalog (or longest fallback). */
-async function bestOcrForSlot(bandCrops: Buffer[]): Promise<string> {
+async function bestOcrForSlot(bandCrops: Buffer[], theme: WfThemeId | null): Promise<string> {
   if (!bandCrops.length) return ''
-  const texts = await recognizeRewardNames(bandCrops)
+  const texts = await recognizeRewardNames(bandCrops, theme)
   let best = ''
   let bestScore = -1
   for (const raw of texts) {
@@ -199,7 +201,11 @@ export function ackRelicCelebration(): RelicScanState {
 }
 
 export async function warmupRelicScanner(): Promise<void> {
-  await Promise.all([ensureItemCatalog(), warmupOcr().catch(() => {})])
+  await Promise.all([
+    ensureItemCatalog(),
+    ensureWfinfoPrices().catch(() => {}),
+    warmupOcr().catch(() => {}),
+  ])
 }
 
 export async function scanRelicRewards(
@@ -223,7 +229,7 @@ export async function scanRelicRewards(
   emit()
 
   try {
-    await ensureItemCatalog()
+    await Promise.all([ensureItemCatalog(), ensureWfinfoPrices().catch(() => {})])
     if (trigger === 'log') {
       // Wine/Proton often buffers EE.log; UI may still be animating after the marker.
       const delay = process.platform === 'linux' ? 1800 : 1200
@@ -242,9 +248,13 @@ export async function scanRelicRewards(
         )
       }
 
+      // WFInfo-style: detect UI theme once from the full frame, then isolate text.
+      const theme = detectUiTheme(capture.fullPng)
+      console.info(`[Everything Warframe] Relic UI theme ≈ ${theme}`)
+
       const ocrNames: string[] = []
       for (let slot = 0; slot < capture.bands.length; slot++) {
-        const best = await bestOcrForSlot(capture.bands[slot])
+        const best = await bestOcrForSlot(capture.bands[slot], theme)
         ocrNames.push(best)
         console.info(
           `[Everything Warframe] Relic OCR slot ${slot}: ${best || '(empty)'}`,
@@ -339,16 +349,24 @@ export async function scanRelicRewards(
       )
     }
 
+    // Local WFInfo price DB first (instant) — live warframe.market only fills gaps.
     try {
-      const prices = await lookupMarketPrices(rewards.map((r) => r.name))
+      const local = lookupWfinfoPrices(rewards.map((r) => r.name))
       rewards = rewards.map((r) => {
-        const hit = prices.get(r.name)
-        return hit
-          ? { ...r, platinum: hit.platinum, volume: hit.volume }
-          : r
+        const hit = local.get(r.name)
+        return hit ? { ...r, platinum: hit.platinum, volume: hit.volume } : r
       })
+      const missing = rewards.filter((r) => r.platinum == null).map((r) => r.name)
+      if (missing.length) {
+        const live = await lookupMarketPrices(missing)
+        rewards = rewards.map((r) => {
+          if (r.platinum != null) return r
+          const hit = live.get(r.name)
+          return hit ? { ...r, platinum: hit.platinum, volume: hit.volume } : r
+        })
+      }
     } catch {
-      // market optional
+      // pricing optional
     }
 
     rewards = pickBest(rewards)

@@ -28,6 +28,7 @@ import {
   warmScreenCapture,
 } from './services/screen-capture'
 import { disposePersistentCapture } from './services/persistent-screen-capture'
+import { ensureWfinfoPrices } from './services/wfinfo-prices'
 import { defaultRivenAnchor } from '../shared/captureGeometry'
 import { fetchWorldstate, hasExpiredWorldstate } from './services/worldstate'
 import { detectEeLogPath } from './services/log-path'
@@ -1039,6 +1040,12 @@ app.whenReady().then(async () => {
   }
 
   // OCR/catalog warmup deferred until first relic scan (avoids startup CPU/RAM spike)
+  // Prefetch local WFInfo price DB early so relic scans stay offline-fast.
+  if (loadSettings().modules.relics) {
+    setTimeout(() => {
+      void ensureWfinfoPrices().catch(() => {})
+    }, 2500)
+  }
 
   // Linux/Wayland: keep one PipeWire share session alive so OCR does not re-prompt.
   if (

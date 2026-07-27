@@ -76,20 +76,27 @@ export function defaultRivenAnchor(
 
 /**
  * Four reward-name bands on a typical fissure pick screen.
- * Names sit under the item art and above player names (~50–63% on 16:9).
+ * Geometry follows WFInfo / wfinfo-ng PIXEL_REWARD_* constants (scaled to
+ * 1920×1080 reference), which targets the name line under item art.
  */
 export function relicRewardRegions(width: number, height: number): CaptureRegion[] {
+  const screenScaling = width * 9 > height * 16 ? height / 1080 : width / 1920
+  // WFInfo: PIXEL_REWARD_WIDTH=968, HEIGHT=235, YDISPLAY=316, LINE_HEIGHT=48
+  const mostWidth = 968 * screenScaling
+  const lineHeight = 48 * screenScaling
+  const mostTop =
+    height / 2 -
+    (316 - 235 + 48) * screenScaling
+  // Name band ≈ lower third of the reward box (below art).
+  const y = mostTop + (235 * screenScaling - lineHeight * 1.35)
+  const h = lineHeight * 2.2
   const slots = 4
-  const cardW = width * 0.17
-  const gap = width * 0.018
-  const total = slots * cardW + (slots - 1) * gap
-  const startX = (width - total) / 2
-  const y = height * 0.505
-  const h = height * 0.125
+  const cardW = mostWidth / slots
+  const startX = width / 2 - mostWidth / 2
 
   return Array.from({ length: slots }, (_, i) => ({
-    x: Math.round(startX + i * (cardW + gap)),
-    y: Math.round(y),
+    x: Math.round(startX + i * cardW),
+    y: Math.max(0, Math.round(y)),
     width: Math.round(cardW),
     height: Math.round(h),
   }))
