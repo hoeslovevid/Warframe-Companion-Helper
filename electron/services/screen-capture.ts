@@ -172,6 +172,17 @@ export function cropPng(png: Buffer, region: CaptureRegion): Buffer {
   return img.crop({ x, y, width, height }).toPNG()
 }
 
+/** Re-crop reward name bands from an existing full-frame PNG (3- vs 4-player). */
+export function cropRelicBandsFromPng(
+  fullPng: Buffer,
+  width: number,
+  height: number,
+  slots: 3 | 4,
+): Buffer[][] {
+  const variants = relicRewardRegionVariants(width, height, slots)
+  return variants.map((regions) => regions.map((region) => cropPng(fullPng, region)))
+}
+
 export async function captureRewardRegionPngs(): Promise<Buffer[]> {
   return withOverlayPaused(async () => {
     invalidateCaptureCache()

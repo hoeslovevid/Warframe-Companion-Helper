@@ -65,6 +65,13 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Relic prices from local WFInfo DB first — no market round-trip on every scan',
     'Reward crop geometry aligned to WFInfo / wfinfo-ng layout math',
   ],
+  '0.9.19': [
+    'Relic OCR polish: UI theme override, 3-vs-4 squad detect, better Forma matching',
+    'Needed-for-set + vaulted tags on relic reward cards',
+    'Today dashboard: Nightwave, Archon, Baro, fissures, invasions at a glance',
+    'Session profiles: Relic / Riven / Open world / Baro / Nightwave presets',
+    'Scan chimes when relic or riven OCR finishes (on by default)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

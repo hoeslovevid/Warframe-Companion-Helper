@@ -131,6 +131,33 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       if (id === null || id === undefined) return base.ocrDisplayId
       return typeof id === 'number' && Number.isFinite(id) ? id : base.ocrDisplayId
     })(),
+    wfThemeOverride: (() => {
+      const v = (raw as { wfThemeOverride?: string | null }).wfThemeOverride
+      if (v == null || v === '') return null
+      const ok = [
+        'Vitruvian',
+        'Stalker',
+        'Baruuk',
+        'Corpus',
+        'Fortuna',
+        'Grineer',
+        'Lotus',
+        'Nidus',
+        'Orokin',
+        'Tenno',
+        'HighContrast',
+        'Legacy',
+        'Equinox',
+        'DarkLotus',
+        'Zephyr',
+      ]
+      return ok.includes(v) ? (v as AppSettings['wfThemeOverride']) : null
+    })(),
+    relicSquadSizeOverride: (() => {
+      const v = (raw as { relicSquadSizeOverride?: number | null }).relicSquadSizeOverride
+      if (v === 3 || v === 4) return v
+      return null
+    })(),
     inventorySource: raw.inventorySource ?? base.inventorySource,
     inventoryConsent: raw.inventoryConsent ?? base.inventoryConsent,
     inventoryLastSynced: raw.inventoryLastSynced ?? base.inventoryLastSynced,
@@ -157,6 +184,12 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       raw.soundPack === 'low'
         ? raw.soundPack
         : base.soundPack,
+    activePlayProfile:
+      typeof (raw as { activePlayProfile?: string | null }).activePlayProfile === 'string'
+        ? (raw as { activePlayProfile: string }).activePlayProfile
+        : (raw as { activePlayProfile?: null }).activePlayProfile === null
+          ? null
+          : base.activePlayProfile,
     marketWatchlist: Array.isArray(raw.marketWatchlist)
       ? raw.marketWatchlist.filter((x): x is string => typeof x === 'string')
       : base.marketWatchlist,

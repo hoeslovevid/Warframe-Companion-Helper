@@ -9,6 +9,7 @@ export type CatalogItem = {
   setName: string | null
   partName: string | null
   ducats: number | null
+  vaulted: boolean | null
   normalized: string
 }
 
@@ -153,6 +154,10 @@ function loadCache(): boolean {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as CatalogCache
     const age = Date.now() - new Date(parsed.fetchedAt).getTime()
     if (!parsed.items?.length) return false
+    // Migrate older caches missing vaulted
+    for (const item of parsed.items) {
+      if (item.vaulted === undefined) (item as CatalogItem).vaulted = null
+    }
     rebuildIndexes(parsed.items)
     // Refresh weekly in background if stale
     if (age > 7 * 24 * 60 * 60 * 1000) {
@@ -178,7 +183,12 @@ async function fetchAndCache(): Promise<void> {
   const items: CatalogItem[] = []
   const seen = new Set<string>()
 
-  const pushItem = (name: string, uniqueName: string, ducats: number | null) => {
+  const pushItem = (
+    name: string,
+    uniqueName: string,
+    ducats: number | null,
+    vaulted: boolean | null = null,
+  ) => {
     const key = normalizeItemName(name)
     if (!key || seen.has(key)) return
     seen.add(key)
@@ -189,6 +199,7 @@ async function fetchAndCache(): Promise<void> {
       setName,
       partName,
       ducats,
+      vaulted,
       normalized: key,
     })
   }
@@ -197,9 +208,10 @@ async function fetchAndCache(): Promise<void> {
     const parentName = String(parent.name || '')
     const parentUnique = String(parent.uniqueName || parentName)
     if (!parentName) continue
+    const parentVaulted = typeof parent.vaulted === 'boolean' ? parent.vaulted : null
 
     if (/prime/i.test(parentName)) {
-      pushItem(parentName, parentUnique, null)
+      pushItem(parentName, parentUnique, null, parentVaulted)
     }
 
     const components = parent.components
@@ -211,13 +223,20 @@ async function fetchAndCache(): Promise<void> {
       if (!cName || !/prime/i.test(cName)) continue
       const cUnique = String(c.uniqueName || `${parentUnique}:${cName}`)
       const ducats = typeof c.ducats === 'number' ? c.ducats : null
-      pushItem(cName, cUnique, ducats)
+      const cVaulted =
+        typeof c.vaulted === 'boolean' ? c.vaulted : parentVaulted
+      pushItem(cName, cUnique, ducats, cVaulted)
     }
   }
 
-  // Common non-prime relic rewards
-  for (const extra of ['Forma Blueprint', 'Orokin Catalyst Blueprint', 'Orokin Reactor Blueprint']) {
-    pushItem(extra, extra, null)
+  // Common non-prime relic rewards (Forma OCR often drops "Blueprint")
+  for (const extra of [
+    'Forma Blueprint',
+    'Forma',
+    'Orokin Catalyst Blueprint',
+    'Orokin Reactor Blueprint',
+  ]) {
+    pushItem(extra, extra, null, false)
   }
 
   rebuildIndexes(items)

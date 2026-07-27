@@ -240,6 +240,7 @@ export const MOCK_RELIC_REWARDS: RewardEval[] = [
     platinum: 42,
     volume: 18,
     bestPick: true,
+    vaulted: true,
   },
   {
     slot: 1,
@@ -258,6 +259,7 @@ export const MOCK_RELIC_REWARDS: RewardEval[] = [
     platinum: null,
     volume: null,
     bestPick: false,
+    vaulted: null,
   },
   {
     slot: 2,
@@ -276,6 +278,7 @@ export const MOCK_RELIC_REWARDS: RewardEval[] = [
     platinum: 12,
     volume: 40,
     bestPick: false,
+    vaulted: false,
   },
   {
     slot: 3,
@@ -294,6 +297,7 @@ export const MOCK_RELIC_REWARDS: RewardEval[] = [
     platinum: null,
     volume: null,
     bestPick: false,
+    vaulted: null,
   },
 ]
 

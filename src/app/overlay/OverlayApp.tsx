@@ -7,6 +7,7 @@ import { useRelicScan } from '../../hooks/useRelicScan'
 import { useRivenScan } from '../../hooks/useRivenScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
 import { prettyHotkey } from '../../lib/hotkey'
+import { playScanSound } from '../../lib/sounds'
 import '../../styles/overlay.css'
 
 export function OverlayApp() {
@@ -31,6 +32,17 @@ export function OverlayApp() {
     })
     return () => unsub?.()
   }, [])
+
+  // Chime when OCR finishes — overlay plays even if companion is minimized.
+  useEffect(() => {
+    if (!window.voidlens?.onRelicSound) return
+    return window.voidlens.onRelicSound(() => playScanSound('relic', settings.soundPack))
+  }, [settings.soundPack])
+
+  useEffect(() => {
+    if (!window.voidlens?.onRivenSound) return
+    return window.voidlens.onRivenSound(() => playScanSound('riven', settings.soundPack))
+  }, [settings.soundPack])
 
   // Relics / Rivens are transient popups (AlecaFrame-style), not always-on panels.
   const modules = useMemo(() => {

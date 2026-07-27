@@ -6,14 +6,16 @@ import { getInventoryIndex } from './inventory'
 import { ensureItemCatalog, getSetParts, matchCatalogItem } from './item-catalog'
 import { lookupMarketPrices } from './market-prices'
 import { recognizeRewardNames, warmupOcr } from './ocr'
-import { captureRewardRegionVariants } from './screen-capture'
-import { detectUiTheme, type WfThemeId } from './wfinfo-theme'
+import { captureRewardRegionVariants, cropRelicBandsFromPng } from './screen-capture'
+import { detectRewardPlayerCount, detectUiTheme, type WfThemeId } from './wfinfo-theme'
 import { ensureWfinfoPrices, lookupWfinfoPrices } from './wfinfo-prices'
+import { loadSettings } from '../settings'
 
 function cleanRelicOcr(ocrText: string): string {
   return ocrText
     .replace(/\b(OWNED|CRAFTED|UNRANKED|STEEL|PATH|BONUS|ESSENCE)\b/gi, '')
     .replace(/\b\d+\s*Owned\b/gi, '')
+    .replace(/\bForma\b(?!\s+Blueprint)/gi, 'Forma Blueprint')
     .replace(/\bBlueprint\b/gi, 'Blueprint')
     .replace(/[^A-Za-z0-9 '&-]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -248,13 +250,29 @@ export async function scanRelicRewards(
         )
       }
 
-      // WFInfo-style: detect UI theme once from the full frame, then isolate text.
-      const theme = detectUiTheme(capture.fullPng)
+      // WFInfo-style: theme override or auto-detect, then isolate text.
+      const settings = loadSettings()
+      const theme: WfThemeId =
+        settings.wfThemeOverride ?? detectUiTheme(capture.fullPng)
       console.info(`[Everything Warframe] Relic UI theme ≈ ${theme}`)
 
+      // Squad size: settings override → EE.log hint → image cosine detect.
+      let slotHint =
+        settings.relicSquadSizeOverride ??
+        squadSize ??
+        detectRewardPlayerCount(capture.fullPng, theme)
+      if (slotHint !== 3 && slotHint !== 4) slotHint = 4
+      console.info(`[Everything Warframe] Relic slot count hint ≈ ${slotHint}`)
+
+      // Re-crop for 3-player reward layouts (same strip width, 3 cards).
+      const bands =
+        slotHint === 3
+          ? cropRelicBandsFromPng(capture.fullPng, capture.width, capture.height, 3)
+          : capture.bands
+
       const ocrNames: string[] = []
-      for (let slot = 0; slot < capture.bands.length; slot++) {
-        const best = await bestOcrForSlot(capture.bands[slot], theme)
+      for (let slot = 0; slot < bands.length; slot++) {
+        const best = await bestOcrForSlot(bands[slot], theme)
         ocrNames.push(best)
         console.info(
           `[Everything Warframe] Relic OCR slot ${slot}: ${best || '(empty)'}`,
@@ -288,6 +306,7 @@ export async function scanRelicRewards(
           platinum: null,
           volume: null,
           bestPick: false,
+          vaulted: matched?.item.vaulted ?? null,
         }
       })
 
@@ -296,6 +315,7 @@ export async function scanRelicRewards(
       next = next.filter(
         (r) =>
           r.matchScore >= 0.42 ||
+          /^forma(\s+blueprint)?$/i.test(r.ocrText.trim()) ||
           (r.ocrText.trim().length >= 10 &&
             /prime|blueprint|systems|chassis|neuro|barrel|receiver|blade|stock|grip|hilt|link|string/i.test(
               r.ocrText,
@@ -303,26 +323,19 @@ export async function scanRelicRewards(
       )
 
       if (saveDebugOnWeak && next.every((r) => r.matchScore < 0.45)) {
-        saveRelicDebugCrops(capture.bands, 'weak', capture.fullPng)
+        saveRelicDebugCrops(bands, 'weak', capture.fullPng)
       }
 
-      // Squad-size hint: only trim when we have *extra* weak slots, never drop
-      // strong catalog matches below the real party size.
-      if (squadSize != null && next.length > squadSize) {
+      // Prefer image/settings squad hint when EE.log didn't supply one.
+      const trimTo = settings.relicSquadSizeOverride ?? squadSize ?? slotHint
+      if (trimTo != null && next.length > trimTo) {
         const strong = next.filter((r) => r.matchScore >= 0.45)
-        if (strong.length >= squadSize) {
-          next = [...strong]
-            .sort((a, b) => b.matchScore - a.matchScore)
-            .slice(0, squadSize)
-            .sort((a, b) => a.slot - b.slot)
-            .map((r, i) => ({ ...r, slot: i }))
-        } else {
-          next = [...next]
-            .sort((a, b) => b.matchScore - a.matchScore)
-            .slice(0, squadSize)
-            .sort((a, b) => a.slot - b.slot)
-            .map((r, i) => ({ ...r, slot: i }))
-        }
+        const keep = strong.length >= trimTo ? strong : next
+        next = [...keep]
+          .sort((a, b) => b.matchScore - a.matchScore)
+          .slice(0, trimTo)
+          .sort((a, b) => a.slot - b.slot)
+          .map((r, i) => ({ ...r, slot: i }))
       }
       return next
     }

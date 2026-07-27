@@ -10,6 +10,8 @@ import {
   OVERLAY_MODULE_IDS,
   PRESET_PALETTE_SEEDS,
   PresetColorThemeId,
+  WF_THEME_OPTIONS,
+  WfThemeId,
 } from '../../../shared/types'
 import { customSwatches, seedFromPreset, themeIdsByMode } from '../../lib/theme'
 import { useColorTheme } from '../../hooks/useColorTheme'
@@ -20,6 +22,7 @@ import { UpdateSettings } from '../../components/UpdateSettings'
 import { GettingStarted } from '../../components/GettingStarted'
 import { AppTour, TourStep } from '../../components/AppTour'
 import { StatusStrip } from '../../components/StatusStrip'
+import { TodaySummary } from '../../components/TodaySummary'
 import { HotkeySheet } from '../../components/HotkeySheet'
 import { HelpPage } from '../../components/HelpPage'
 import { WhatsNew } from '../../components/WhatsNew'
@@ -27,7 +30,7 @@ import { NowProvider } from '../../hooks/NowContext'
 import { useInventory } from '../../hooks/useInventory'
 import { useRelicScan } from '../../hooks/useRelicScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
-import { PLAY_PROFILES, applyPlayProfile } from '../../lib/playProfiles'
+import { PLAY_PROFILES, PlayProfileId, applyPlayProfile } from '../../lib/playProfiles'
 import { CyclesPanel } from '../../modules/cycles/CyclesPanel'
 import { FissuresPanel } from '../../modules/fissures/FissuresPanel'
 import { BaroPanel } from '../../modules/baro/BaroPanel'
@@ -414,6 +417,8 @@ export function CompanionApp() {
                   onGoSettings={() => goTab('settings')}
                 />
 
+                <TodaySummary data={data} settings={settings} />
+
                 <div className="toolbar" data-tour="toolbar-hotkeys">
                   <button className="btn primary" onClick={() => void refresh()}>
                     Refresh worldstate
@@ -438,9 +443,15 @@ export function CompanionApp() {
                   {PLAY_PROFILES.map((profile) => (
                     <button
                       key={profile.id}
-                      className="btn ghost"
+                      className={`btn ghost ${
+                        settings.activePlayProfile === profile.id ? 'is-active' : ''
+                      }`}
                       title={profile.description}
-                      onClick={() => void updateSettings(applyPlayProfile(settings, profile.id))}
+                      onClick={() =>
+                        void updateSettings(
+                          applyPlayProfile(settings, profile.id as PlayProfileId),
+                        )
+                      }
                     >
                       {profile.label}
                     </button>
@@ -933,6 +944,54 @@ export function CompanionApp() {
                       . On Linux, choose that same screen in the screen-share dialog.
                     </p>
                   </div>
+                  <div className="field">
+                    <label htmlFor="wf-theme">Relic UI theme (OCR)</label>
+                    <select
+                      id="wf-theme"
+                      value={settings.wfThemeOverride ?? 'auto'}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        void updateSettings({
+                          wfThemeOverride: v === 'auto' ? null : (v as WfThemeId),
+                        })
+                      }}
+                    >
+                      <option value="auto">Auto-detect</option>
+                      {WF_THEME_OPTIONS.map((id) => (
+                        <option key={id} value={id}>
+                          {id}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.78rem' }}>
+                      Force your Warframe UI theme if auto-detect mis-reads reward names.
+                    </p>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="relic-squad">Relic reward slots</label>
+                    <select
+                      id="relic-squad"
+                      value={
+                        settings.relicSquadSizeOverride == null
+                          ? 'auto'
+                          : String(settings.relicSquadSizeOverride)
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value
+                        void updateSettings({
+                          relicSquadSizeOverride:
+                            v === 'auto' ? null : (Number(v) as 3 | 4),
+                        })
+                      }}
+                    >
+                      <option value="auto">Auto (EE.log / image)</option>
+                      <option value="4">4 players</option>
+                      <option value="3">3 players</option>
+                    </select>
+                    <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.78rem' }}>
+                      Use 3 when running with a squad of three so OCR crops line up.
+                    </p>
+                  </div>
                   {typeof navigator !== 'undefined' && /linux/i.test(navigator.userAgent) ? (
                     <div style={{ marginTop: 12 }}>
                       <LinuxCaptureWizard
@@ -970,13 +1029,13 @@ export function CompanionApp() {
                     />
                     <ToggleRow
                       label="Relic scan chime"
-                      description="Play a sound when relic rewards appear"
+                      description="Play a sound when relic OCR finishes reading rewards"
                       checked={settings.relicSoundEnabled}
                       onChange={(enabled) => void updateSettings({ relicSoundEnabled: enabled })}
                     />
                     <ToggleRow
                       label="Riven scan chime"
-                      description="Play a sound when a riven compare popup appears"
+                      description="Play a sound when riven OCR finishes the compare scan"
                       checked={settings.rivenSoundEnabled}
                       onChange={(enabled) => void updateSettings({ rivenSoundEnabled: enabled })}
                     />

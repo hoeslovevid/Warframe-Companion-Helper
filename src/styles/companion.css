@@ -299,6 +299,12 @@
   box-shadow: none;
 }
 
+.btn.ghost.is-active {
+  border-color: rgba(95, 208, 197, 0.55);
+  color: var(--vl-teal-bright);
+  background: rgba(58, 168, 160, 0.12);
+}
+
 .field {
   display: flex;
   flex-direction: column;

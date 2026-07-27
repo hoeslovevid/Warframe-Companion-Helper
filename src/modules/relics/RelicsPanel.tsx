@@ -30,9 +30,11 @@ function ownershipLabel(reward: RewardEval, compact?: boolean) {
   if (!reward.setName) {
     return reward.owned > 0 ? `Owned ×${reward.owned}` : 'Unmatched'
   }
-  if (reward.owned <= 0) {
-    if (compact && reward.setTotalParts > 0) {
-      return `Needed · ${reward.setOwnedParts}/${reward.setTotalParts}`
+  if (reward.needed || reward.owned <= 0) {
+    if (reward.setTotalParts > 0) {
+      return compact
+        ? `Needed · ${reward.setOwnedParts}/${reward.setTotalParts}`
+        : `Needed for set · ${reward.setOwnedParts}/${reward.setTotalParts}`
     }
     return compact ? 'Needed' : 'Needed for set'
   }
@@ -58,9 +60,15 @@ function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean
     <li
       className={`relic-card ${needed ? 'is-needed' : ''} ${reward.bestPick ? 'is-best' : ''} ${
         lowConf ? 'is-low-conf' : ''
-      }`}
+      } ${reward.vaulted ? 'is-vaulted' : ''}`}
     >
-      {reward.bestPick ? <div className="relic-card__badge">Best</div> : null}
+      <div className="relic-card__tags">
+        {reward.bestPick ? <span className="relic-card__tag is-best">Best</span> : null}
+        {needed ? (
+          <span className="relic-card__tag is-needed">{compact ? 'Needed' : 'Needed for set'}</span>
+        ) : null}
+        {reward.vaulted ? <span className="relic-card__tag is-vaulted">Vaulted</span> : null}
+      </div>
       {!compact ? <div className="relic-card__slot">Slot {reward.slot + 1}</div> : null}
       <div className="relic-card__name">{reward.name || 'Unknown'}</div>
       {reward.setName ? (
@@ -86,8 +94,12 @@ function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean
 }
 
 function RewardRow({ rewards, compact }: { rewards: RewardEval[]; compact?: boolean }) {
+  const cols = Math.min(4, Math.max(1, rewards.length))
   return (
-    <ul className={`relic-grid ${compact ? 'is-strip' : 'is-dashboard'}`}>
+    <ul
+      className={`relic-grid ${compact ? 'is-strip' : 'is-dashboard'}`}
+      style={compact ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } : undefined}
+    >
       {rewards.map((reward) => (
         <RewardCard key={reward.slot} reward={reward} compact={compact} />
       ))}

@@ -79,7 +79,11 @@ export function defaultRivenAnchor(
  * Geometry follows WFInfo / wfinfo-ng PIXEL_REWARD_* constants (scaled to
  * 1920×1080 reference), which targets the name line under item art.
  */
-export function relicRewardRegions(width: number, height: number): CaptureRegion[] {
+export function relicRewardRegions(
+  width: number,
+  height: number,
+  slots: 3 | 4 = 4,
+): CaptureRegion[] {
   const screenScaling = width * 9 > height * 16 ? height / 1080 : width / 1920
   // WFInfo: PIXEL_REWARD_WIDTH=968, HEIGHT=235, YDISPLAY=316, LINE_HEIGHT=48
   const mostWidth = 968 * screenScaling
@@ -90,7 +94,6 @@ export function relicRewardRegions(width: number, height: number): CaptureRegion
   // Name band ≈ lower third of the reward box (below art).
   const y = mostTop + (235 * screenScaling - lineHeight * 1.35)
   const h = lineHeight * 2.2
-  const slots = 4
   const cardW = mostWidth / slots
   const startX = width / 2 - mostWidth / 2
 
@@ -106,8 +109,12 @@ export function relicRewardRegions(width: number, height: number): CaptureRegion
  * Per-slot vertical variants so UI scale / resolution still hits the name line.
  * Order: slightly above, primary, slightly below.
  */
-export function relicRewardRegionVariants(width: number, height: number): CaptureRegion[][] {
-  const primary = relicRewardRegions(width, height)
+export function relicRewardRegionVariants(
+  width: number,
+  height: number,
+  slots: 3 | 4 = 4,
+): CaptureRegion[][] {
+  const primary = relicRewardRegions(width, height, slots)
   const deltas = [-0.04, 0, 0.035]
   const bandH = Math.round(height * 0.12)
   return primary.map((base) =>

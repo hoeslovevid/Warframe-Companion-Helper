@@ -177,9 +177,13 @@ async function runRelicScan(trigger: 'manual' | 'log', squadSize?: number | null
   broadcastRelicScan()
   if (state.rewards.length && !state.error) {
     if (settings.relicSoundEnabled) {
-      for (const win of BrowserWindow.getAllWindows()) {
-        win.webContents.send('relics:sound')
-      }
+      const soundTarget =
+        overlayWindow && !overlayWindow.isDestroyed()
+          ? overlayWindow
+          : companionWindow && !companionWindow.isDestroyed()
+            ? companionWindow
+            : null
+      soundTarget?.webContents.send('relics:sound')
     }
     if (!settings.onboarding.firstRelicSuccessAck) {
       // celebration flag already on RelicScanState; companion listens
@@ -231,9 +235,13 @@ async function runRivenScan(trigger: 'manual' | 'log') {
   const state = await scanRivens(trigger)
   broadcastRivenScan()
   if ((state.current || state.reroll) && !state.error && settings.rivenSoundEnabled) {
-    for (const win of BrowserWindow.getAllWindows()) {
-      win.webContents.send('rivens:sound')
-    }
+    const soundTarget =
+      overlayWindow && !overlayWindow.isDestroyed()
+        ? overlayWindow
+        : companionWindow && !companionWindow.isDestroyed()
+          ? companionWindow
+          : null
+    soundTarget?.webContents.send('rivens:sound')
   }
   return state
 }

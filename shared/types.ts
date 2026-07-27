@@ -15,6 +15,42 @@ export type ModuleId =
 /** Soft UI chime style for relic / riven scan alerts. */
 export type SoundPackId = 'soft' | 'bright' | 'double' | 'low'
 
+/** Warframe UI theme ids used by WFInfo-style relic OCR. */
+export type WfThemeId =
+  | 'Vitruvian'
+  | 'Stalker'
+  | 'Baruuk'
+  | 'Corpus'
+  | 'Fortuna'
+  | 'Grineer'
+  | 'Lotus'
+  | 'Nidus'
+  | 'Orokin'
+  | 'Tenno'
+  | 'HighContrast'
+  | 'Legacy'
+  | 'Equinox'
+  | 'DarkLotus'
+  | 'Zephyr'
+
+export const WF_THEME_OPTIONS: WfThemeId[] = [
+  'Vitruvian',
+  'Stalker',
+  'Baruuk',
+  'Corpus',
+  'Fortuna',
+  'Grineer',
+  'Lotus',
+  'Nidus',
+  'Orokin',
+  'Tenno',
+  'HighContrast',
+  'Legacy',
+  'Equinox',
+  'DarkLotus',
+  'Zephyr',
+]
+
 export type PanelAnchor = {
   x: number
   y: number
@@ -286,6 +322,15 @@ export type AppSettings = {
    * `null` = system primary display.
    */
   ocrDisplayId: number | null
+  /**
+   * Force Warframe UI theme for relic OCR text isolation.
+   * `null` = auto-detect from the screenshot (WFInfo-style).
+   */
+  wfThemeOverride: WfThemeId | null
+  /**
+   * Force 3 or 4 reward slots. `null` = EE.log hint, then image detect.
+   */
+  relicSquadSizeOverride: 3 | 4 | null
   overlayVisible: boolean
   layoutEditMode: boolean
   /** After the user has dragged a live overlay once, hide the move-hint chip. */
@@ -294,12 +339,14 @@ export type AppSettings = {
   baroWishlist: string[]
   /** Locally completed Nightwave challenge ids. */
   nightwaveDoneIds: string[]
-  /** Soft chime when relic popup appears. */
+  /** Soft chime when relic OCR finishes. */
   relicSoundEnabled: boolean
-  /** Soft chime when riven compare popup appears. */
+  /** Soft chime when riven OCR finishes. */
   rivenSoundEnabled: boolean
   /** Chime style for relic/riven alerts. */
   soundPack: SoundPackId
+  /** Last applied session profile id (UI highlight only). */
+  activePlayProfile: string | null
   /** Item names to track on the Market tab (warframe.market). */
   marketWatchlist: string[]
   /** Serve localhost HTML widgets for OBS / external overlays. */
@@ -461,14 +508,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fissureShowStorms: true,
   fissureSort: 'eta',
   ocrDisplayId: null,
+  wfThemeOverride: null,
+  relicSquadSizeOverride: null,
   overlayVisible: true,
   layoutEditMode: false,
   overlayDragHintDismissed: false,
   baroWishlist: [],
   nightwaveDoneIds: [],
-  relicSoundEnabled: false,
-  rivenSoundEnabled: false,
+  relicSoundEnabled: true,
+  rivenSoundEnabled: true,
   soundPack: 'soft',
+  activePlayProfile: null,
   marketWatchlist: [],
   widgetServerEnabled: false,
   widgetServerPort: 17862,
@@ -755,6 +805,8 @@ export type RewardEval = {
   volume: number | null
   /** Best overall pick among the four rewards. */
   bestPick: boolean
+  /** Prime set is currently vaulted (when known from catalog). */
+  vaulted: boolean | null
 }
 
 export type RelicScanState = {

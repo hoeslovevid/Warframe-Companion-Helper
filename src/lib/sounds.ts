@@ -63,7 +63,14 @@ function playTones(tones: Tone[]) {
   }
 }
 
+/** Dedupe when both companion + overlay receive the same IPC. */
+const lastPlayed: Record<string, number> = {}
+
 export function playScanSound(kind: 'relic' | 'riven', pack: SoundPackId = 'soft') {
+  const key = `${kind}:${pack}`
+  const now = Date.now()
+  if (now - (lastPlayed[key] || 0) < 400) return
+  lastPlayed[key] = now
   const tones = PACKS[pack]?.[kind] || PACKS.soft[kind]
   playTones(tones)
 }

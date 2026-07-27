@@ -22,6 +22,24 @@ export type WfThemeId =
   | 'DarkLotus'
   | 'Zephyr'
 
+export const WF_THEME_IDS: WfThemeId[] = [
+  'Vitruvian',
+  'Stalker',
+  'Baruuk',
+  'Corpus',
+  'Fortuna',
+  'Grineer',
+  'Lotus',
+  'Nidus',
+  'Orokin',
+  'Tenno',
+  'HighContrast',
+  'Legacy',
+  'Equinox',
+  'DarkLotus',
+  'Zephyr',
+]
+
 type Rgb = [number, number, number]
 
 /** Primary / secondary UI text colors used by Warframe themes (WFInfo table). */
@@ -43,7 +61,7 @@ const THEME_COLORS: Record<WfThemeId, { primary: Rgb; secondary: Rgb }> = {
   Zephyr: { primary: [253, 132, 2], secondary: [255, 53, 0] },
 }
 
-const THEME_IDS = Object.keys(THEME_COLORS) as WfThemeId[]
+const THEME_IDS = WF_THEME_IDS
 
 function rgbDist(a: Rgb, b: Rgb): number {
   return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])
@@ -188,3 +206,49 @@ export function filterRelicTextPng(png: Buffer, theme: WfThemeId): Buffer {
 
   return nativeImage.createFromBitmap(out, { width, height }).toPNG()
 }
+
+/**
+ * WFInfo-style 3-vs-4 player detect on the reward name strip.
+ * Uses a cosine weight across the filtered text band; odd peaks → 3 players.
+ */
+export function detectRewardPlayerCount(fullPng: Buffer, theme: WfThemeId): 3 | 4 {
+  const filtered = filterRelicTextPng(fullPng, theme)
+  const img = nativeImage.createFromBuffer(filtered)
+  const { width, height } = img.getSize()
+  if (width < 64 || height < 64) return 4
+
+  const screenScaling = width * 9 > height * 16 ? height / 1080 : width / 1920
+  const mostWidth = Math.round(968 * screenScaling)
+  const mostLeft = Math.max(0, Math.round(width / 2 - mostWidth / 2))
+  const mostTop = Math.max(
+    0,
+    Math.round(height / 2 - (316 - 235 + 48) * screenScaling),
+  )
+  const mostBot = Math.min(
+    height,
+    Math.round(height / 2 - (316 - 235) * screenScaling * 0.5),
+  )
+  const bandH = Math.max(8, mostBot - mostTop)
+  const bitmap = img.toBitmap()
+
+  let totalEven = 0
+  let totalOdd = 0
+  const right = Math.min(width, mostLeft + mostWidth)
+  for (let x = mostLeft; x < right; x++) {
+    let count = 0
+    for (let y = mostTop; y < mostTop + bandH; y++) {
+      const i = (y * width + x) * 4
+      // Black text on white after filter
+      if (bitmap[i] < 40 && bitmap[i + 1] < 40 && bitmap[i + 2] < 40) count += 1
+    }
+    count = Math.min(count, Math.floor(bandH / 3))
+    const cosine = Math.cos((8 * (x - mostLeft) * Math.PI) / Math.max(1, mostWidth))
+    const weight = Math.pow(cosine, 3) * count
+    if (cosine < 0) totalEven -= weight
+    else if (cosine > 0) totalOdd += weight
+  }
+
+  if (totalEven === 0 && totalOdd === 0) return 4
+  return totalOdd > totalEven ? 3 : 4
+}
+
