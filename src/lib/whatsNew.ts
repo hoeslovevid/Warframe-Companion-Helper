@@ -72,6 +72,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Session profiles: Relic / Riven / Open world / Baro / Nightwave presets',
     'Scan chimes when relic or riven OCR finishes (on by default)',
   ],
+  '0.9.20': [
+    'Linux/AppImage: store settings + caches under ~/.local/share (not ~/.config) so API/catalog writes succeed',
+    'Auto-migrate existing Linux data from ~/.config on first launch',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

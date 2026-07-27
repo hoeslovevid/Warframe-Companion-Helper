@@ -45,8 +45,8 @@ function saveDisk() {
       byNormalized: Object.fromEntries(byNormalized.entries()),
     }
     fs.writeFileSync(cachePath(), JSON.stringify(obj), 'utf8')
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('[Everything Warframe] Failed to write WFInfo price cache', cachePath(), err)
   }
 }
 

@@ -91,6 +91,9 @@ export function buildDiagnosticsBlock(): string {
     `eeLogPath: ${redactPath(settings.eeLogPath) || '(empty)'}`,
     `inventorySource: ${settings.inventorySource}`,
     `inventoryPath: ${redactPath(settings.inventoryPath) || '(empty)'}`,
+    `userData: ${redactPath(app.getPath('userData'))}`,
+    `cache: ${redactPath(app.getPath('cache'))}`,
+    `appImage: ${process.env.APPIMAGE ? redactPath(process.env.APPIMAGE) : '(no)'}`,
     `relicScan: active=${relic.active} err=${relic.error || 'none'} rewards=${relic.rewards.length} squad=${relic.squadSize ?? 'n/a'}`,
     `rivenScan: active=${riven.active} err=${riven.error || 'none'} current=${riven.current?.weapon || '-'} reroll=${riven.reroll?.weapon || '-'}`,
   ]

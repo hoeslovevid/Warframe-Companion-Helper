@@ -128,6 +128,7 @@ npm run build:riven-prefs
 6. On **Wayland**, grant screen share once when prompted — Everything Warframe keeps that capture session open for relic/riven OCR so you are not asked again each scan
 7. EE.log is auto-detected from Steam/Proton (`compatdata/230410`); if auto-scan never fires, set the path under Settings after launching Warframe once
 8. Inventory sync from the game runs the Windows helper via Proton’s wine inside the Warframe prefix (or import `inventory.json` manually)
+9. **Data location:** settings, catalogs, and OCR caches live under `~/.local/share/Everything Warframe` (not inside the AppImage mount, and not under `~/.config`). First launch migrates any older `~/.config/Everything Warframe` folder automatically.
 
 ## Foundry planner
 

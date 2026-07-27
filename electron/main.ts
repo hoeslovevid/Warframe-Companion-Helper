@@ -85,6 +85,7 @@ import {
   getWidgetServerStatus,
   stopWidgetServer,
 } from './services/widget-server'
+import { configureLinuxStoragePaths } from './linux-paths'
 import {
   AppSettings,
   FoundryListFilters,
@@ -105,6 +106,8 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.voidlens.app')
 }
 if (process.platform === 'linux') {
+  // Must run before any userData reads/writes (settings, caches, Chromium profile).
+  configureLinuxStoragePaths()
   // Helps transparent always-on-top overlay above Proton / borderless clients
   app.commandLine.appendSwitch('enable-transparent-visuals')
   // PipeWire capturer — needed for reliable Wayland screen share + restore tokens

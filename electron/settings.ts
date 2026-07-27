@@ -233,7 +233,17 @@ export function saveSettings(next: AppSettings): AppSettings {
     fs.mkdirSync(path.dirname(settingsPath()), { recursive: true })
     fs.writeFileSync(settingsPath(), JSON.stringify(next, null, 2), 'utf8')
   } catch (err) {
-    console.error('Failed to save settings', err)
+    const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : ''
+    console.error(
+      `[Everything Warframe] Failed to save settings to ${settingsPath()}` +
+        (code ? ` (${code})` : ''),
+      err,
+    )
+    if (code === 'EROFS' || code === 'EACCES') {
+      console.error(
+        '[Everything Warframe] Settings path is not writable. On Linux AppImage, data must live under ~/.local/share — not inside the .AppImage mount.',
+      )
+    }
   }
   return cache
 }
