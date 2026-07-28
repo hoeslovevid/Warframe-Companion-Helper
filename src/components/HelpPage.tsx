@@ -1,6 +1,7 @@
 import { AppSettings } from '../../shared/types'
 import { BugReportPanel } from './BugReportPanel'
 import { Panel } from './Panel'
+import { UninstallPanel } from './UninstallPanel'
 import { prettyHotkey } from '../lib/hotkey'
 import './onboarding.css'
 
@@ -94,6 +95,10 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
 
       <div className="section-gap" />
 
+      <UninstallPanel />
+
+      <div className="section-gap" />
+
       <Panel title="Common questions">
         <div className="help-block">
           <h3>Where did the companion go?</h3>
@@ -107,6 +112,14 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
           <p>
             That’s usually Xbox Game Bar, NVIDIA overlay, or RTSS — not Everything Warframe. Turn it
             off in that app’s settings.
+          </p>
+        </div>
+        <div className="help-block">
+          <h3>How do I uninstall?</h3>
+          <p>
+            Use the Uninstall section above, or Windows Settings → Apps → Everything Warframe. The
+            Setup installer also adds a Start Menu uninstall entry. Portable builds: delete the
+            .exe; Linux AppImage: delete the file; .deb: remove via your package manager.
           </p>
         </div>
         <div className="help-block">

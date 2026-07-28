@@ -27,7 +27,13 @@ import {
   setCaptureOverlayPause,
   warmScreenCapture,
 } from './services/screen-capture'
-import { disposePersistentCapture } from './services/persistent-screen-capture'
+import {
+  clearUserDataAndQuit,
+  getUninstallInfo,
+  launchUninstaller,
+  openUserDataFolder,
+  openWindowsAppsSettings,
+} from './services/uninstall'
 import { ensureWfinfoPrices } from './services/wfinfo-prices'
 import { defaultRivenAnchor } from '../shared/captureGeometry'
 import { fetchWorldstate, hasExpiredWorldstate } from './services/worldstate'
@@ -516,6 +522,33 @@ function refreshTrayUi() {
           click: () => toggleLayoutEditMode(),
         },
         { type: 'separator' },
+        {
+          label: 'Uninstall…',
+          click: () => {
+            void (async () => {
+              const info = getUninstallInfo()
+              const { response } = await dialog.showMessageBox({
+                type: 'question',
+                buttons: info.canLaunchUninstaller
+                  ? ['Run uninstaller', 'Cancel']
+                  : process.platform === 'win32'
+                    ? ['Open Apps settings', 'Cancel']
+                    : ['OK', 'Cancel'],
+                defaultId: 0,
+                cancelId: 1,
+                title: 'Uninstall Everything Warframe',
+                message: 'Remove Everything Warframe?',
+                detail: info.guidance,
+              })
+              if (response !== 0) return
+              if (info.canLaunchUninstaller || process.platform === 'win32') {
+                await launchUninstaller()
+              } else {
+                createCompanionWindow()
+              }
+            })()
+          },
+        },
         {
           label: 'Quit',
           click: () => {
@@ -1016,6 +1049,11 @@ function registerIpc() {
   )
   ipcMain.handle('bugReport:pickScreenshots', async () => pickBugScreenshots())
   ipcMain.handle('bugReport:openDebugFolders', async () => openBugDebugFolders())
+  ipcMain.handle('app:uninstallInfo', () => getUninstallInfo())
+  ipcMain.handle('app:launchUninstaller', async () => launchUninstaller())
+  ipcMain.handle('app:openWindowsAppsSettings', async () => openWindowsAppsSettings())
+  ipcMain.handle('app:openUserDataFolder', async () => openUserDataFolder())
+  ipcMain.handle('app:clearUserDataAndQuit', () => clearUserDataAndQuit())
   ipcMain.handle('market:lookup', async (_e, names: string[]) => {
     const list = Array.isArray(names) ? names.filter((n) => typeof n === 'string') : []
     return fetchItemQuotes(list)

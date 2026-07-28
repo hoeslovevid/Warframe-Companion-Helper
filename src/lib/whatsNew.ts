@@ -94,6 +94,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Overlay option: only show while Warframe is focused (hides over other apps)',
     'Companion UI modernization: quieter chrome, Relic Planner hero, Today brief',
   ],
+  '0.9.25': [
+    'Help + tray: uninstall the app, open data folder, or delete local settings',
+    'Windows Setup uninstaller can remove app data when you choose',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

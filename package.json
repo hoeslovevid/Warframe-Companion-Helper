@@ -1,6 +1,6 @@
 {
   "name": "everything-warframe",
-  "version": "0.9.24",
+  "version": "0.9.25",
   "description": "Everything Warframe — overlay companion for Windows and Linux (Steam/Proton): worldstate, relics, rivens, foundry, inventory",
   "main": "dist-electron/main.cjs",
   "author": "Everything Warframe <hoeslovevid@users.noreply.github.com>",
@@ -128,6 +128,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Everything Warframe",
+      "deleteAppDataOnUninstall": true,
       "artifactName": "${productName}-${version}-Setup-${os}-${arch}.${ext}"
     },
     "portable": {

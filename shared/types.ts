@@ -986,6 +986,17 @@ export type BugReportOpenResult = {
   error?: string
 }
 
+export type InstallKind = 'nsis' | 'portable' | 'appimage' | 'deb' | 'dev' | 'unknown'
+
+export type UninstallInfo = {
+  kind: InstallKind
+  canLaunchUninstaller: boolean
+  uninstallerPath: string | null
+  installDir: string | null
+  userDataPath: string
+  guidance: string
+}
+
 export type VoidLensApi = {
   getSettings: () => Promise<AppSettings>
   updateSettings: (partial: Partial<AppSettings>) => Promise<AppSettings>
@@ -1027,6 +1038,11 @@ export type VoidLensApi = {
   copyBugDiagnostics: (draft?: Partial<BugReportDraft>) => Promise<boolean>
   pickBugScreenshots: () => Promise<{ stagingDir: string; count: number } | null>
   openBugDebugFolders: () => Promise<string[]>
+  getUninstallInfo: () => Promise<UninstallInfo>
+  launchUninstaller: () => Promise<{ ok: boolean; error?: string }>
+  openWindowsAppsSettings: () => Promise<{ ok: boolean; error?: string }>
+  openUserDataFolder: () => Promise<{ ok: boolean; error?: string }>
+  clearUserDataAndQuit: () => Promise<{ ok: boolean; error?: string }>
   lookupMarketPrices: (
     names: string[],
   ) => Promise<Array<{ name: string; platinum: number; volume: number }>>
