@@ -318,14 +318,22 @@ export function CompanionApp() {
                 <h1 className="brand">Everything Warframe</h1>
               </div>
             </div>
-            <p className="brand-sub">Cycles, relics, Baro, inventory, and more — in one overlay.</p>
-            <div className="nav-section">Overview</div>
+            <p className="brand-sub">Cycles, relics, Baro, inventory — one overlay.</p>
+            <div className="nav-section">Play</div>
             <button
               className={`nav-btn ${tab === 'dashboard' ? 'active' : ''}`}
               data-tour="nav-dashboard"
               title="Live worldstate and getting started"
               onClick={() => goTab('dashboard')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="2" y="2" width="5" height="5" rx="1" />
+                  <rect x="9" y="2" width="5" height="5" rx="1" />
+                  <rect x="2" y="9" width="5" height="5" rx="1" />
+                  <rect x="9" y="9" width="5" height="5" rx="1" />
+                </svg>
+              </span>
               Dashboard
             </button>
             <button
@@ -334,6 +342,11 @@ export function CompanionApp() {
               title="Choose which overlay panels are enabled"
               onClick={() => goTab('modules')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 4.5h10M3 8h10M3 11.5h7" strokeLinecap="round" />
+                </svg>
+              </span>
               Modules
             </button>
             <div className="nav-section">Tools</div>
@@ -343,6 +356,12 @@ export function CompanionApp() {
               title="Crafting trees and build readiness"
               onClick={() => goTab('foundry')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M4 13V7l4-4 4 4v6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M6.5 13v-3h3v3" strokeLinecap="round" />
+                </svg>
+              </span>
               Foundry
             </button>
             <button
@@ -350,6 +369,11 @@ export function CompanionApp() {
               title="Rank relics by missing parts and platinum"
               onClick={() => goTab('relicPlanner')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M8 2.5 13 5v6l-5 2.5L3 11V5l5-2.5Z" strokeLinejoin="round" />
+                </svg>
+              </span>
               Relics
             </button>
             <button
@@ -357,6 +381,11 @@ export function CompanionApp() {
               title="Next mastery / craft targets"
               onClick={() => goTab('mastery')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M8 2.5v11M4.5 5.5 8 2.5l3.5 3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
               Mastery
             </button>
             <button
@@ -365,6 +394,12 @@ export function CompanionApp() {
               title="warframe.market watchlist and scan prices"
               onClick={() => goTab('market')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 12.5V6.5L8 3.5l5 3v6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M6 12.5V9h4v3.5" strokeLinecap="round" />
+                </svg>
+              </span>
               Market
             </button>
             <button
@@ -373,6 +408,12 @@ export function CompanionApp() {
               title="Drag panels on a mock monitor"
               onClick={() => goTab('layout')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="2.5" y="3" width="11" height="9" rx="1.5" />
+                  <path d="M2.5 6h11" strokeLinecap="round" />
+                </svg>
+              </span>
               Layout
             </button>
             <div className="nav-section">System</div>
@@ -382,6 +423,15 @@ export function CompanionApp() {
               title="Appearance, hotkeys, inventory, updates"
               onClick={() => goTab('settings')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="2.2" />
+                  <path
+                    d="M8 2.5v1.2M8 12.3v1.2M2.5 8h1.2M12.3 8h1.2M4.1 4.1l.85.85M11.05 11.05l.85.85M11.9 4.1l-.85.85M4.95 11.05l-.85.85"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
               Settings
             </button>
             <button
@@ -390,6 +440,13 @@ export function CompanionApp() {
               title="Tour, hotkeys, and FAQ"
               onClick={() => goTab('help')}
             >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="5.5" />
+                  <path d="M6.4 6.4a1.7 1.7 0 1 1 2.3 1.55c-.5.3-.9.7-.9 1.35" strokeLinecap="round" />
+                  <circle cx="8" cy="11.2" r="0.6" fill="currentColor" stroke="none" />
+                </svg>
+              </span>
               Help
             </button>
           </aside>
@@ -1060,9 +1117,15 @@ export function CompanionApp() {
                   ) : null}
                   <ToggleRow
                     label="Overlay visible"
-                    description="Global hotkey also toggles this"
+                    description="Global hotkey also toggles this. With “Only over Warframe”, armed means it appears when the game is focused."
                     checked={settings.overlayVisible}
                     onChange={(enabled) => void updateSettings({ overlayVisible: enabled })}
+                  />
+                  <ToggleRow
+                    label="Only over Warframe"
+                    description="Hide the overlay when another app is focused. On Linux without window focus APIs, this tracks whether Warframe is running."
+                    checked={settings.overlayOnlyInWarframe}
+                    onChange={(enabled) => void updateSettings({ overlayOnlyInWarframe: enabled })}
                   />
                   <ToggleRow
                     label="Move panels (in-game)"

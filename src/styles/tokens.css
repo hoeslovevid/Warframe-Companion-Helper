@@ -1,10 +1,32 @@
 :root {
   --vl-font-display: 'Orbitron', sans-serif;
   --vl-font-body: 'Sora', sans-serif;
-  --vl-radius: 12px;
-  --vl-radius-sm: 10px;
+  --vl-radius: 10px;
+  --vl-radius-sm: 8px;
+  --vl-radius-lg: 14px;
   --vl-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --vl-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --vl-scroll-size: 8px;
+  --vl-duration-fast: 120ms;
+  --vl-duration: 180ms;
+  --vl-duration-slow: 320ms;
+
+  /* Type roles — Orbitron only for brand / page titles */
+  --vl-type-brand: 0.95rem;
+  --vl-type-page: 1.28rem;
+  --vl-type-section: 0.72rem;
+  --vl-type-body: 0.92rem;
+  --vl-type-meta: 0.78rem;
+  --vl-type-micro: 0.68rem;
+  --vl-lh-body: 1.5;
+  --vl-lh-tight: 1.25;
+
+  /* Elevation (no neon glow stacks) */
+  --vl-elev-0: none;
+  --vl-elev-1: 0 4px 14px rgba(0, 0, 0, 0.28);
+  --vl-elev-2: 0 10px 28px rgba(0, 0, 0, 0.4);
+  --vl-elev-3: 0 18px 48px rgba(0, 0, 0, 0.52);
+
   /* Fallback palette (void) until themes.css / data-theme applies */
   --vl-void-950: #020406;
   --vl-void-900: #060a0e;
@@ -25,40 +47,43 @@
   --vl-warn: #c9b07a;
   --vl-panel: rgba(6, 10, 14, 0.88);
   --vl-panel-solid: rgba(5, 9, 13, 0.97);
-  --vl-panel-border: rgba(184, 148, 79, 0.28);
-  --vl-panel-glow: rgba(47, 143, 136, 0.07);
-  --vl-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-  --vl-shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.38);
+  --vl-panel-border: rgba(127, 150, 166, 0.12);
+  --vl-panel-glow: rgba(47, 143, 136, 0.05);
+  --vl-shadow: var(--vl-elev-3);
+  --vl-shadow-soft: var(--vl-elev-1);
   --vl-scroll-track: rgba(2, 4, 6, 0.45);
-  --vl-scroll-thumb: rgba(184, 148, 79, 0.3);
-  --vl-scroll-thumb-hover: rgba(74, 181, 172, 0.45);
-  --vl-bg-spot-1: rgba(47, 143, 136, 0.1);
-  --vl-bg-spot-2: rgba(184, 148, 79, 0.08);
+  --vl-scroll-thumb: rgba(127, 150, 166, 0.28);
+  --vl-scroll-thumb-hover: rgba(74, 181, 172, 0.4);
+  --vl-bg-spot-1: rgba(47, 143, 136, 0.08);
+  --vl-bg-spot-2: rgba(184, 148, 79, 0.05);
   --vl-bg-spot-3: rgba(12, 20, 28, 0.7);
   --vl-bg-base-a: #04070a;
   --vl-bg-base-b: #080e14;
   --vl-bg-base-c: #020406;
-  --vl-nav-bg-a: rgba(3, 5, 8, 0.88);
-  --vl-nav-bg-b: rgba(2, 4, 6, 0.72);
+  --vl-nav-bg-a: rgba(3, 5, 8, 0.9);
+  --vl-nav-bg-b: rgba(2, 4, 6, 0.78);
   --vl-nav-border: rgba(127, 150, 166, 0.08);
-  --vl-surface: rgba(4, 8, 12, 0.55);
-  --vl-surface-border: rgba(127, 150, 166, 0.14);
-  --vl-input-bg: rgba(2, 4, 6, 0.65);
-  --vl-input-border: rgba(127, 150, 166, 0.16);
-  --vl-btn-bg-a: rgba(20, 32, 42, 0.96);
-  --vl-btn-bg-b: rgba(8, 12, 16, 0.98);
-  --vl-btn-border: rgba(184, 148, 79, 0.3);
-  --vl-btn-primary-a: rgba(47, 143, 136, 0.22);
+  --vl-surface: rgba(4, 8, 12, 0.45);
+  --vl-surface-border: rgba(127, 150, 166, 0.1);
+  --vl-input-bg: rgba(2, 4, 6, 0.55);
+  --vl-input-border: rgba(127, 150, 166, 0.14);
+  --vl-btn-bg-a: rgba(16, 24, 32, 0.9);
+  --vl-btn-bg-b: rgba(8, 12, 16, 0.96);
+  --vl-btn-border: rgba(127, 150, 166, 0.16);
+  --vl-btn-primary-a: rgba(47, 143, 136, 0.28);
   --vl-btn-primary-b: rgba(8, 14, 18, 0.97);
-  --vl-btn-primary-border: rgba(47, 143, 136, 0.48);
-  --vl-btn-ghost-bg: rgba(2, 4, 6, 0.4);
-  --vl-nav-hover: rgba(16, 24, 32, 0.75);
-  --vl-nav-active-a: rgba(47, 143, 136, 0.12);
-  --vl-nav-active-b: rgba(47, 143, 136, 0.03);
-  --vl-nav-active-border: rgba(47, 143, 136, 0.22);
-  --vl-grid-line: rgba(127, 150, 166, 0.04);
+  --vl-btn-primary-border: rgba(47, 143, 136, 0.42);
+  --vl-btn-ghost-bg: transparent;
+  --vl-nav-hover: rgba(16, 24, 32, 0.55);
+  --vl-nav-active-a: rgba(47, 143, 136, 0.08);
+  --vl-nav-active-b: transparent;
+  --vl-nav-active-border: transparent;
+  --vl-grid-line: rgba(127, 150, 166, 0.035);
   --vl-title-grad-a: var(--vl-frost);
-  --vl-title-grad-b: var(--vl-gold-soft);
+  --vl-title-grad-b: var(--vl-frost);
+  --vl-accent: var(--vl-teal-bright);
+  --vl-accent-soft: var(--vl-teal-dim);
+  --vl-premium: var(--vl-gold-soft);
 }
 
 * {
@@ -75,6 +100,8 @@ body,
 
 body {
   font-family: var(--vl-font-body);
+  font-size: var(--vl-type-body);
+  line-height: var(--vl-lh-body);
   color: var(--vl-frost);
   background: var(--vl-void-900);
   -webkit-font-smoothing: antialiased;
@@ -113,9 +140,9 @@ a {
 code {
   font-family: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace;
   font-size: 0.86em;
-  color: var(--vl-gold-soft);
-  background: color-mix(in srgb, var(--vl-gold) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--vl-gold) 22%, transparent);
+  color: var(--vl-premium);
+  background: color-mix(in srgb, var(--vl-gold) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--vl-gold) 18%, transparent);
   border-radius: 6px;
   padding: 1px 6px;
 }
@@ -137,7 +164,7 @@ code {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--vl-scroll-thumb), color-mix(in srgb, var(--vl-teal-bright) 35%, transparent));
+  background: var(--vl-scroll-thumb);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -153,43 +180,95 @@ code {
   background: transparent;
 }
 
-/* ---------- Shared status pills ---------- */
+/* ---------- Shared status pills (use sparingly) ---------- */
 .vl-pill {
   display: inline-flex;
   align-items: center;
-  font-size: 0.65rem;
-  letter-spacing: 0.05em;
+  font-size: var(--vl-type-micro);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 600;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid var(--vl-surface-border);
   color: var(--vl-mist);
-  background: color-mix(in srgb, var(--vl-void-850) 55%, transparent);
+  background: color-mix(in srgb, var(--vl-void-850) 45%, transparent);
 }
 
 .vl-pill.is-ok {
-  border-color: color-mix(in srgb, var(--vl-ok) 50%, transparent);
+  border-color: color-mix(in srgb, var(--vl-ok) 40%, transparent);
   color: var(--vl-ok);
-  background: color-mix(in srgb, var(--vl-ok) 12%, transparent);
+  background: color-mix(in srgb, var(--vl-ok) 10%, transparent);
 }
 
 .vl-pill.is-ready {
-  border-color: color-mix(in srgb, var(--vl-teal-bright) 55%, transparent);
+  border-color: color-mix(in srgb, var(--vl-teal-bright) 45%, transparent);
   color: var(--vl-teal-bright);
-  background: color-mix(in srgb, var(--vl-teal-bright) 12%, transparent);
+  background: color-mix(in srgb, var(--vl-teal-bright) 10%, transparent);
 }
 
 .vl-pill.is-warn {
-  border-color: color-mix(in srgb, var(--vl-warn) 50%, transparent);
+  border-color: color-mix(in srgb, var(--vl-warn) 40%, transparent);
   color: var(--vl-warn);
-  background: color-mix(in srgb, var(--vl-warn) 12%, transparent);
+  background: color-mix(in srgb, var(--vl-warn) 10%, transparent);
 }
 
 .vl-pill.is-danger {
-  border-color: color-mix(in srgb, var(--vl-danger) 50%, transparent);
+  border-color: color-mix(in srgb, var(--vl-danger) 40%, transparent);
   color: var(--vl-danger);
-  background: color-mix(in srgb, var(--vl-danger) 12%, transparent);
+  background: color-mix(in srgb, var(--vl-danger) 10%, transparent);
+}
+
+.vl-pill.is-premium {
+  border-color: color-mix(in srgb, var(--vl-gold) 40%, transparent);
+  color: var(--vl-premium);
+  background: color-mix(in srgb, var(--vl-gold) 10%, transparent);
+}
+
+/* ---------- Segmented controls ---------- */
+.vl-segment {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--vl-radius-sm);
+  border: 1px solid var(--vl-surface-border);
+  background: var(--vl-surface);
+}
+
+.vl-segment--wrap {
+  display: flex;
+  width: 100%;
+}
+
+.vl-segment__btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vl-mist);
+  border-radius: calc(var(--vl-radius-sm) - 2px);
+  padding: 7px 10px;
+  font-size: var(--vl-type-meta);
+  font-weight: 600;
+  line-height: var(--vl-lh-tight);
+  transition:
+    background var(--vl-duration) var(--vl-ease),
+    color var(--vl-duration) var(--vl-ease);
+}
+
+.vl-segment__btn:hover:not(:disabled):not(.is-on) {
+  color: var(--vl-frost);
+  background: color-mix(in srgb, var(--vl-frost) 4%, transparent);
+}
+
+.vl-segment__btn.is-on {
+  color: var(--vl-frost);
+  background: color-mix(in srgb, var(--vl-teal) 22%, transparent);
+}
+
+.vl-segment__btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 /* ---------- Empty states ---------- */
@@ -204,28 +283,28 @@ code {
 .vl-empty__mark {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--vl-panel-border);
+  border-radius: var(--vl-radius-sm);
+  border: 1px solid var(--vl-surface-border);
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--vl-gold) 28%, transparent), color-mix(in srgb, var(--vl-teal) 18%, transparent)),
+    linear-gradient(145deg, color-mix(in srgb, var(--vl-teal) 22%, transparent), transparent 60%),
     var(--vl-surface);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .vl-empty__title {
   margin: 0;
-  font-family: var(--vl-font-display);
-  font-size: 0.82rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--vl-gold-soft);
+  font-family: var(--vl-font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--vl-frost);
 }
 
 .vl-empty__body {
   margin: 0;
   color: var(--vl-mist);
-  line-height: 1.5;
-  font-size: 0.92rem;
+  line-height: var(--vl-lh-body);
+  font-size: var(--vl-type-body);
 }
 
 .vl-empty__actions {
@@ -239,7 +318,7 @@ code {
 @keyframes vlFadeUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -250,33 +329,80 @@ code {
 @keyframes vlPulseSoft {
   0%,
   100% {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vl-teal-bright) 25%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vl-teal-bright) 22%, transparent);
   }
   50% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--vl-teal-bright) 55%, transparent),
-      0 0 18px color-mix(in srgb, var(--vl-teal) 18%, transparent);
-  }
-}
-
-@keyframes vlShimmer {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 100% 50%;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vl-teal-bright) 45%, transparent);
   }
 }
 
 @keyframes vlTabIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes vlStaggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vlExpandIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vl-stagger > * {
+  animation: vlStaggerIn var(--vl-duration-slow) var(--vl-ease-out) both;
+}
+
+.vl-stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.vl-stagger > *:nth-child(2) {
+  animation-delay: 30ms;
+}
+.vl-stagger > *:nth-child(3) {
+  animation-delay: 60ms;
+}
+.vl-stagger > *:nth-child(4) {
+  animation-delay: 90ms;
+}
+.vl-stagger > *:nth-child(5) {
+  animation-delay: 120ms;
+}
+.vl-stagger > *:nth-child(6) {
+  animation-delay: 150ms;
+}
+.vl-stagger > *:nth-child(7) {
+  animation-delay: 180ms;
+}
+.vl-stagger > *:nth-child(8) {
+  animation-delay: 210ms;
+}
+.vl-stagger > *:nth-child(n + 9) {
+  animation-delay: 240ms;
+}
+
+.vl-expand-in {
+  animation: vlExpandIn var(--vl-duration-slow) var(--vl-ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -286,5 +412,13 @@ code {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .vl-stagger > *,
+  .vl-expand-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

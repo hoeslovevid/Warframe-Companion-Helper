@@ -5,6 +5,8 @@
   background: transparent;
   pointer-events: none;
   user-select: none;
+  font-family: var(--vl-font-body);
+  font-size: var(--vl-type-body);
 }
 
 .overlay-root.layout-edit {
@@ -19,24 +21,37 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 1px solid var(--vl-panel-border);
-  box-shadow: var(--vl-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: var(--vl-radius);
+  box-shadow: var(--vl-elev-2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   animation: none;
   transition: none;
 }
 
 .overlay-root .vl-panel:hover {
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: var(--vl-elev-2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .overlay-root .vl-panel::before {
   animation: none;
-  background: linear-gradient(90deg, var(--vl-gold), var(--vl-teal-bright), transparent 70%);
+  height: 1px;
+  background: linear-gradient(90deg, var(--vl-accent), transparent 70%);
+}
+
+.overlay-root .vl-panel__title {
+  font-family: var(--vl-font-body);
+  font-size: var(--vl-type-section);
+  letter-spacing: 0.08em;
+}
+
+.overlay-root .vl-panel__subtitle,
+.overlay-root .vl-panel__body {
+  font-size: var(--vl-type-meta);
 }
 
 .overlay-panel {
   position: absolute;
-  min-width: 280px;
-  max-width: 380px;
+  min-width: 260px;
+  max-width: 360px;
   pointer-events: none;
   animation: none;
 }
@@ -58,16 +73,16 @@
   position: fixed;
   left: 24px;
   top: 24px;
-  max-width: 340px;
-  padding: 16px 18px;
-  border-radius: 14px;
+  max-width: 320px;
+  padding: 14px 16px;
+  border-radius: var(--vl-radius);
   background: var(--vl-panel-solid);
-  border: 1px solid rgba(201, 164, 92, 0.45);
+  border: 1px solid var(--vl-panel-border);
   color: var(--vl-frost);
-  font-size: 0.9rem;
+  font-size: var(--vl-type-meta);
   line-height: 1.45;
   pointer-events: none;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--vl-elev-2);
   animation: none;
 }
 
@@ -76,15 +91,15 @@
   left: 50%;
   bottom: 28px;
   transform: translateX(-50%);
-  padding: 11px 18px;
-  border-radius: 999px;
-  background: rgba(5, 9, 13, 0.96);
-  border: 1px solid rgba(184, 148, 79, 0.35);
-  color: var(--vl-gold-soft);
-  font-size: 0.85rem;
+  padding: 9px 14px;
+  border-radius: var(--vl-radius-sm);
+  background: var(--vl-panel-solid);
+  border: 1px solid var(--vl-panel-border);
+  color: var(--vl-mist);
+  font-size: var(--vl-type-meta);
   letter-spacing: 0.02em;
   pointer-events: none;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--vl-elev-1);
   animation: none;
 }
 
@@ -94,32 +109,39 @@
   top: 12%;
   transform: translateX(-50%);
   z-index: 9999;
-  padding: 14px 28px;
-  border-radius: 12px;
-  background: rgba(5, 10, 14, 0.94);
-  border: 1px solid rgba(95, 208, 197, 0.55);
+  padding: 12px 22px;
+  border-radius: var(--vl-radius);
+  background: var(--vl-panel-solid);
+  border: 1px solid color-mix(in srgb, var(--vl-accent) 45%, transparent);
   color: var(--vl-frost);
-  font-family: var(--vl-font-display);
-  font-size: 1.05rem;
-  letter-spacing: 0.12em;
+  font-family: var(--vl-font-body);
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   pointer-events: none;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-  animation: overlayCueIn 180ms ease-out both;
+  box-shadow: var(--vl-elev-2);
+  animation: overlayCueIn 160ms ease-out both;
 }
 
 .overlay-toggle-cue.is-off {
-  border-color: rgba(212, 106, 106, 0.55);
+  border-color: color-mix(in srgb, var(--vl-danger) 45%, transparent);
   color: #f0c0c0;
 }
 
 @keyframes overlayCueIn {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-8px);
+    transform: translateX(-50%) translateY(-6px);
   }
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-toggle-cue {
+    animation: none;
   }
 }

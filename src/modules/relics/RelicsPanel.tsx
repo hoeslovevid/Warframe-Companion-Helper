@@ -134,14 +134,14 @@ export function RelicsPanel({
   if (compact || previewMode) {
     return (
       <div className="relic-strip" style={{ opacity, width: stripW }} data-relic-strip>
-        {scanning ? <p className="relic-strip__status">Scanning reward screen…</p> : null}
+        {scanning ? <p className="relic-strip__status">Scanning…</p> : null}
         {!previewMode && state.error ? (
           <p className="relic-strip__error">{state.error}</p>
         ) : null}
         {rewards.length > 0 ? (
           <RewardRow rewards={rewards} compact />
         ) : scanning ? null : (
-          <p className="relic-strip__status">Waiting for reward screen</p>
+          <p className="relic-strip__status">Waiting for rewards</p>
         )}
       </div>
     )
@@ -152,9 +152,9 @@ export function RelicsPanel({
       title="Relic Rewards"
       subtitle={
         scanning
-          ? 'Scanning reward screen…'
+          ? 'Scanning…'
           : rewards.length
-            ? `${rewards.length} rewards · market prices`
+            ? `${rewards.length} rewards · ready`
             : 'Waiting for reward screen'
       }
       opacity={opacity}

@@ -102,19 +102,19 @@ export function MasteryPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div className="foundry-chips">
+          <div className="vl-segment vl-segment--wrap" role="group" aria-label="Mastery filter">
             {(
               [
                 ['next', 'Next up'],
-                ['ready', 'Ready to craft'],
-                ['owned_unmastered', 'Owned unmastered'],
-                ['all', 'All recipes'],
+                ['ready', 'Ready'],
+                ['owned_unmastered', 'Unmastered'],
+                ['all', 'All'],
               ] as const
             ).map(([id, label]) => (
               <button
                 key={id}
                 type="button"
-                className={`foundry-chip ${filter === id ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${filter === id ? 'is-on' : ''}`}
                 onClick={() => setFilter(id)}
               >
                 {label}
@@ -127,7 +127,7 @@ export function MasteryPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
           </p>
         </div>
 
-        <ul className="foundry-list" style={{ maxHeight: 'none' }}>
+        <ul className="foundry-list vl-stagger" style={{ maxHeight: 'none' }}>
           {items.map((item) => (
             <li key={item.uniqueName}>
               <button

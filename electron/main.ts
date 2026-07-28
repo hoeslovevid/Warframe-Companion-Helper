@@ -64,6 +64,7 @@ import { getRelicPlanner } from './services/relic-planner'
 import { ensureRelicCatalog, getDropSourcesForItem } from './services/relic-catalog'
 import { getMasteryHelper } from './services/mastery-helper'
 import {
+  getWarframeProcessState,
   invalidateWarframeProcessCache,
   isWarframeForeground,
   isWarframeRunning,
@@ -177,9 +178,10 @@ async function runRelicScan(trigger: 'manual' | 'log', squadSize?: number | null
   }
   if (!settings.overlayVisible) {
     const next = updateSettings({ overlayVisible: true })
-    applyOverlayVisibility(true)
     broadcastSettings(next)
   }
+  await refreshOverlayWarframeGate({ force: true })
+  syncOverlayWindowVisibility()
   setRelicSquadSizeHint(squadSize ?? logWatcher.getSquadSizeHint())
   const state = await scanRelicRewards(trigger)
   broadcastRelicScan()
@@ -237,9 +239,10 @@ async function runRivenScan(trigger: 'manual' | 'log') {
   }
   if (!settings.overlayVisible) {
     const next = updateSettings({ overlayVisible: true })
-    applyOverlayVisibility(true)
     broadcastSettings(next)
   }
+  await refreshOverlayWarframeGate({ force: true })
+  syncOverlayWindowVisibility()
   const state = await scanRivens(trigger)
   broadcastRivenScan()
   if ((state.current || state.reroll) && !state.error && settings.rivenSoundEnabled) {
@@ -465,9 +468,16 @@ function restoreOverlayGeometry(win: BrowserWindow) {
 
 function refreshTrayUi() {
   if (!tray) return
-  const on = loadSettings().overlayVisible
+  const settings = loadSettings()
+  const armed = settings.overlayVisible
+  const showing = isOverlayEffectivelyVisible(settings)
+  const tip = !armed
+    ? 'Everything Warframe — Overlay OFF'
+    : showing
+      ? 'Everything Warframe — Overlay ON'
+      : 'Everything Warframe — Overlay armed (waiting for Warframe)'
   try {
-    tray.setToolTip(`Everything Warframe — Overlay ${on ? 'ON' : 'OFF'}`)
+    tray.setToolTip(tip)
   } catch {
     // ignore
   }
@@ -479,8 +489,27 @@ function refreshTrayUi() {
           click: () => createCompanionWindow(),
         },
         {
-          label: on ? 'Overlay: ON (click to hide)' : 'Overlay: OFF (click to show)',
+          label: armed
+            ? showing
+              ? 'Overlay: ON (click to hide)'
+              : 'Overlay: armed — waiting for Warframe (click to disarm)'
+            : 'Overlay: OFF (click to show)',
           click: () => setOverlayVisible(!loadSettings().overlayVisible, { announce: true }),
+        },
+        {
+          label: settings.overlayOnlyInWarframe
+            ? 'Only over Warframe: ON'
+            : 'Only over Warframe: OFF',
+          click: () => {
+            const next = updateSettings({
+              overlayOnlyInWarframe: !loadSettings().overlayOnlyInWarframe,
+            })
+            broadcastSettings(next)
+            void refreshOverlayWarframeGate({ force: true }).then(() => {
+              syncOverlayWindowVisibility({ silent: true })
+              refreshTrayUi()
+            })
+          },
         },
         {
           label: 'Move / Lock Panels',
@@ -524,13 +553,24 @@ function announceOverlayVisibility(visible: boolean) {
 }
 
 let hideOverlayTimer: NodeJS.Timeout | null = null
+/** Cached Warframe focus/running gate for overlayOnlyInWarframe. */
+let overlayWarframeGateOk = true
+let overlayGateTimer: NodeJS.Timeout | null = null
+let overlayGateRefreshInFlight = false
+
+function isOverlayEffectivelyVisible(settings = loadSettings()): boolean {
+  if (!settings.overlayVisible) return false
+  if (!settings.overlayOnlyInWarframe) return true
+  return overlayWarframeGateOk
+}
 
 /** Central overlay show/hide. Pass announce for hotkey/tray toggles. */
 function setOverlayVisible(visible: boolean, opts?: { announce?: boolean }) {
   const next = updateSettings({ overlayVisible: visible })
-  applyOverlayVisibility(next.overlayVisible, {
+  syncOverlayWindowVisibility({
     // Keep window up briefly so the on-screen OFF cue can paint.
     delayHideMs: opts?.announce && !visible ? 900 : 0,
+    forceAnnounceVisible: opts?.announce ? visible : undefined,
   })
   broadcastSettings(next)
   if (opts?.announce) announceOverlayVisibility(next.overlayVisible)
@@ -538,7 +578,29 @@ function setOverlayVisible(visible: boolean, opts?: { announce?: boolean }) {
   return next.overlayVisible
 }
 
-function applyOverlayVisibility(visible: boolean, opts?: { delayHideMs?: number }) {
+/**
+ * Show/hide the overlay BrowserWindow from effective visibility
+ * (user toggle ∧ optional Warframe-focus gate).
+ */
+function syncOverlayWindowVisibility(opts?: {
+  delayHideMs?: number
+  /** When announcing toggle OFF, pass false so the cue can paint before hide. */
+  forceAnnounceVisible?: boolean
+  /** Skip companion/overlay ON/OFF cue broadcasts (Warframe gate changes). */
+  silent?: boolean
+}) {
+  const settings = loadSettings()
+  const visible =
+    opts?.forceAnnounceVisible === false
+      ? false
+      : isOverlayEffectivelyVisible(settings)
+  applyOverlayWindowVisible(visible, opts)
+}
+
+function applyOverlayWindowVisible(
+  visible: boolean,
+  opts?: { delayHideMs?: number; silent?: boolean },
+) {
   if (!overlayWindow || overlayWindow.isDestroyed()) return
   if (hideOverlayTimer) {
     clearTimeout(hideOverlayTimer)
@@ -557,22 +619,68 @@ function applyOverlayVisibility(visible: boolean, opts?: { delayHideMs?: number 
     if (companionWindow && !companionWindow.isDestroyed() && companionWindow.isVisible()) {
       raiseCompanion()
     }
-    broadcastOverlayVisibility(visible)
+    if (!opts?.silent) broadcastOverlayVisibility(true)
     return
   }
 
-  broadcastOverlayVisibility(visible)
+  if (!opts?.silent) broadcastOverlayVisibility(false)
   const hide = () => {
     hideOverlayTimer = null
     if (!overlayWindow || overlayWindow.isDestroyed()) return
-    // Skip hide if the user toggled back on during the cue delay.
-    if (loadSettings().overlayVisible) return
+    // Skip hide if the overlay should be showing again (toggle or Warframe focus).
+    if (isOverlayEffectivelyVisible()) return
     overlayWindow.hide()
     applyOverlayPerformanceMode(false)
   }
   const delay = opts?.delayHideMs ?? 0
   if (delay > 0) hideOverlayTimer = setTimeout(hide, delay)
   else hide()
+}
+
+async function refreshOverlayWarframeGate(opts?: { force?: boolean }) {
+  if (overlayGateRefreshInFlight) return
+  const settings = loadSettings()
+  if (!settings.overlayOnlyInWarframe) {
+    if (!overlayWarframeGateOk) {
+      overlayWarframeGateOk = true
+      syncOverlayWindowVisibility({ silent: true })
+    }
+    return
+  }
+
+  overlayGateRefreshInFlight = true
+  try {
+    if (opts?.force) invalidateWarframeProcessCache()
+    const state = await getWarframeProcessState()
+    // warframe-process already falls back to “running” when focus can’t be read (e.g. Wayland).
+    const nextOk = state.foreground
+    if (nextOk === overlayWarframeGateOk) return
+    overlayWarframeGateOk = nextOk
+    console.info(
+      `[Everything Warframe] Overlay Warframe gate → ${nextOk ? 'show' : 'hide'}` +
+        ` (running=${state.running} foreground=${state.foreground})`,
+    )
+    syncOverlayWindowVisibility({ silent: true })
+    refreshTrayUi()
+  } finally {
+    overlayGateRefreshInFlight = false
+  }
+}
+
+function startOverlayWarframeGateWatcher() {
+  if (overlayGateTimer) return
+  // Assume blocked until the first poll when the gate is enabled (avoids a desktop flash).
+  overlayWarframeGateOk = !loadSettings().overlayOnlyInWarframe
+  void refreshOverlayWarframeGate({ force: true })
+  overlayGateTimer = setInterval(() => {
+    void refreshOverlayWarframeGate()
+  }, 1500)
+}
+
+function stopOverlayWarframeGateWatcher() {
+  if (!overlayGateTimer) return
+  clearInterval(overlayGateTimer)
+  overlayGateTimer = null
 }
 
 /** Migrate old side-panel riven anchors to the horizontal strip above Cycle cards. */
@@ -748,8 +856,14 @@ function registerIpc() {
     if (partial.hotkeys) registerHotkeys()
     if (partial.layoutEditMode !== undefined) applyLayoutEditMode(next.layoutEditMode)
     if (partial.overlayVisible !== undefined) {
-      applyOverlayVisibility(next.overlayVisible)
+      syncOverlayWindowVisibility()
       refreshTrayUi()
+    }
+    if (partial.overlayOnlyInWarframe !== undefined) {
+      void refreshOverlayWarframeGate({ force: true }).then(() => {
+        syncOverlayWindowVisibility({ silent: true })
+        refreshTrayUi()
+      })
     }
     if (partial.ocrDisplayId !== undefined) {
       invalidateCaptureCache()
@@ -989,7 +1103,7 @@ app.whenReady().then(async () => {
       } catch {
         // ignore
       }
-      if (wasVisible && loadSettings().overlayVisible) {
+      if (wasVisible && isOverlayEffectivelyVisible()) {
         restoreOverlayGeometry(overlayWindow)
         overlayWindow.showInactive()
         try {
@@ -1001,7 +1115,8 @@ app.whenReady().then(async () => {
     }
   })
   fixLegacyRivenAnchor()
-  applyOverlayVisibility(loadSettings().overlayVisible)
+  startOverlayWarframeGateWatcher()
+  syncOverlayWindowVisibility()
   applyLayoutEditMode(loadSettings().layoutEditMode)
 
   // Overlay is created after companion; ensure companion stays on top
@@ -1126,6 +1241,7 @@ app.whenReady().then(async () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   logWatcher.stop()
+  stopOverlayWarframeGateWatcher()
   if (worldstateTimer) clearInterval(worldstateTimer)
   if (inventorySyncTimer) clearInterval(inventorySyncTimer)
   if (expiryTimer) clearInterval(expiryTimer)

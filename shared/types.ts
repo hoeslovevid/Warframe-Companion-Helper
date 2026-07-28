@@ -334,6 +334,11 @@ export type AppSettings = {
    */
   relicSquadSizeOverride: 3 | 4 | null
   overlayVisible: boolean
+  /**
+   * When true, the overlay window is only shown while Warframe is the
+   * foreground app (falls back to “game running” when focus can’t be read).
+   */
+  overlayOnlyInWarframe: boolean
   layoutEditMode: boolean
   /** After the user has dragged a live overlay once, hide the move-hint chip. */
   overlayDragHintDismissed: boolean
@@ -527,6 +532,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   wfThemeOverride: null,
   relicSquadSizeOverride: null,
   overlayVisible: true,
+  overlayOnlyInWarframe: true,
   layoutEditMode: false,
   overlayDragHintDismissed: false,
   baroWishlist: [],

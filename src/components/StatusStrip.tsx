@@ -13,6 +13,15 @@ type Props = {
   onRefreshWorldstate?: () => void
 }
 
+type Health = {
+  id: string
+  label: string
+  detail: string
+  state: 'ok' | 'warn' | 'off'
+  onClick?: () => void
+  title: string
+}
+
 export function StatusStrip({
   settings,
   inventory,
@@ -27,51 +36,69 @@ export function StatusStrip({
   const invOk = Boolean(inventory?.loaded)
   const overlayOn = settings.overlayVisible
 
+  const items: Health[] = [
+    {
+      id: 'overlay',
+      label: 'Overlay',
+      detail: overlayOn ? 'on' : 'off',
+      state: overlayOn ? 'ok' : 'off',
+      onClick: onToggleOverlay,
+      title: 'Toggle overlay',
+    },
+    {
+      id: 'worldstate',
+      label: 'Worldstate',
+      detail: worldstateStale ? 'stale' : worldstateOk ? 'live' : 'waiting',
+      state: worldstateOk && !worldstateStale ? 'ok' : 'warn',
+      onClick: onRefreshWorldstate,
+      title: 'Refresh worldstate',
+    },
+    {
+      id: 'ee',
+      label: 'EE.log',
+      detail: eeOk ? 'ready' : 'detect',
+      state: eeOk ? 'ok' : 'warn',
+      onClick: eeOk ? onGoSettings : onDetectEeLog,
+      title: eeOk ? 'EE.log path in Settings' : 'Detect EE.log',
+    },
+    {
+      id: 'inventory',
+      label: 'Inventory',
+      detail: invOk ? 'synced' : 'sync',
+      state: invOk ? 'ok' : 'off',
+      onClick: onGoSettings,
+      title: 'Inventory settings',
+    },
+  ]
+
+  if (!settings.onboarding.borderlessAck) {
+    items.push({
+      id: 'borderless',
+      label: 'Display',
+      detail: 'borderless?',
+      state: 'warn',
+      onClick: onGoSettings,
+      title: 'Warframe must be Borderless Windowed',
+    })
+  }
+
   return (
     <div className="status-strip" data-tour="status-strip">
-      <button
-        type="button"
-        className={`status-chip ${overlayOn ? 'is-ok' : 'is-off'}`}
-        onClick={onToggleOverlay}
-        title="Toggle overlay"
-      >
-        <span className={`status-dot ${overlayOn ? '' : 'off'}`} />
-        Overlay {overlayOn ? 'on' : 'off'}
-      </button>
-      <button
-        type="button"
-        className={`status-chip ${worldstateOk && !worldstateStale ? 'is-ok' : 'is-warn'}`}
-        onClick={onRefreshWorldstate}
-        title="Refresh worldstate"
-      >
-        Worldstate {worldstateStale ? 'stale' : worldstateOk ? 'live' : 'waiting'}
-      </button>
-      <button
-        type="button"
-        className={`status-chip ${eeOk ? 'is-ok' : 'is-warn'}`}
-        onClick={eeOk ? onGoSettings : onDetectEeLog}
-        title={eeOk ? 'EE.log path in Settings' : 'Detect EE.log'}
-      >
-        EE.log {eeOk ? 'ready' : 'not set — detect'}
-      </button>
-      <button
-        type="button"
-        className={`status-chip ${invOk ? 'is-ok' : 'is-off'}`}
-        onClick={onGoSettings}
-        title="Inventory settings"
-      >
-        Inventory {invOk ? 'synced' : 'optional — sync'}
-      </button>
-      {!settings.onboarding.borderlessAck ? (
+      {items.map((item) => (
         <button
+          key={item.id}
           type="button"
-          className="status-chip is-warn"
-          onClick={onGoSettings}
-          title="Warframe must be Borderless Windowed"
+          className={`status-chip is-${item.state}`}
+          onClick={item.onClick}
+          title={item.title}
         >
-          Check Borderless
+          <span className={`status-dot ${item.state === 'ok' ? '' : 'off'}`} data-state={item.state} />
+          <span className="status-chip__text">
+            <span className="status-chip__label">{item.label}</span>
+            <span className="status-chip__detail">{item.detail}</span>
+          </span>
         </button>
-      ) : null}
+      ))}
     </div>
   )
 }

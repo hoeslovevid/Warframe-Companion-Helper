@@ -90,6 +90,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Copy trade chat lines from relic and riven scans',
     'Baro wishlist affordability using synced ducats and credits',
   ],
+  '0.9.24': [
+    'Overlay option: only show while Warframe is focused (hides over other apps)',
+    'Companion UI modernization: quieter chrome, Relic Planner hero, Today brief',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

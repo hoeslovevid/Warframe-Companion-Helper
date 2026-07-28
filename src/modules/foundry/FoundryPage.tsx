@@ -230,59 +230,67 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div className="foundry-chips">
-              {CATEGORIES.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`foundry-chip ${category === c.id ? 'is-on' : ''}`}
-                  onClick={() => setCategory(c.id)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-            <div className="foundry-chips">
+            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Scope">
               <button
                 type="button"
-                className={`foundry-chip ${scope === 'inventory' ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${scope === 'inventory' ? 'is-on' : ''}`}
                 onClick={() => setScope('inventory')}
               >
                 My inventory
               </button>
               <button
                 type="button"
-                className={`foundry-chip ${scope === 'all' ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${scope === 'all' ? 'is-on' : ''}`}
                 onClick={() => setScope('all')}
               >
                 Browse all
               </button>
             </div>
-            <div className="foundry-chips">
+            <label className="field" style={{ margin: 0 }}>
+              <span style={{ fontSize: 'var(--vl-type-meta)' }}>Category</span>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as FoundryCategory | 'all')}
+                style={{
+                  border: '1px solid var(--vl-input-border)',
+                  background: 'var(--vl-input-bg)',
+                  color: 'var(--vl-frost)',
+                  borderRadius: 'var(--vl-radius-sm)',
+                  padding: '8px 10px',
+                }}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Filters">
               <button
                 type="button"
-                className={`foundry-chip ${prime === 'any' ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${prime === 'any' ? 'is-on' : ''}`}
                 onClick={() => setPrime('any')}
               >
                 Any
               </button>
               <button
                 type="button"
-                className={`foundry-chip ${prime === 'prime' ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${prime === 'prime' ? 'is-on' : ''}`}
                 onClick={() => setPrime('prime')}
               >
                 Prime
               </button>
               <button
                 type="button"
-                className={`foundry-chip ${prime === 'normal' ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${prime === 'normal' ? 'is-on' : ''}`}
                 onClick={() => setPrime('normal')}
               >
                 Normal
               </button>
               <button
                 type="button"
-                className={`foundry-chip ${owned === 'owned' ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${owned === 'owned' ? 'is-on' : ''}`}
                 onClick={() => setOwned(owned === 'owned' ? 'any' : 'owned')}
               >
                 Owned
@@ -290,7 +298,7 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               {scope === 'all' ? (
                 <button
                   type="button"
-                  className={`foundry-chip ${owned === 'unowned' ? 'is-on' : ''}`}
+                  className={`vl-segment__btn ${owned === 'unowned' ? 'is-on' : ''}`}
                   onClick={() => setOwned(owned === 'unowned' ? 'any' : 'unowned')}
                 >
                   Unowned
@@ -298,7 +306,7 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               ) : null}
               <button
                 type="button"
-                className={`foundry-chip ${ready === 'ready' ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${ready === 'ready' ? 'is-on' : ''}`}
                 onClick={() => setReady(ready === 'ready' ? 'any' : 'ready')}
               >
                 Ready
@@ -326,7 +334,7 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               </button>
             </p>
           </div>
-          <ul className="foundry-list">
+          <ul className="foundry-list vl-stagger">
             {items.map((item) => (
               <li key={item.uniqueName}>
                 <button
@@ -371,7 +379,7 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               }
             />
           ) : (
-            <>
+            <div key={detail.uniqueName} className="vl-expand-in">
               <h3>{detail.name}</h3>
               <div className="foundry-list__meta" style={{ marginBottom: 8 }}>
                 {detail.owned ? <span className="vl-pill is-ok">Owned</span> : null}
@@ -443,7 +451,7 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                   Looking up relic drop sources…
                 </p>
               ) : null}
-            </>
+            </div>
           )}
         </section>
       </div>

@@ -20,54 +20,51 @@
 .relic-strip__status {
   margin: 0 0 8px;
   text-align: center;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--vl-gold-soft);
+  font-size: var(--vl-type-meta);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--vl-mist);
 }
 
 .relic-strip__error {
   margin: 0 0 8px;
   text-align: center;
-  font-size: 0.82rem;
+  font-size: var(--vl-type-meta);
   color: var(--vl-danger);
 }
 
 .relic-grid.is-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(18px, 2.6vw, 36px);
+  gap: clamp(14px, 2.2vw, 28px);
   max-height: none;
   overflow: visible;
   width: 100%;
 }
 
 .relic-card {
-  border: 1px solid rgba(157, 180, 196, 0.16);
-  border-radius: 12px;
-  padding: 12px 14px;
-  background:
-    linear-gradient(160deg, rgba(12, 20, 28, 0.45), transparent 55%),
-    rgba(6, 10, 15, 0.4);
-  transition: border-color 180ms var(--vl-ease), transform 180ms var(--vl-ease);
+  border: 1px solid var(--vl-surface-border);
+  border-radius: var(--vl-radius);
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--vl-void-850) 70%, transparent);
+  transition: border-color var(--vl-duration) var(--vl-ease);
 }
 
 .relic-card:hover {
-  transform: translateY(-1px);
-  border-color: rgba(201, 164, 92, 0.35);
+  transform: none;
+  border-color: color-mix(in srgb, var(--vl-mist) 28%, transparent);
 }
 
 .relic-card.is-needed {
-  border-color: rgba(95, 208, 197, 0.55);
-  background:
-    linear-gradient(160deg, rgba(58, 168, 160, 0.18), transparent 55%),
-    rgba(6, 10, 15, 0.45);
-  animation: vlPulseSoft 2.8s var(--vl-ease) 1;
+  border-color: color-mix(in srgb, var(--vl-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--vl-teal) 12%, transparent);
+  animation: none;
 }
 
 .relic-card.is-best {
-  border-color: rgba(201, 164, 92, 0.75);
-  box-shadow: 0 0 0 1px rgba(201, 164, 92, 0.35);
+  border-color: color-mix(in srgb, var(--vl-gold) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vl-gold) 25%, transparent);
 }
 
 .relic-card.is-vaulted {

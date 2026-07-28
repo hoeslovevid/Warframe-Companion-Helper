@@ -1,33 +1,32 @@
 .vl-panel {
   background: var(--vl-panel);
   border: 1px solid var(--vl-panel-border);
-  border-radius: var(--vl-radius);
-  box-shadow: var(--vl-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(18px) saturate(1.2);
+  border-radius: var(--vl-radius-lg);
+  box-shadow: var(--vl-shadow-soft);
+  backdrop-filter: blur(16px) saturate(1.1);
   overflow: hidden;
   position: relative;
-  animation: vlFadeUp 380ms var(--vl-ease) both;
-  transition: border-color 200ms var(--vl-ease), box-shadow 200ms var(--vl-ease);
+  animation: vlFadeUp var(--vl-duration-slow) var(--vl-ease) both;
+  transition:
+    border-color var(--vl-duration) var(--vl-ease),
+    box-shadow var(--vl-duration) var(--vl-ease);
 }
 
 .vl-panel:hover {
-  border-color: rgba(201, 164, 92, 0.42);
-  box-shadow: var(--vl-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(58, 168, 160, 0.05);
+  border-color: color-mix(in srgb, var(--vl-mist) 22%, transparent);
+  box-shadow: var(--vl-elev-2);
 }
 
 .vl-panel::before {
   content: '';
   display: block;
-  height: 2px;
+  height: 1px;
   background: linear-gradient(
     90deg,
-    var(--vl-gold),
-    var(--vl-teal-bright),
-    transparent 75%
+    var(--vl-accent),
+    color-mix(in srgb, var(--vl-accent) 35%, transparent) 42%,
+    transparent 78%
   );
-  background-size: 200% 100%;
-  animation: vlShimmer 8s linear infinite alternate;
 }
 
 .vl-panel__header {
@@ -39,17 +38,18 @@
 
 .vl-panel__title {
   margin: 0;
-  font-family: var(--vl-font-display);
-  font-size: 0.8rem;
-  letter-spacing: 0.15em;
+  font-family: var(--vl-font-body);
+  font-size: var(--vl-type-section);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--vl-gold-soft);
+  font-weight: 600;
+  color: var(--vl-mist);
 }
 
 .vl-panel__subtitle {
   margin: 5px 0 0;
-  color: var(--vl-mist);
-  font-size: 0.78rem;
+  color: var(--vl-mist-dim);
+  font-size: var(--vl-type-meta);
   line-height: 1.35;
 }
 

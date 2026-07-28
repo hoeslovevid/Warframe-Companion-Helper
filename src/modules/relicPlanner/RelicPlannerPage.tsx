@@ -67,6 +67,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
   }
 
   const detail = rows.find((r) => r.key === selected) || null
+  const hero = rows[0] || null
   const inventoryReady = inventory.loaded && inventory.uniqueCount > 0
 
   return (
@@ -75,8 +76,8 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
         <h2 className="page-title">Relic Planner</h2>
         <div className="page-title-rule" />
         <p className="page-desc">
-          Rank relics by missing set parts and platinum value. Sync inventory so owned counts and
-          needed tags stay accurate.
+          Next best farm first — ranked by missing set parts and platinum. Sync inventory so owned
+          counts stay accurate.
         </p>
       </header>
 
@@ -87,16 +88,48 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
             body="Relic ownership and missing-part scores come from your inventory export."
             actions={
               <button className="btn primary" onClick={onOpenSettings}>
-                Open inventory settings
+                Sync inventory
               </button>
             }
           />
         </Panel>
       ) : null}
 
-      <div className="section-gap" />
+      {inventoryReady && hero ? (
+        <section className="planner-hero">
+          <p className="planner-hero__eyebrow">Next best relic</p>
+          <h3 className="planner-hero__title">{hero.key}</h3>
+          <div className="planner-hero__meta">
+            {hero.missingCount > 0 ? (
+              <span className="vl-pill is-warn">{hero.missingCount} needed</span>
+            ) : (
+              <span className="vl-pill is-ok">Set complete</span>
+            )}
+            {hero.bestPlatinum != null ? (
+              <span className="vl-pill is-premium">~{Math.round(hero.bestPlatinum)}p</span>
+            ) : null}
+            {hero.owned > 0 ? <span className="vl-pill">Owned ×{hero.owned}</span> : null}
+            {hero.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
+          </div>
+          <div className="planner-hero__actions">
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => setSelected(hero.key)}
+            >
+              Open details
+            </button>
+            <p className="planner-hero__hint">
+              {loading
+                ? 'Updating ranks…'
+                : `${rows.length} relics · ${ownedTypes} owned types`}
+              {error ? ` · ${error}` : ''}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
-      <div className="foundry-layout">
+      <div className="planner-layout">
         <aside className="foundry-sidebar">
           <div className="foundry-sidebar__filters">
             <input
@@ -105,39 +138,27 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div className="foundry-chips">
+            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Ownership">
               <button
                 type="button"
-                className={`foundry-chip ${ownedOnly ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${ownedOnly ? 'is-on' : ''}`}
                 onClick={() => setOwnedOnly(true)}
               >
-                Owned only
+                Owned
               </button>
               <button
                 type="button"
-                className={`foundry-chip ${!ownedOnly ? 'is-on' : ''}`}
+                className={`vl-segment__btn ${!ownedOnly ? 'is-on' : ''}`}
                 onClick={() => setOwnedOnly(false)}
               >
-                All relics
+                All
               </button>
             </div>
-            <div className="foundry-chips">
-              {TIERS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`foundry-chip ${tier === t ? 'is-on' : ''}`}
-                  onClick={() => setTier(t)}
-                >
-                  {t === 'all' ? 'Any tier' : t}
-                </button>
-              ))}
-            </div>
-            <div className="foundry-chips">
+            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Sort">
               {(
                 [
                   ['missing', 'Missing'],
-                  ['platinum', 'Platinum'],
+                  ['platinum', 'Plat'],
                   ['owned', 'Owned'],
                   ['name', 'Name'],
                 ] as const
@@ -145,21 +166,35 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
                 <button
                   key={id}
                   type="button"
-                  className={`foundry-chip ${sort === id ? 'is-on' : ''}`}
+                  className={`vl-segment__btn ${sort === id ? 'is-on' : ''}`}
                   onClick={() => setSort(id)}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <p className="muted" style={{ margin: 0, fontSize: '0.78rem' }}>
-              {loading
-                ? 'Loading…'
-                : `${rows.length} relics · ${ownedTypes} owned types`}
-              {error ? ` · ${error}` : ''}
-            </p>
+            <label className="field" style={{ margin: 0 }}>
+              <span style={{ fontSize: 'var(--vl-type-meta)' }}>Tier</span>
+              <select
+                value={tier}
+                onChange={(e) => setTier(e.target.value)}
+                style={{
+                  border: '1px solid var(--vl-input-border)',
+                  background: 'var(--vl-input-bg)',
+                  color: 'var(--vl-frost)',
+                  borderRadius: 'var(--vl-radius-sm)',
+                  padding: '8px 10px',
+                }}
+              >
+                {TIERS.map((t) => (
+                  <option key={t} value={t}>
+                    {t === 'all' ? 'Any tier' : t}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          <ul className="foundry-list">
+          <ul className="foundry-list vl-stagger">
             {rows.map((row) => (
               <li key={row.key}>
                 <button
@@ -180,7 +215,6 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
                     {row.bestPlatinum != null ? (
                       <span className="vl-pill">~{Math.round(row.bestPlatinum)}p</span>
                     ) : null}
-                    {row.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
                   </span>
                 </button>
               </li>
@@ -191,7 +225,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
                   title="No relics"
                   body={
                     ownedOnly
-                      ? 'No owned relics matched. Sync inventory, or switch to All relics.'
+                      ? 'No owned relics matched. Sync inventory, or switch to All.'
                       : 'Try clearing search or tier filters.'
                   }
                 />
@@ -204,12 +238,15 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
           {!detail ? (
             <EmptyState title="Pick a relic" body="Select a relic to see its rewards and prices." />
           ) : (
-            <>
+            <div key={detail.key} className="vl-expand-in">
               <h3>{detail.key}</h3>
               <div className="foundry-list__meta" style={{ marginBottom: 8 }}>
                 <span className="vl-pill">{detail.tier}</span>
                 <span className="vl-pill">Owned ×{detail.owned}</span>
                 {detail.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
+                {detail.bestPlatinum != null ? (
+                  <span className="vl-pill is-premium">~{Math.round(detail.bestPlatinum)}p</span>
+                ) : null}
               </div>
               <div className="foundry-section-title">Rewards</div>
               <ul className="foundry-tree">
@@ -229,7 +266,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
                   </li>
                 ))}
               </ul>
-            </>
+            </div>
           )}
         </section>
       </div>

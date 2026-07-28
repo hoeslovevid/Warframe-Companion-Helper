@@ -2,29 +2,78 @@
   margin-bottom: 16px;
 }
 
-.today-grid {
+.today-brief {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
-.today-cell {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(157, 180, 196, 0.12);
-  background: rgba(8, 14, 20, 0.35);
+.today-brief__primary {
+  padding: 14px 16px;
+  border-radius: var(--vl-radius);
+  border: 1px solid color-mix(in srgb, var(--vl-accent) 28%, transparent);
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--vl-teal) 12%, transparent), transparent 60%),
+    var(--vl-surface);
 }
 
-.today-cell__label {
-  font-size: 0.68rem;
+.today-brief__label {
+  font-size: var(--vl-type-section);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--vl-mist-dim);
+  color: var(--vl-accent);
+  font-weight: 600;
   margin-bottom: 6px;
 }
 
+.today-brief__value {
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--vl-frost);
+  margin: 0 0 4px;
+}
+
+.today-brief__meta {
+  margin: 0;
+  color: var(--vl-mist);
+  font-size: var(--vl-type-meta);
+  line-height: 1.4;
+}
+
+.today-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--vl-surface-border);
+}
+
+.today-cell {
+  padding: 12px 14px 4px 0;
+  border: 0;
+  background: transparent;
+  border-right: 1px solid var(--vl-surface-border);
+}
+
+.today-cell:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+
+.today-cell:first-child {
+  padding-left: 0;
+}
+
+.today-cell__label {
+  font-size: var(--vl-type-section);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vl-mist-dim);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
 .today-cell__value {
-  font-size: 0.95rem;
+  font-size: 0.98rem;
   font-weight: 600;
   line-height: 1.25;
 }
@@ -37,14 +86,14 @@
 
 .today-cell__meta {
   margin-top: 4px;
-  font-size: 0.78rem;
+  font-size: var(--vl-type-meta);
   line-height: 1.35;
 }
 
 .today-fissures {
-  margin-top: 14px;
+  margin-top: 4px;
   padding-top: 12px;
-  border-top: 1px solid rgba(157, 180, 196, 0.1);
+  border-top: 1px solid var(--vl-surface-border);
 }
 
 .today-fissure-list {
@@ -60,16 +109,26 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
 }
 
 .today-fissure-list__eta {
-  color: var(--vl-gold-soft);
+  color: var(--vl-premium);
   white-space: nowrap;
 }
 
 @media (max-width: 960px) {
   .today-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
+  }
+
+  .today-cell {
+    border-right: 0;
+    border-bottom: 1px solid var(--vl-surface-border);
+    padding: 12px 0;
+  }
+
+  .today-cell:last-child {
+    border-bottom: 0;
   }
 }

@@ -1,7 +1,7 @@
 .foundry-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 340px) 1fr;
-  gap: 16px;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 14px;
   min-height: 520px;
   align-items: stretch;
 }
@@ -9,10 +9,10 @@
 .foundry-sidebar,
 .foundry-detail {
   border: 1px solid var(--vl-panel-border);
-  border-radius: var(--vl-radius);
+  border-radius: var(--vl-radius-lg);
   background: var(--vl-panel);
-  box-shadow: var(--vl-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: var(--vl-shadow-soft);
+  backdrop-filter: blur(14px) saturate(1.05);
   min-height: 0;
   position: relative;
   overflow: hidden;
@@ -22,10 +22,13 @@
 .foundry-detail::before {
   content: '';
   display: block;
-  height: 2px;
-  background: linear-gradient(90deg, var(--vl-gold), var(--vl-teal-bright), transparent 75%);
-  background-size: 200% 100%;
-  animation: vlShimmer 8s linear infinite alternate;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--vl-accent),
+    color-mix(in srgb, var(--vl-accent) 30%, transparent) 40%,
+    transparent 75%
+  );
 }
 
 .foundry-sidebar {
@@ -34,7 +37,7 @@
 }
 
 .foundry-sidebar__filters {
-  padding: 12px 12px 10px;
+  padding: 12px;
   border-bottom: 1px solid var(--vl-surface-border);
   display: grid;
   gap: 10px;
@@ -52,8 +55,8 @@
 
 .foundry-search:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--vl-teal-bright) 55%, transparent);
-  box-shadow: 0 0 0 3px var(--vl-teal-dim);
+  border-color: color-mix(in srgb, var(--vl-accent) 50%, transparent);
+  box-shadow: 0 0 0 3px var(--vl-accent-soft);
 }
 
 .foundry-chips {
@@ -68,19 +71,19 @@
   border: 1px solid var(--vl-surface-border);
   background: transparent;
   color: var(--vl-mist);
-  font-size: 0.75rem;
+  font-size: var(--vl-type-meta);
   font-weight: 600;
   cursor: pointer;
   transition:
-    border-color 140ms var(--vl-ease),
-    background 140ms var(--vl-ease),
-    color 140ms var(--vl-ease);
+    border-color var(--vl-duration) var(--vl-ease),
+    background var(--vl-duration) var(--vl-ease),
+    color var(--vl-duration) var(--vl-ease);
 }
 
 .foundry-chip.is-on {
-  border-color: color-mix(in srgb, var(--vl-teal-bright) 50%, transparent);
+  border-color: color-mix(in srgb, var(--vl-accent) 40%, transparent);
   color: var(--vl-frost);
-  background: var(--vl-teal-dim);
+  background: var(--vl-accent-soft);
 }
 
 .foundry-list {
@@ -101,16 +104,16 @@
   padding: 10px 12px;
   cursor: pointer;
   font: inherit;
-  transition: background 140ms var(--vl-ease);
+  transition: background var(--vl-duration-fast) var(--vl-ease);
 }
 
 .foundry-list li button:hover,
 .foundry-list li button.is-selected {
-  background: var(--vl-teal-dim);
+  background: var(--vl-accent-soft);
 }
 
 .foundry-list li button.is-selected {
-  box-shadow: inset 3px 0 0 var(--vl-teal-bright);
+  box-shadow: inset 2px 0 0 var(--vl-accent);
 }
 
 .foundry-list__name {
@@ -134,11 +137,12 @@
 
 .foundry-detail h3 {
   margin: 14px 0 6px;
-  font-family: var(--vl-font-display);
-  font-size: 1.05rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--vl-gold-soft);
+  font-family: var(--vl-font-body);
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--vl-frost);
 }
 
 .foundry-stats {
@@ -147,7 +151,7 @@
   gap: 10px 18px;
   margin: 12px 0 18px;
   color: var(--vl-mist);
-  font-size: 0.85rem;
+  font-size: var(--vl-type-meta);
 }
 
 .foundry-stats strong {
@@ -157,10 +161,11 @@
 
 .foundry-section-title {
   margin: 18px 0 8px;
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
+  font-size: var(--vl-type-section);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--vl-mist-dim);
+  font-weight: 600;
 }
 
 .foundry-tree,
@@ -198,8 +203,67 @@
   color: var(--vl-ok);
 }
 
+/* ---------- Relic Planner hero ---------- */
+.planner-hero {
+  margin-bottom: 14px;
+  padding: 18px 20px;
+  border-radius: var(--vl-radius-lg);
+  border: 1px solid var(--vl-panel-border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--vl-teal) 14%, transparent), transparent 55%),
+    var(--vl-panel);
+  box-shadow: var(--vl-shadow-soft);
+  animation: vlFadeUp var(--vl-duration-slow) var(--vl-ease) both;
+}
+
+.planner-hero__eyebrow {
+  margin: 0 0 6px;
+  font-size: var(--vl-type-section);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vl-accent);
+  font-weight: 600;
+}
+
+.planner-hero__title {
+  margin: 0 0 8px;
+  font-family: var(--vl-font-body);
+  font-size: 1.35rem;
+  font-weight: 650;
+  color: var(--vl-frost);
+  letter-spacing: 0.01em;
+}
+
+.planner-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.planner-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.planner-hero__hint {
+  margin: 0;
+  color: var(--vl-mist);
+  font-size: var(--vl-type-meta);
+}
+
+.planner-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 300px) 1fr;
+  gap: 14px;
+  min-height: 420px;
+}
+
 @media (max-width: 960px) {
-  .foundry-layout {
+  .foundry-layout,
+  .planner-layout {
     grid-template-columns: 1fr;
   }
 
