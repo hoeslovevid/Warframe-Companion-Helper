@@ -22,6 +22,7 @@ import {
   warframeProtonPrefix,
 } from './steam-paths'
 import { isWarframeRunning as isWarframeProcessRunning } from './warframe-process'
+import { buildWineHelperEnv, scrubWineHelperOutput } from '../linux-child-env'
 
 const HELPER_URL =
   'https://github.com/Sainan/warframe-api-helper/releases/download/1.1.2/warframe-api-helper.exe'
@@ -519,14 +520,11 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       console.info(
         `[Everything Warframe] Inventory sync via ${wine.label} (WINEPREFIX=${pfx})`,
       )
+      // Never inherit Electron/AppImage LD_LIBRARY_PATH / FONTCONFIG_* — that loads
+      // the AppImage's older fontconfig into Wine and breaks HTTPS after auth.
       child = spawn(wine.command, [...wine.args, exe], {
         cwd: work,
-        env: {
-          ...process.env,
-          WINEPREFIX: pfx,
-          // Avoid wine GUI noise / crash dialogs in headless-ish contexts
-          WINEDEBUG: '-all',
-        },
+        env: buildWineHelperEnv(wine, pfx),
         stdio: ['pipe', 'pipe', 'pipe'],
       })
     } else {
@@ -559,14 +557,17 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
     }
 
     if (!appeared) {
-      return {
-        ok: false,
-        error:
-          stderr.trim().slice(0, 400) ||
-          (process.platform === 'linux'
-            ? 'Timed out waiting for inventory.json under Proton. Stay logged in, or import a file manually.'
-            : 'Timed out waiting for inventory.json. Stay logged into Warframe and try again.'),
+      const cleaned = scrubWineHelperOutput(stderr)
+      let error =
+        cleaned.slice(0, 400) ||
+        (process.platform === 'linux'
+          ? 'Timed out waiting for inventory.json under Proton. Stay logged in, or import a file manually.'
+          : 'Timed out waiting for inventory.json. Stay logged into Warframe and try again.')
+      if (/Request failed/i.test(cleaned)) {
+        error =
+          'Inventory download failed after reading account credentials (HTTPS under Wine). Stay logged into Warframe, check network access to mobile.warframe.com, then try again.'
       }
+      return { ok: false, error }
     }
 
     return useInventoryFile(outJson, 'helper')
