@@ -67,6 +67,16 @@ export type HotkeyConfig = {
   scanRivens: string
   dismissRivens: string
   editLayout: string
+  /** Hide/restore all persistent worldstate panels (not relics/rivens). */
+  toggleWorldstatePanels: string
+  toggleModuleCycles: string
+  toggleModuleFissures: string
+  toggleModuleBaro: string
+  toggleModuleNightwave: string
+  toggleModuleArbitration: string
+  toggleModuleInvasions: string
+  toggleModuleArchon: string
+  toggleModuleDeepArchimedea: string
 }
 
 export type RivenTier = 'S' | 'A' | 'B' | 'C' | 'D' | 'F'
@@ -290,6 +300,44 @@ export const OVERLAY_MODULE_IDS: ModuleId[] = [
   'deepArchimedea',
   'rivens',
 ]
+
+/** Persistent worldstate panels (excludes transient relic/riven popups). */
+export const WORLDSTATE_MODULE_IDS: ModuleId[] = [
+  'cycles',
+  'fissures',
+  'baro',
+  'nightwave',
+  'arbitration',
+  'invasions',
+  'archon',
+  'deepArchimedea',
+]
+
+/** HotkeyConfig keys that toggle a single worldstate module. */
+export const MODULE_TOGGLE_HOTKEY_IDS = [
+  'toggleModuleCycles',
+  'toggleModuleFissures',
+  'toggleModuleBaro',
+  'toggleModuleNightwave',
+  'toggleModuleArbitration',
+  'toggleModuleInvasions',
+  'toggleModuleArchon',
+  'toggleModuleDeepArchimedea',
+] as const satisfies ReadonlyArray<keyof HotkeyConfig>
+
+export const MODULE_TOGGLE_HOTKEY_TO_ID: Record<
+  (typeof MODULE_TOGGLE_HOTKEY_IDS)[number],
+  ModuleId
+> = {
+  toggleModuleCycles: 'cycles',
+  toggleModuleFissures: 'fissures',
+  toggleModuleBaro: 'baro',
+  toggleModuleNightwave: 'nightwave',
+  toggleModuleArbitration: 'arbitration',
+  toggleModuleInvasions: 'invasions',
+  toggleModuleArchon: 'archon',
+  toggleModuleDeepArchimedea: 'deepArchimedea',
+}
 
 export type AppSettings = {
   modules: Record<ModuleId, boolean>
@@ -518,6 +566,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
     scanRivens: 'Alt+Shift+G',
     dismissRivens: 'Alt+Shift+H',
     editLayout: 'Control+Tab',
+    toggleWorldstatePanels: 'Alt+Shift+W',
+    toggleModuleCycles: '',
+    toggleModuleFissures: '',
+    toggleModuleBaro: '',
+    toggleModuleNightwave: '',
+    toggleModuleArbitration: '',
+    toggleModuleInvasions: '',
+    toggleModuleArchon: '',
+    toggleModuleDeepArchimedea: '',
   },
   eeLogPath: '',
   inventoryPath: '',

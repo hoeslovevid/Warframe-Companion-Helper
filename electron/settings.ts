@@ -106,6 +106,42 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       scanRivens: raw.hotkeys?.scanRivens || base.hotkeys.scanRivens,
       dismissRivens: raw.hotkeys?.dismissRivens || base.hotkeys.dismissRivens,
       editLayout: raw.hotkeys?.editLayout || base.hotkeys.editLayout,
+      toggleWorldstatePanels:
+        typeof raw.hotkeys?.toggleWorldstatePanels === 'string'
+          ? raw.hotkeys.toggleWorldstatePanels
+          : base.hotkeys.toggleWorldstatePanels,
+      toggleModuleCycles:
+        typeof raw.hotkeys?.toggleModuleCycles === 'string'
+          ? raw.hotkeys.toggleModuleCycles
+          : base.hotkeys.toggleModuleCycles,
+      toggleModuleFissures:
+        typeof raw.hotkeys?.toggleModuleFissures === 'string'
+          ? raw.hotkeys.toggleModuleFissures
+          : base.hotkeys.toggleModuleFissures,
+      toggleModuleBaro:
+        typeof raw.hotkeys?.toggleModuleBaro === 'string'
+          ? raw.hotkeys.toggleModuleBaro
+          : base.hotkeys.toggleModuleBaro,
+      toggleModuleNightwave:
+        typeof raw.hotkeys?.toggleModuleNightwave === 'string'
+          ? raw.hotkeys.toggleModuleNightwave
+          : base.hotkeys.toggleModuleNightwave,
+      toggleModuleArbitration:
+        typeof raw.hotkeys?.toggleModuleArbitration === 'string'
+          ? raw.hotkeys.toggleModuleArbitration
+          : base.hotkeys.toggleModuleArbitration,
+      toggleModuleInvasions:
+        typeof raw.hotkeys?.toggleModuleInvasions === 'string'
+          ? raw.hotkeys.toggleModuleInvasions
+          : base.hotkeys.toggleModuleInvasions,
+      toggleModuleArchon:
+        typeof raw.hotkeys?.toggleModuleArchon === 'string'
+          ? raw.hotkeys.toggleModuleArchon
+          : base.hotkeys.toggleModuleArchon,
+      toggleModuleDeepArchimedea:
+        typeof raw.hotkeys?.toggleModuleDeepArchimedea === 'string'
+          ? raw.hotkeys.toggleModuleDeepArchimedea
+          : base.hotkeys.toggleModuleDeepArchimedea,
     },
     // Empty array would hide every fissure — treat as unset and restore defaults.
     fissureTiers:

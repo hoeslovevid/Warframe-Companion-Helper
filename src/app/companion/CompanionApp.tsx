@@ -74,6 +74,15 @@ const HOTKEY_LABELS: Record<HotkeyRegistration['id'], string> = {
   scanRivens: 'Scan riven compare',
   dismissRivens: 'Dismiss riven popup',
   editLayout: 'Move panels (unlock drag)',
+  toggleWorldstatePanels: 'Hide / restore worldstate panels',
+  toggleModuleCycles: 'Toggle Cycles',
+  toggleModuleFissures: 'Toggle Fissures',
+  toggleModuleBaro: 'Toggle Baro',
+  toggleModuleNightwave: 'Toggle Nightwave',
+  toggleModuleArbitration: 'Toggle Arbitration',
+  toggleModuleInvasions: 'Toggle Invasions',
+  toggleModuleArchon: 'Toggle Archon Hunt',
+  toggleModuleDeepArchimedea: 'Toggle Deep Archimedea',
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -644,7 +653,10 @@ export function CompanionApp() {
                   <div className="page-title-rule" />
                   <p className="page-desc">
                     Choose what appears in the overlay and dashboard. Foundry Planner is companion-only
-                    (no overlay panel). Relic / riven scanning and inventory tags are live.
+                    (no overlay panel). Relic / riven scanning and inventory tags are live. Assign
+                    per-panel hide hotkeys under Settings → Hotkeys, or use{' '}
+                    <strong>{prettyHotkey(settings.hotkeys.toggleWorldstatePanels)}</strong> to
+                    clear/restore all worldstate panels.
                   </p>
                 </header>
                 <Panel title="Toggleable modules">
@@ -1325,13 +1337,64 @@ export function CompanionApp() {
                         }
                       />
                     </div>
-                    {hotkeyStatus.length > 0 ? (
+                    <div className="field">
+                      <label htmlFor="hk-worldstate">Hide / restore worldstate panels</label>
+                      <input
+                        id="hk-worldstate"
+                        value={settings.hotkeys.toggleWorldstatePanels}
+                        placeholder="Alt+Shift+W"
+                        onChange={(e) =>
+                          void updateSettings({
+                            hotkeys: {
+                              ...settings.hotkeys,
+                              toggleWorldstatePanels: e.target.value,
+                            },
+                          })
+                        }
+                      />
+                      <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.75rem' }}>
+                        Clears Cycles, Fissures, Baro, etc. Second press restores. Relic/riven
+                        popups stay available.
+                      </p>
+                    </div>
+                    <p className="muted" style={{ margin: '12px 0 8px', fontSize: '0.78rem' }}>
+                      Optional per-panel toggles (leave blank to leave unbound):
+                    </p>
+                    {(
+                      [
+                        ['toggleModuleCycles', 'Toggle Cycles'],
+                        ['toggleModuleFissures', 'Toggle Fissures'],
+                        ['toggleModuleBaro', 'Toggle Baro'],
+                        ['toggleModuleNightwave', 'Toggle Nightwave'],
+                        ['toggleModuleArbitration', 'Toggle Arbitration'],
+                        ['toggleModuleInvasions', 'Toggle Invasions'],
+                        ['toggleModuleArchon', 'Toggle Archon Hunt'],
+                        ['toggleModuleDeepArchimedea', 'Toggle Deep Archimedea'],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <div className="field" key={key}>
+                        <label htmlFor={`hk-${key}`}>{label}</label>
+                        <input
+                          id={`hk-${key}`}
+                          value={settings.hotkeys[key]}
+                          placeholder="Unbound"
+                          onChange={(e) =>
+                            void updateSettings({
+                              hotkeys: { ...settings.hotkeys, [key]: e.target.value },
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+                    {hotkeyStatus.filter((hk) => hk.requested?.trim()).length > 0 ? (
                       <div className="mod-stack" style={{ marginTop: 12 }}>
                         <p className="muted" style={{ margin: 0 }}>
                           Registration status
                         </p>
                         <ul className="mod-list">
-                          {hotkeyStatus.map((hk) => (
+                          {hotkeyStatus
+                            .filter((hk) => hk.requested?.trim())
+                            .map((hk) => (
                             <li key={hk.id} className="mod-row">
                               <div>
                                 <div className="mod-row__title">{HOTKEY_LABELS[hk.id]}</div>
@@ -1349,7 +1412,8 @@ export function CompanionApp() {
                     ) : null}
                     <p className="muted">
                       Press <strong>?</strong> for the cheat sheet. Defaults: overlay Alt+Shift+V,
-                      move panels Ctrl+Tab, relics Alt+Shift+F, rivens Alt+Shift+G
+                      worldstate panels Alt+Shift+W, move panels Ctrl+Tab, relics Alt+Shift+F,
+                      rivens Alt+Shift+G
                     </p>
                   </Panel>
 

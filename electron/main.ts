@@ -103,7 +103,10 @@ import {
   HotkeyRegistration,
   MasteryHelperQuery,
   ModuleId,
+  MODULE_TOGGLE_HOTKEY_IDS,
+  MODULE_TOGGLE_HOTKEY_TO_ID,
   RelicPlannerQuery,
+  WORLDSTATE_MODULE_IDS,
   WorldstateSnapshot,
 } from '../shared/types'
 
@@ -769,6 +772,69 @@ const HOTKEY_FALLBACKS: Record<keyof AppSettings['hotkeys'], string[]> = {
   scanRivens: ['Alt+Shift+G', 'F4', 'CommandOrControl+Alt+G'],
   dismissRivens: ['Alt+Shift+H', 'F6'],
   editLayout: ['Control+Tab', 'Alt+Shift+E', 'Alt+Shift+X', 'F7'],
+  toggleWorldstatePanels: ['Alt+Shift+W', 'CommandOrControl+Alt+W'],
+  toggleModuleCycles: [],
+  toggleModuleFissures: [],
+  toggleModuleBaro: [],
+  toggleModuleNightwave: [],
+  toggleModuleArbitration: [],
+  toggleModuleInvasions: [],
+  toggleModuleArchon: [],
+  toggleModuleDeepArchimedea: [],
+}
+
+/** Snapshot of worldstate module enables before a clear — restored on next press. */
+let worldstatePanelsSnapshot: Partial<Record<ModuleId, boolean>> | null = null
+
+function toggleModulePanel(id: ModuleId) {
+  const settings = loadSettings()
+  const next = setModuleEnabled(id, !settings.modules[id])
+  broadcastSettings(next)
+  console.info(
+    `[Everything Warframe] Module ${id} → ${next.modules[id] ? 'on' : 'off'} (hotkey)`,
+  )
+}
+
+function toggleWorldstatePanels() {
+  const settings = loadSettings()
+  const anyOn = WORLDSTATE_MODULE_IDS.some((id) => settings.modules[id])
+
+  if (anyOn) {
+    const snap: Partial<Record<ModuleId, boolean>> = {}
+    for (const id of WORLDSTATE_MODULE_IDS) {
+      snap[id] = settings.modules[id]
+    }
+    worldstatePanelsSnapshot = snap
+    const modules = { ...settings.modules }
+    for (const id of WORLDSTATE_MODULE_IDS) {
+      modules[id] = false
+    }
+    const next = updateSettings({ modules })
+    broadcastSettings(next)
+    console.info('[Everything Warframe] Worldstate panels hidden (hotkey)')
+    return
+  }
+
+  if (worldstatePanelsSnapshot) {
+    const modules = { ...settings.modules }
+    for (const id of WORLDSTATE_MODULE_IDS) {
+      modules[id] = Boolean(worldstatePanelsSnapshot[id])
+    }
+    worldstatePanelsSnapshot = null
+    const next = updateSettings({ modules })
+    broadcastSettings(next)
+    console.info('[Everything Warframe] Worldstate panels restored (hotkey)')
+    return
+  }
+
+  // Nothing on and no snapshot — turn defaults back on for the common set.
+  const modules = { ...settings.modules }
+  for (const id of WORLDSTATE_MODULE_IDS) {
+    modules[id] = true
+  }
+  const next = updateSettings({ modules })
+  broadcastSettings(next)
+  console.info('[Everything Warframe] Worldstate panels enabled (hotkey, no snapshot)')
 }
 
 function toggleLayoutEditMode() {
@@ -819,6 +885,10 @@ function registerHotkeys() {
     handler: () => void,
   ) => {
     const requested = settings.hotkeys[id]
+    if (!requested?.trim()) {
+      status.push({ id, requested: requested || '', registered: null, ok: false })
+      return null
+    }
     const registered = registerOneHotkey(requested, HOTKEY_FALLBACKS[id], handler, id)
     status.push({ id, requested, registered, ok: Boolean(registered) })
     if (registered && registered !== requested) {
@@ -852,6 +922,13 @@ function registerHotkeys() {
   bind('editLayout', () => {
     toggleLayoutEditMode()
   })
+  bind('toggleWorldstatePanels', () => {
+    toggleWorldstatePanels()
+  })
+  for (const hotkeyId of MODULE_TOGGLE_HOTKEY_IDS) {
+    const moduleId = MODULE_TOGGLE_HOTKEY_TO_ID[hotkeyId]
+    bind(hotkeyId, () => toggleModulePanel(moduleId))
+  }
 
   lastHotkeyStatus = status
 

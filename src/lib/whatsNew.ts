@@ -105,6 +105,10 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.27': [
     'Fix Linux quit crash: restore missing disposePersistentCapture import',
   ],
+  '0.9.28': [
+    'Hotkey Alt+Shift+W: hide / restore all worldstate overlay panels',
+    'Optional per-panel toggle hotkeys under Settings → Hotkeys',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

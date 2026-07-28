@@ -123,6 +123,15 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
           </p>
         </div>
         <div className="help-block">
+          <h3>How do I hide panels mid-mission?</h3>
+          <p>
+            Press <strong>{prettyHotkey(hk.toggleWorldstatePanels)}</strong> to clear/restore all
+            worldstate panels (Cycles, Fissures, Baro, …) without turning off relic/riven popups.
+            Assign optional per-panel hotkeys under Settings → Hotkeys. Global overlay on/off remains{' '}
+            <strong>{prettyHotkey(hk.toggleOverlay)}</strong>.
+          </p>
+        </div>
+        <div className="help-block">
           <h3>Downloads &amp; updates</h3>
           <ul>
             <li>

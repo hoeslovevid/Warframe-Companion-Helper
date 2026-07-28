@@ -1,4 +1,4 @@
-import { HotkeyConfig } from '../../shared/types'
+import { HotkeyConfig, MODULE_META, MODULE_TOGGLE_HOTKEY_TO_ID } from '../../shared/types'
 import { prettyHotkey } from '../lib/hotkey'
 import './onboarding.css'
 
@@ -11,16 +11,26 @@ type Props = {
 export function HotkeySheet({ open, hotkeys, onClose }: Props) {
   if (!open) return null
 
-  const rows = [
+  const rows: Array<{ label: string; key: string }> = [
     { label: 'Toggle overlay', key: hotkeys.toggleOverlay },
     { label: 'Open companion', key: hotkeys.openCompanion },
     { label: 'Refresh worldstate', key: hotkeys.refreshWorldstate },
+    { label: 'Hide / restore worldstate panels', key: hotkeys.toggleWorldstatePanels },
     { label: 'Scan relic rewards', key: hotkeys.scanRelics },
     { label: 'Dismiss relic popup', key: hotkeys.dismissRelics },
     { label: 'Scan riven compare', key: hotkeys.scanRivens },
     { label: 'Dismiss riven popup', key: hotkeys.dismissRivens },
     { label: 'Move panels (unlock drag)', key: hotkeys.editLayout },
   ]
+
+  for (const [hotkeyId, moduleId] of Object.entries(MODULE_TOGGLE_HOTKEY_TO_ID)) {
+    const key = hotkeys[hotkeyId as keyof HotkeyConfig]
+    if (!key?.trim()) continue
+    rows.push({
+      label: `Toggle ${MODULE_META[moduleId].label}`,
+      key,
+    })
+  }
 
   return (
     <div className="hotkey-sheet-backdrop" onClick={onClose} role="presentation">
@@ -38,7 +48,7 @@ export function HotkeySheet({ open, hotkeys, onClose }: Props) {
           {rows.map((row) => (
             <li key={row.label}>
               <span>{row.label}</span>
-              <kbd>{prettyHotkey(row.key)}</kbd>
+              <kbd>{row.key?.trim() ? prettyHotkey(row.key) : '—'}</kbd>
             </li>
           ))}
         </ul>
