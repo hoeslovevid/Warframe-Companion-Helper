@@ -8,6 +8,7 @@ const emptyStatus: InventoryStatus = {
   lastSynced: '',
   itemCount: 0,
   uniqueCount: 0,
+  revision: 0,
   loaded: false,
   helperReady: false,
   warframeRunning: false,

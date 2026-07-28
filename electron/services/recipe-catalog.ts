@@ -164,15 +164,27 @@ async function fetchAndCache(): Promise<void> {
   console.info(`[Everything Warframe] Recipe catalog ready (${out.length} buildable items)`)
 }
 
-export function ensureRecipeCatalog(): Promise<void> {
+export function ensureRecipeCatalog(opts?: { force?: boolean }): Promise<void> {
+  if (opts?.force) ready = null
   if (!ready) {
     ready = (async () => {
-      if (!loadCache()) {
+      if (opts?.force || !loadCache()) {
         await fetchAndCache()
       }
-    })()
+    })().catch((err) => {
+      // Allow a later call to retry after a network / disk failure.
+      ready = null
+      throw err
+    })
   }
   return ready
+}
+
+/** Drop in-memory catalog so the next ensure reloads from disk or network. */
+export function invalidateRecipeCatalog() {
+  ready = null
+  items = []
+  byUnique = new Map()
 }
 
 export function getRecipeItems(): RecipeItem[] {

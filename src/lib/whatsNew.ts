@@ -76,6 +76,13 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Linux/AppImage: store settings + caches under ~/.local/share (not ~/.config) so API/catalog writes succeed',
     'Auto-migrate existing Linux data from ~/.config on first launch',
   ],
+  '0.9.21': [
+    'Linux inventory sync: sanitize AppImage/Wine env so Fontconfig no longer breaks the helper HTTPS download',
+  ],
+  '0.9.22': [
+    'Foundry reloads automatically after inventory sync (and ignores stale Wine inventory.json)',
+    'Recipe catalog retries after a failed first fetch so Foundry can populate post-sync',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

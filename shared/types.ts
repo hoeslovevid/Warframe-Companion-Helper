@@ -759,6 +759,11 @@ export type InventoryStatus = {
   lastSynced: string
   itemCount: number
   uniqueCount: number
+  /**
+   * Bumps on every successful inventory load/sync so UI (Foundry, relics)
+   * can refresh even when uniqueCount stays the same.
+   */
+  revision: number
   loaded: boolean
   helperReady: boolean
   warframeRunning: boolean

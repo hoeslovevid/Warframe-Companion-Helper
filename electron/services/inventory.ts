@@ -82,6 +82,8 @@ const MAX_RANK = 30
 let cachedIndex: InventoryIndex = {}
 let cachedMastery: MasteryIndex = {}
 let cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
+/** Monotonic — Foundry / other UIs refresh when this changes. */
+let inventoryRevision = 0
 const listeners = new Set<(status: InventoryStatus) => void>()
 
 function toolsDir() {
@@ -453,14 +455,18 @@ export function inferInventorySource(filePath: string): InventorySource {
   return 'detected'
 }
 
-async function waitForFile(filePath: string, timeoutMs: number): Promise<boolean> {
+async function waitForNewFile(
+  filePath: string,
+  notBeforeMs: number,
+  timeoutMs: number,
+): Promise<boolean> {
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
     if (fs.existsSync(filePath)) {
       try {
         const st = fs.statSync(filePath)
-        if (st.size > 100) {
-          // small settle delay for write flush
+        // Ignore a leftover file from a previous sync (common under Wine/Proton).
+        if (st.size > 100 && st.mtimeMs >= notBeforeMs - 500) {
           await new Promise((r) => setTimeout(r, 400))
           return true
         }
@@ -496,9 +502,16 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
     const exe = await ensureHelperDownloaded()
     const work = inventoryWorkDir()
     fs.mkdirSync(work, { recursive: true })
-    const outJson = path.join(work, 'inventory.json')
-    if (fs.existsSync(outJson)) fs.unlinkSync(outJson)
+    // Helper always writes ./inventory.json in cwd. Delete any leftover so we
+    // don't treat a Wine-locked stale file as a successful new sync.
+    const legacyOut = path.join(work, 'inventory.json')
+    try {
+      if (fs.existsSync(legacyOut)) fs.unlinkSync(legacyOut)
+    } catch {
+      // ignore locked files — waitForNewFile still checks mtime
+    }
 
+    const startedAt = Date.now()
     let child
     if (process.platform === 'linux') {
       const wine = findWineLauncher()
@@ -543,7 +556,7 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       stderr += String(d)
     })
 
-    const appeared = await waitForFile(outJson, 90_000)
+    const appeared = await waitForNewFile(legacyOut, startedAt, 90_000)
     try {
       child.stdin?.write('\r\n')
       child.stdin?.end()
@@ -570,7 +583,7 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       return { ok: false, error }
     }
 
-    return useInventoryFile(outJson, 'helper')
+    return useInventoryFile(legacyOut, 'helper')
   } catch (err) {
     return {
       ok: false,
@@ -603,6 +616,7 @@ export function useInventoryFile(
       itemCount: loaded.itemCount,
       uniqueCount: loaded.uniqueCount,
     }
+    inventoryRevision += 1
 
     updateSettings({
       inventoryPath: finalPath,
@@ -645,6 +659,7 @@ export function reloadConfiguredInventory(): void {
       itemCount: loaded.itemCount,
       uniqueCount: loaded.uniqueCount,
     }
+    inventoryRevision += 1
   } catch (err) {
     console.error('[Everything Warframe] Failed to reload inventory', err)
   }
@@ -654,6 +669,7 @@ export function clearInventoryData(): InventoryStatus {
   cachedIndex = {}
   cachedMastery = {}
   cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
+  inventoryRevision += 1
   updateSettings({
     inventoryPath: '',
     inventorySource: 'none',
@@ -694,6 +710,7 @@ export function getInventoryStatus(): InventoryStatus {
     lastSynced: settings.inventoryLastSynced,
     itemCount: cachedMeta.itemCount,
     uniqueCount: cachedMeta.uniqueCount,
+    revision: inventoryRevision,
     loaded: cachedMeta.uniqueCount > 0,
     helperReady: helperIsReady(),
     warframeRunning: isWarframeRunning(),

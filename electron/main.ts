@@ -287,6 +287,15 @@ function broadcastInventory() {
   }
 }
 
+async function warmFoundryAfterInventorySync() {
+  try {
+    const { ensureRecipeCatalog, getRecipeItems } = await import('./services/recipe-catalog')
+    await ensureRecipeCatalog({ force: getRecipeItems().length === 0 })
+  } catch (err) {
+    console.warn('[Everything Warframe] Recipe catalog refresh after sync failed', err)
+  }
+}
+
 async function refreshWorldstate(force = false): Promise<WorldstateSnapshot> {
   if (!force && worldstateCache) {
     const age = Date.now() - new Date(worldstateCache.fetchedAt).getTime()
@@ -833,6 +842,7 @@ function registerIpc() {
   })
   ipcMain.handle('inventory:sync', async () => {
     const result = await syncInventoryFromGame()
+    if (result.ok) await warmFoundryAfterInventorySync()
     broadcastSettings(loadSettings())
     broadcastInventory()
     return result
@@ -1081,7 +1091,8 @@ app.whenReady().then(async () => {
       const running = await isWarframeRunning()
       if (!running) return
       try {
-        await syncInventoryFromGame()
+        const result = await syncInventoryFromGame()
+        if (result.ok) await warmFoundryAfterInventorySync()
         broadcastInventory()
         broadcastSettings(loadSettings())
       } catch {

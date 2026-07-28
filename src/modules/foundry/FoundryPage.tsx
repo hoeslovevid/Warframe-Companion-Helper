@@ -114,7 +114,16 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
     if (!enabled) return
     const t = window.setTimeout(() => void refreshList(), 120)
     return () => window.clearTimeout(t)
-  }, [enabled, refreshList, inventory.lastSynced, inventory.uniqueCount])
+  }, [
+    enabled,
+    refreshList,
+    inventory.lastSynced,
+    inventory.uniqueCount,
+    inventory.itemCount,
+    inventory.revision,
+    inventory.path,
+    inventory.loaded,
+  ])
 
   useEffect(() => {
     if (!enabled || !selected || !window.voidlens?.getFoundryTree) {
@@ -132,7 +141,15 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
     return () => {
       cancelled = true
     }
-  }, [enabled, selected, inventory.lastSynced, inventory.uniqueCount])
+  }, [
+    enabled,
+    selected,
+    inventory.lastSynced,
+    inventory.uniqueCount,
+    inventory.itemCount,
+    inventory.revision,
+    inventory.path,
+  ])
 
   if (!enabled) {
     return (
@@ -258,15 +275,26 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                 Ready
               </button>
             </div>
-            <p className="muted" style={{ margin: 0, fontSize: '0.78rem' }}>
-              {loading
-                ? scope === 'inventory'
-                  ? 'Loading your items…'
-                  : 'Loading catalog…'
-                : scope === 'inventory'
-                  ? `${items.length} in inventory / ready`
-                  : `${items.length} items`}
-              {error ? ` · ${error}` : ''}
+            <p className="muted" style={{ margin: 0, fontSize: '0.78rem', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span>
+                {loading
+                  ? scope === 'inventory'
+                    ? 'Loading your items…'
+                    : 'Loading catalog…'
+                  : scope === 'inventory'
+                    ? `${items.length} in inventory / ready`
+                    : `${items.length} items`}
+                {error ? ` · ${error}` : ''}
+              </span>
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                disabled={loading}
+                onClick={() => void refreshList()}
+              >
+                Refresh
+              </button>
             </p>
           </div>
           <ul className="foundry-list">
