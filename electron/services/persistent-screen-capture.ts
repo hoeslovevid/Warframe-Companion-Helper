@@ -1,4 +1,4 @@
-import { app, BrowserWindow, desktopCapturer, screen, session } from 'electron'
+import { app, BrowserWindow, desktopCapturer, session } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { resolveOcrDisplay } from './display-target'
@@ -15,6 +15,9 @@ let win: BrowserWindow | null = null
 let initPromise: Promise<void> | null = null
 let streamReady = false
 let handlerInstalled = false
+
+/** Portal pickers can hang forever if a second getSources races the first. */
+const ENSURE_STREAM_TIMEOUT_MS = 120_000
 
 const CAPTURE_PAGE = `<!DOCTYPE html>
 <html><head><meta charset="utf-8" /></head><body>
@@ -48,6 +51,7 @@ const CAPTURE_PAGE = `<!DOCTYPE html>
     track?.addEventListener('ended', () => {
       stream = null
       video = null
+      canvas = null
     })
     return true
   }
@@ -70,7 +74,16 @@ const CAPTURE_PAGE = `<!DOCTYPE html>
     return Boolean(stream && stream.getVideoTracks().some((t) => t.readyState === 'live'))
   }
 
-  window.__ewCapture = { ensureStream, grabFrame, isLive }
+  async function stopStream() {
+    try {
+      stream?.getTracks()?.forEach((t) => t.stop())
+    } catch (_) {}
+    stream = null
+    video = null
+    canvas = null
+  }
+
+  window.__ewCapture = { ensureStream, grabFrame, isLive, stopStream }
 })()
 </script>
 </body></html>`
@@ -83,9 +96,26 @@ function installDisplayMediaHandler() {
   if (handlerInstalled) return
   handlerInstalled = true
   const ses = captureSession()
-  // Linux/Wayland: system/PipeWire picker once; keep the stream after that.
-  // Other platforms: auto-select primary screen without a second app dialog.
-  const useSystemPicker = process.platform === 'linux'
+
+  /**
+   * Linux/Wayland: use the PipeWire/xdg-desktop-portal system picker once.
+   * Do NOT call desktopCapturer.getSources() here — that opens a *second*
+   * portal dialog and commonly deadlocks (app freezes after “Authorize capture”).
+   *
+   * Other platforms: auto-pick the OCR monitor without a share dialog.
+   */
+  if (process.platform === 'linux') {
+    ses.setDisplayMediaRequestHandler((_request, callback) => {
+      // Empty streams → Chromium uses the system/PipeWire picker when available.
+      try {
+        callback({})
+      } catch (err) {
+        console.warn('[Everything Warframe] display media callback failed', err)
+      }
+    }, { useSystemPicker: true })
+    return
+  }
+
   ses.setDisplayMediaRequestHandler(async (_request, callback) => {
     try {
       const sources = await desktopCapturer.getSources({
@@ -108,7 +138,7 @@ function installDisplayMediaHandler() {
       console.warn('[Everything Warframe] display media handler failed', err)
       callback({})
     }
-  }, { useSystemPicker })
+  })
 }
 
 function captureHostPath() {
@@ -150,6 +180,24 @@ async function exec<T>(js: string): Promise<T> {
   return w.webContents.executeJavaScript(js, true) as Promise<T>
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`))
+    }, ms)
+    promise.then(
+      (v) => {
+        clearTimeout(timer)
+        resolve(v)
+      },
+      (err) => {
+        clearTimeout(timer)
+        reject(err)
+      },
+    )
+  })
+}
+
 /** Start (or resume) the persistent screen stream. May show a portal picker once. */
 export async function ensurePersistentCapture(): Promise<boolean> {
   if (streamReady) {
@@ -164,12 +212,26 @@ export async function ensurePersistentCapture(): Promise<boolean> {
   if (!initPromise) {
     initPromise = (async () => {
       await ensureWindow()
-      await exec('window.__ewCapture.ensureStream()')
+      await withTimeout(
+        exec('window.__ewCapture.ensureStream()'),
+        ENSURE_STREAM_TIMEOUT_MS,
+        'Screen share authorization',
+      )
       streamReady = true
       console.info('[Everything Warframe] Persistent screen capture stream ready')
-    })().finally(() => {
-      initPromise = null
-    })
+    })()
+      .catch(async (err) => {
+        streamReady = false
+        try {
+          await exec('window.__ewCapture.stopStream()')
+        } catch {
+          // ignore
+        }
+        throw err
+      })
+      .finally(() => {
+        initPromise = null
+      })
   }
   try {
     await initPromise
@@ -208,6 +270,11 @@ export function disposePersistentCapture() {
   streamReady = false
   initPromise = null
   if (win && !win.isDestroyed()) {
+    try {
+      void win.webContents.executeJavaScript('window.__ewCapture?.stopStream?.()', true)
+    } catch {
+      // ignore
+    }
     win.destroy()
   }
   win = null

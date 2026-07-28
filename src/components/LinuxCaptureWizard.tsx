@@ -42,8 +42,9 @@ export function LinuxCaptureWizard({ settings, displays, onUpdate, compact }: Pr
           Choose that monitor below (Game / OCR monitor). Remember its id for the share dialog.
         </li>
         <li>
-          Click <strong>Authorize capture</strong> — pick the <em>same</em> Warframe screen in the
-          portal dialog and leave sharing on.
+          Click <strong>Authorize capture</strong> — one screen-share dialog should open.
+          Pick Warframe’s monitor and leave sharing on. If two dialogs appear, cancel both and
+          update the app.
         </li>
         <li>Keep the share active while you run relic / riven OCR.</li>
       </ol>

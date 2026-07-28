@@ -98,6 +98,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Help + tray: uninstall the app, open data folder, or delete local settings',
     'Windows Setup uninstaller can remove app data when you choose',
   ],
+  '0.9.26': [
+    'Linux: fix freeze when screen-share opened twice (PipeWire portal deadlock)',
+    'Linux: only prompt for capture after Authorize / after setup is acknowledged',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

@@ -904,6 +904,9 @@ function registerIpc() {
         restoreOverlayGeometry(overlayWindow)
       }
     }
+    if (partial.onboarding?.linuxCaptureAck === true && process.platform === 'linux') {
+      void warmScreenCapture()
+    }
     if (
       partial.widgetServerEnabled !== undefined ||
       partial.widgetServerPort !== undefined
@@ -916,7 +919,12 @@ function registerIpc() {
   ipcMain.handle('settings:setModule', (_e, id: ModuleId, enabled: boolean) => {
     const next = setModuleEnabled(id, enabled)
     broadcastSettings(next)
-    if (enabled && process.platform === 'linux' && (id === 'relics' || id === 'rivens')) {
+    if (
+      enabled &&
+      process.platform === 'linux' &&
+      (id === 'relics' || id === 'rivens') &&
+      loadSettings().onboarding.linuxCaptureAck
+    ) {
       void warmScreenCapture()
     }
     return next
@@ -1075,12 +1083,16 @@ function registerIpc() {
       return {
         ok: false,
         message:
-          'Capture not ready. On Linux, accept the screen-share dialog and pick Warframe’s monitor.',
+          'Capture not ready. Accept the single screen-share dialog, pick Warframe’s monitor, and leave sharing on. If two dialogs appeared, cancel both and try again after updating.',
       }
     } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err)
+      const timedOut = /timed out/i.test(raw)
       return {
         ok: false,
-        message: err instanceof Error ? err.message : 'Capture test failed',
+        message: timedOut
+          ? 'Screen-share dialog timed out. Cancel any stuck portal windows, then click Authorize capture once.'
+          : raw || 'Capture test failed',
       }
     }
   })
@@ -1236,9 +1248,12 @@ app.whenReady().then(async () => {
     }, 2500)
   }
 
-  // Linux/Wayland: keep one PipeWire share session alive so OCR does not re-prompt.
+  // Linux/Wayland: only warm the PipeWire share after the user has authorized
+  // (or skipped) via the capture wizard — auto-prompting at launch races the
+  // wizard and can open a second portal that freezes the session.
   if (
     process.platform === 'linux' &&
+    loadSettings().onboarding.linuxCaptureAck &&
     (loadSettings().modules.relics || loadSettings().modules.rivens)
   ) {
     setTimeout(() => {
