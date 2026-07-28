@@ -6,10 +6,12 @@ import type {
   FoundryScopeFilter,
   FoundryTreeNode,
   FoundryTreeResult,
+  RelicDropSource,
 } from '../../../shared/types'
 import { EmptyState } from '../../components/EmptyState'
 import { Panel } from '../../components/Panel'
 import { useInventory } from '../../hooks/useInventory'
+import { formatDropSourcesLine } from '../../lib/tradeClipboard'
 import './foundry.css'
 
 type Props = {
@@ -77,6 +79,8 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [tree, setTree] = useState<FoundryTreeResult | null>(null)
   const [treeLoading, setTreeLoading] = useState(false)
+  const [partDrops, setPartDrops] = useState<Record<string, RelicDropSource[]>>({})
+  const [dropsLoading, setDropsLoading] = useState(false)
 
   const filters = useMemo<FoundryListFilters>(
     () => ({
@@ -150,6 +154,31 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
     inventory.revision,
     inventory.path,
   ])
+
+  useEffect(() => {
+    if (!enabled || !tree?.totals?.length || !window.voidlens?.getDropSources) {
+      setPartDrops({})
+      return
+    }
+    let cancelled = false
+    setDropsLoading(true)
+    const missing = tree.totals.filter((t) => t.missing > 0).slice(0, 10)
+    void Promise.all(
+      missing.map(async (line) => {
+        const src = await window.voidlens!.getDropSources(line.name)
+        return [line.uniqueName, src] as const
+      }),
+    ).then((entries) => {
+      if (cancelled) return
+      const next: Record<string, RelicDropSource[]> = {}
+      for (const [key, src] of entries) next[key] = src
+      setPartDrops(next)
+      setDropsLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [enabled, tree?.totals])
 
   if (!enabled) {
     return (
@@ -386,7 +415,14 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                 <ul className="foundry-totals">
                   {tree.totals.map((line) => (
                     <li key={line.uniqueName} className={line.missing > 0 ? 'is-missing' : 'is-ok'}>
-                      <span>{line.name}</span>
+                      <div style={{ flex: 1 }}>
+                        <span>{line.name}</span>
+                        {line.missing > 0 && partDrops[line.uniqueName]?.length ? (
+                          <div className="muted" style={{ fontSize: '0.72rem', marginTop: 2 }}>
+                            {formatDropSourcesLine(partDrops[line.uniqueName])}
+                          </div>
+                        ) : null}
+                      </div>
                       <span>
                         need {line.missing} · own {line.owned}
                       </span>
@@ -402,6 +438,11 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                       : 'No leaf totals (or inventory empty for this recipe).'}
                 </p>
               )}
+              {dropsLoading ? (
+                <p className="muted" style={{ marginTop: 8 }}>
+                  Looking up relic drop sources…
+                </p>
+              ) : null}
             </>
           )}
         </section>

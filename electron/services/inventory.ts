@@ -56,6 +56,7 @@ const INVENTORY_ARRAY_KEYS = [
   'WeaponSkins',
   'OperatorAmps',
   'MechSuits',
+  'Relics',
 ]
 
 const GEAR_MASTERY_KEYS = new Set([
@@ -321,6 +322,23 @@ export function parseInventoryJson(raw: unknown): {
         setMastery(mastery, type, 0, level, true)
       }
     }
+  }
+
+  // Player currencies (Baro affordability)
+  if (typeof root.RegularCredits === 'number' && Number.isFinite(root.RegularCredits)) {
+    index.RegularCredits = Math.max(0, Math.floor(root.RegularCredits))
+  }
+  if (typeof root.PremiumCredits === 'number' && Number.isFinite(root.PremiumCredits)) {
+    index.PremiumCredits = Math.max(0, Math.floor(root.PremiumCredits))
+  }
+  // Ducats often live in MiscItems as *DucatCurrency*
+  for (const key of Object.keys(index)) {
+    if (/ducatcurrency/i.test(key) || /\/ducats?$/i.test(key)) {
+      index.Ducats = (index.Ducats || 0) + index[key]
+    }
+  }
+  if (typeof root.TradeScore === 'number' && Number.isFinite(root.TradeScore) && !index.Ducats) {
+    index.Ducats = Math.max(0, Math.floor(root.TradeScore))
   }
 
   // Some exports nest under Inventory

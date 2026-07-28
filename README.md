@@ -79,11 +79,14 @@ Everything Warframe runs at below-normal process priority, pauses overlay clocks
 
 - **World Cycles** — Cetus, Vallis, Cambion, Duviri, Zariman, Albrecht (when available)
 - **Fissures** — filterable by tier
-- **Baro Ki'Teer** — status + shop inventory
+- **Baro Ki'Teer** — status, shop inventory, wishlist affordability from synced ducats/credits
 - **Nightwave** — season / phase
-- **Relics** — OCR reward overlay with plat/ducats, set progress, fuzzy catalog match, grayscale OCR prep, and EE.log squad-size hints
-- **Riven Grader** — PaddleOCR (PP-OCRv4) reads current vs reroll; Tesseract fallback; horizontal strip above Cycle cards; grades against [Megrim & Valkyrial](https://docs.google.com/spreadsheets/d/1OQGKpWXeoPaN0Cy7mTvVZMRcwvZXgIC3EO1AIRAkwDg) preferred stats (sheet rows 20+, columns A–F)
-- **Foundry Planner** — inventory-first list (owned + ready), crafting trees, material totals
+- **Relics** — OCR reward overlay with plat/ducats, set progress, and copy-trade lines
+- **Riven Grader** — OCR current vs reroll with grades, market plat, and copy-trade lines
+- **Foundry Planner** — inventory-first list (owned + ready), crafting trees, material totals, relic drop sources
+- **Relic Planner** — rank owned relics by missing parts and platinum
+- **Mastery Helper** — next craftable / owned-unmastered gear for MR
+- **Market** — warframe.market watchlist + scan prices
 - **Themes** — 4 dark + 4 light presets, plus a Custom palette with color pickers
 - **Per-overlay opacity** — individual opacity sliders under Settings → Appearance
 - **Arbitration** — schedule now; run analytics later

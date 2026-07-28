@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { rivenStripLayout } from '../../../shared/captureGeometry'
 import { RivenRoll, RivenScanState } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useRivenScan } from '../../hooks/useRivenScan'
 import { formatRivenStatValue } from '../../lib/rivenFormat'
+import { copyText, formatRivenTradeLine } from '../../lib/tradeClipboard'
 import '../cycles/module.css'
 import './rivens.css'
 
@@ -141,6 +143,18 @@ export function RivenPanel({
         : null
   const strip = stripSize(layoutWidth, layoutHeight)
   const interactive = !compact && !previewMode
+  const [copied, setCopied] = useState(false)
+
+  const copyTrade = async () => {
+    const roll =
+      state.recommendation === 'take' && reroll
+        ? reroll
+        : current || reroll
+    if (!roll) return
+    if (!(await copyText(formatRivenTradeLine(roll)))) return
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1600)
+  }
 
   const body = (
     <div className="mod-stack">
@@ -217,6 +231,14 @@ export function RivenPanel({
         <>
           <button className="btn primary" disabled={scanning} onClick={() => void scan()}>
             Scan now
+          </button>
+          <button
+            className="btn ghost"
+            disabled={!current && !reroll}
+            onClick={() => void copyTrade()}
+            title="Copy WTS line for the recommended (or current) roll"
+          >
+            {copied ? 'Copied' : 'Copy trade'}
           </button>
           <button
             className="btn ghost"

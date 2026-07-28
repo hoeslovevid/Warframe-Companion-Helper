@@ -28,6 +28,8 @@ export const PLAY_PROFILES: PlayProfile[] = [
       fissures: true,
       relics: true,
       rivens: false,
+      relicPlanner: true,
+      mastery: true,
       baro: false,
       nightwave: false,
       arbitration: false,

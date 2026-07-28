@@ -11,6 +11,8 @@ export type ModuleId =
   | 'rivens'
   | 'foundry'
   | 'market'
+  | 'relicPlanner'
+  | 'mastery'
 
 /** Soft UI chime style for relic / riven scan alerts. */
 export type SoundPackId = 'soft' | 'bright' | 'double' | 'low'
@@ -442,6 +444,18 @@ export const MODULE_META: Record<
       'warframe.market watchlist with platinum quotes; ties into relic and riven scans',
     phase: 3,
   },
+  relicPlanner: {
+    label: 'Relic Planner',
+    description:
+      'Rank owned relics by missing parts and platinum — companion-only',
+    phase: 2,
+  },
+  mastery: {
+    label: 'Mastery Helper',
+    description:
+      'Next craftable / owned-unmastered gear for MR progress — companion-only',
+    phase: 2,
+  },
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -458,6 +472,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     rivens: true,
     foundry: true,
     market: true,
+    relicPlanner: true,
+    mastery: true,
   },
   panelAnchors: {
     cycles: { x: 24, y: 24 },
@@ -745,6 +761,80 @@ export type FoundryTreeResult = {
   error: string | null
 }
 
+export type RelicDropSource = {
+  key: string
+  tier: string
+  rarity: string
+  chance: number | null
+  vaulted: boolean | null
+}
+
+export type RelicPlannerSort = 'missing' | 'platinum' | 'owned' | 'name'
+
+export type RelicPlannerReward = {
+  name: string
+  uniqueName: string | null
+  rarity: string
+  chance: number | null
+  owned: number
+  needed: boolean
+  platinum: number | null
+}
+
+export type RelicPlannerRow = {
+  key: string
+  name: string
+  tier: string
+  owned: number
+  vaulted: boolean | null
+  missingCount: number
+  bestPlatinum: number | null
+  rewards: RelicPlannerReward[]
+}
+
+export type RelicPlannerResult = {
+  rows: RelicPlannerRow[]
+  ownedRelicTypes: number
+  inventoryLoaded: boolean
+  error: string | null
+}
+
+export type RelicPlannerQuery = {
+  ownedOnly?: boolean
+  sort?: RelicPlannerSort
+  search?: string
+  tier?: string
+}
+
+export type MasteryHelperItem = {
+  uniqueName: string
+  name: string
+  category: FoundryCategory
+  masteryReq: number | null
+  owned: boolean
+  mastered: boolean | null
+  xpLevel: number | null
+  readyToBuild: boolean
+  isPrime: boolean
+}
+
+export type MasteryHelperResult = {
+  items: MasteryHelperItem[]
+  summary: {
+    mastered: number
+    ownedUnmastered: number
+    readyUnmastered: number
+    unknown: number
+  }
+  inventoryLoaded: boolean
+  error: string | null
+}
+
+export type MasteryHelperQuery = {
+  filter?: 'next' | 'owned_unmastered' | 'ready' | 'all'
+  search?: string
+}
+
 export type InventoryCandidate = {
   path: string
   label: string
@@ -919,6 +1009,9 @@ export type VoidLensApi = {
   clearRivenScan: () => Promise<RivenScanState>
   getFoundryItems: (filters?: FoundryListFilters) => Promise<FoundryListItem[]>
   getFoundryTree: (uniqueName: string) => Promise<FoundryTreeResult>
+  getRelicPlanner: (query?: RelicPlannerQuery) => Promise<RelicPlannerResult>
+  getDropSources: (nameOrUnique: string) => Promise<RelicDropSource[]>
+  getMasteryHelper: (query?: MasteryHelperQuery) => Promise<MasteryHelperResult>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>
   getAppVersion: () => Promise<string>
   getUpdateStatus: () => Promise<AppUpdateStatus>

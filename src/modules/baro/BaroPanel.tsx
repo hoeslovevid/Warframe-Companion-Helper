@@ -9,6 +9,10 @@ type Props = {
   baro: BaroInfo | null
   wishlist?: string[]
   onToggleWish?: (item: string) => void
+  /** Player ducats from inventory (optional). */
+  playerDucats?: number | null
+  /** Player credits from inventory (optional). */
+  playerCredits?: number | null
   opacity?: number
   compact?: boolean
 }
@@ -43,7 +47,28 @@ function isWished(item: string, wishlist: string[]) {
   return wishlist.some((w) => n.includes(w.toLowerCase()) || w.toLowerCase().includes(n))
 }
 
-export function BaroPanel({ baro, wishlist = [], onToggleWish, opacity, compact }: Props) {
+function affordLabel(
+  entry: { ducats: number; credits: number },
+  playerDucats: number | null | undefined,
+  playerCredits: number | null | undefined,
+): 'ok' | 'partial' | 'no' | null {
+  if (playerDucats == null && playerCredits == null) return null
+  const ducatsOk = playerDucats == null ? true : playerDucats >= entry.ducats
+  const creditsOk = playerCredits == null ? true : playerCredits >= entry.credits
+  if (ducatsOk && creditsOk) return 'ok'
+  if (ducatsOk || creditsOk) return 'partial'
+  return 'no'
+}
+
+export function BaroPanel({
+  baro,
+  wishlist = [],
+  onToggleWish,
+  playerDucats,
+  playerCredits,
+  opacity,
+  compact,
+}: Props) {
   const now = useNow()
   const resolved = baro ? resolveBaro(baro, now) : null
   const inventory = baro?.inventory ?? []
@@ -51,12 +76,20 @@ export function BaroPanel({ baro, wishlist = [], onToggleWish, opacity, compact 
   const visibleItems = compact ? inventory.slice(0, 6) : inventory
   const hiddenCount = Math.max(0, inventory.length - visibleItems.length)
 
+  const wishAfford = wishedLive.map((i) => ({
+    item: i,
+    afford: affordLabel(i, playerDucats, playerCredits),
+  }))
+  const canBuyWish = wishAfford.filter((w) => w.afford === 'ok').length
+
   return (
     <Panel
       title="Baro Ki'Teer"
       subtitle={
         wishedLive.length
-          ? `${wishedLive.length} wishlist hit${wishedLive.length > 1 ? 's' : ''}`
+          ? `${wishedLive.length} wishlist hit${wishedLive.length > 1 ? 's' : ''}${
+              canBuyWish ? ` · ${canBuyWish} affordable` : ''
+            }`
           : inventory.length
             ? `${inventory.length} items`
             : 'Void Trader'
@@ -68,6 +101,14 @@ export function BaroPanel({ baro, wishlist = [], onToggleWish, opacity, compact 
         <p className="mod-empty">No trader data</p>
       ) : (
         <div className="mod-stack">
+          {playerDucats != null || playerCredits != null ? (
+            <p className="mod-empty" style={{ marginBottom: 0 }}>
+              You have{' '}
+              {playerDucats != null ? <strong>{formatCredits(playerDucats)} ⓓ</strong> : null}
+              {playerDucats != null && playerCredits != null ? ' · ' : null}
+              {playerCredits != null ? <strong>{formatCredits(playerCredits)} ₡</strong> : null}
+            </p>
+          ) : null}
           {wishedLive.length && resolved.active ? (
             <p className="mod-empty" style={{ color: 'var(--vl-gold-soft)' }}>
               Wishlist in stock: {wishedLive.map((i) => i.item).join(', ')}
@@ -110,6 +151,7 @@ export function BaroPanel({ baro, wishlist = [], onToggleWish, opacity, compact 
               <ul className="baro-inv__list">
                 {visibleItems.map((entry) => {
                   const wished = isWished(entry.item, wishlist)
+                  const afford = affordLabel(entry, playerDucats, playerCredits)
                   return (
                     <li
                       key={entry.uniqueName || entry.item}
@@ -130,6 +172,19 @@ export function BaroPanel({ baro, wishlist = [], onToggleWish, opacity, compact 
                           '★ '
                         ) : null}
                         {entry.item}
+                        {afford === 'ok' ? (
+                          <span className="vl-pill is-ok" style={{ marginLeft: 6 }}>
+                            Can buy
+                          </span>
+                        ) : afford === 'partial' ? (
+                          <span className="vl-pill is-warn" style={{ marginLeft: 6 }}>
+                            Partial
+                          </span>
+                        ) : afford === 'no' && wished ? (
+                          <span className="vl-pill is-warn" style={{ marginLeft: 6 }}>
+                            Short
+                          </span>
+                        ) : null}
                       </span>
                       <span className="baro-inv__ducats">{entry.ducats}</span>
                       <span className="baro-inv__credits">{formatCredits(entry.credits)}</span>

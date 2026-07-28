@@ -83,6 +83,13 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Foundry reloads automatically after inventory sync (and ignores stale Wine inventory.json)',
     'Recipe catalog retries after a failed first fetch so Foundry can populate post-sync',
   ],
+  '0.9.23': [
+    'Relic Planner: rank owned relics by missing parts and platinum',
+    'Foundry: relic drop sources on missing parts',
+    'Mastery Helper: next craftable / owned-unmastered gear',
+    'Copy trade chat lines from relic and riven scans',
+    'Baro wishlist affordability using synced ducats and credits',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

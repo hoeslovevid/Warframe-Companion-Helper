@@ -43,6 +43,8 @@ import { DeepArchimedeaPanel } from '../../modules/deepArchimedea/DeepArchimedea
 import { RivenPanel } from '../../modules/rivens/RivenPanel'
 import { FoundryPage } from '../../modules/foundry/FoundryPage'
 import { MarketPage } from '../../modules/market/MarketPage'
+import { RelicPlannerPage } from '../../modules/relicPlanner/RelicPlannerPage'
+import { MasteryPage } from '../../modules/mastery/MasteryPage'
 import { LinuxCaptureWizard } from '../../components/LinuxCaptureWizard'
 import { LayoutEditor } from './LayoutEditor'
 import { prettyHotkey } from '../../lib/hotkey'
@@ -50,7 +52,16 @@ import { playScanSound } from '../../lib/sounds'
 import '../../styles/companion.css'
 import '../../modules/cycles/module.css'
 
-type Tab = 'dashboard' | 'modules' | 'foundry' | 'market' | 'layout' | 'settings' | 'help'
+type Tab =
+  | 'dashboard'
+  | 'modules'
+  | 'foundry'
+  | 'relicPlanner'
+  | 'mastery'
+  | 'market'
+  | 'layout'
+  | 'settings'
+  | 'help'
 
 const TIER_OPTIONS = ['Lith', 'Meso', 'Neo', 'Axi', 'Requiem']
 
@@ -124,6 +135,20 @@ export function CompanionApp() {
   const { status: inventory } = useInventory()
   const { state: relicScan, ackCelebration } = useRelicScan()
   useColorTheme(settings.colorTheme, settings.customPalette)
+  const [playerDucats, setPlayerDucats] = useState<number | null>(null)
+  const [playerCredits, setPlayerCredits] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!window.voidlens?.getInventoryIndex || !inventory.loaded) {
+      setPlayerDucats(null)
+      setPlayerCredits(null)
+      return
+    }
+    void window.voidlens.getInventoryIndex().then((index) => {
+      setPlayerCredits(typeof index.RegularCredits === 'number' ? index.RegularCredits : null)
+      setPlayerDucats(typeof index.Ducats === 'number' ? index.Ducats : null)
+    })
+  }, [inventory.loaded, inventory.revision])
 
   const updateCustomPalette = (partial: Partial<CustomPalette>) => {
     void updateSettings({
@@ -321,6 +346,20 @@ export function CompanionApp() {
               Foundry
             </button>
             <button
+              className={`nav-btn ${tab === 'relicPlanner' ? 'active' : ''}`}
+              title="Rank relics by missing parts and platinum"
+              onClick={() => goTab('relicPlanner')}
+            >
+              Relics
+            </button>
+            <button
+              className={`nav-btn ${tab === 'mastery' ? 'active' : ''}`}
+              title="Next mastery / craft targets"
+              onClick={() => goTab('mastery')}
+            >
+              Mastery
+            </button>
+            <button
               className={`nav-btn ${tab === 'market' ? 'active' : ''}`}
               data-tour="nav-market"
               title="warframe.market watchlist and scan prices"
@@ -502,6 +541,8 @@ export function CompanionApp() {
                       baro={data.baro}
                       wishlist={settings.baroWishlist}
                       onToggleWish={toggleBaroWish}
+                      playerDucats={playerDucats}
+                      playerCredits={playerCredits}
                     />
                   ) : null}
                   {enabledIds.includes('nightwave') ? (
@@ -650,6 +691,21 @@ export function CompanionApp() {
               <FoundryPage
                 enabled={settings.modules.foundry}
                 onOpenSettings={() => goTab('settings')}
+              />
+            ) : null}
+
+            {tab === 'relicPlanner' ? (
+              <RelicPlannerPage
+                enabled={settings.modules.relicPlanner !== false}
+                onOpenSettings={() => goTab('settings')}
+              />
+            ) : null}
+
+            {tab === 'mastery' ? (
+              <MasteryPage
+                enabled={settings.modules.mastery !== false}
+                onOpenSettings={() => goTab('settings')}
+                onOpenFoundry={() => goTab('foundry')}
               />
             ) : null}
 

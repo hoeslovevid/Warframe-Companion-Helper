@@ -181,6 +181,7 @@
 .foundry-totals li {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
   padding: 5px 0;
   font-size: 0.86rem;

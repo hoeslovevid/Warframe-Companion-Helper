@@ -60,6 +60,9 @@ import {
 } from './services/riven-scanner'
 import { shutdownOcr } from './services/ocr'
 import { getFoundryTree, listFoundryItems } from './services/foundry'
+import { getRelicPlanner } from './services/relic-planner'
+import { ensureRelicCatalog, getDropSourcesForItem } from './services/relic-catalog'
+import { getMasteryHelper } from './services/mastery-helper'
 import {
   invalidateWarframeProcessCache,
   isWarframeForeground,
@@ -90,7 +93,9 @@ import {
   AppSettings,
   FoundryListFilters,
   HotkeyRegistration,
+  MasteryHelperQuery,
   ModuleId,
+  RelicPlannerQuery,
   WorldstateSnapshot,
 } from '../shared/types'
 
@@ -876,6 +881,16 @@ function registerIpc() {
     listFoundryItems(filters || {}),
   )
   ipcMain.handle('foundry:tree', async (_e, uniqueName: string) => getFoundryTree(uniqueName || ''))
+  ipcMain.handle('relicPlanner:list', async (_e, query?: RelicPlannerQuery) =>
+    getRelicPlanner(query || {}),
+  )
+  ipcMain.handle('relicPlanner:drops', async (_e, nameOrUnique: string) => {
+    await ensureRelicCatalog()
+    return getDropSourcesForItem(nameOrUnique || '')
+  })
+  ipcMain.handle('mastery:list', async (_e, query?: MasteryHelperQuery) =>
+    getMasteryHelper(query || {}),
+  )
   ipcMain.handle('hotkeys:status', () => lastHotkeyStatus)
   ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('update:status', () => getUpdateStatus())

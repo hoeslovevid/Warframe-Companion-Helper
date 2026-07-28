@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { relicStripLayout } from '../../../shared/captureGeometry'
 import { RewardEval } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useRelicScan } from '../../hooks/useRelicScan'
+import { copyText, formatRelicTradeLine } from '../../lib/tradeClipboard'
 import '../cycles/module.css'
 import '../baro/baro.css'
 import './relics.css'
@@ -120,6 +122,14 @@ export function RelicsPanel({
   const rewards = previewMode && previewRewards ? previewRewards : state.rewards
   const scanning = previewMode ? false : state.scanning
   const stripW = stripWidthPx(layoutWidth)
+  const [copied, setCopied] = useState(false)
+
+  const copyTrade = async () => {
+    const text = formatRelicTradeLine(rewards)
+    if (!(await copyText(text))) return
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1600)
+  }
 
   if (compact || previewMode) {
     return (
@@ -153,6 +163,14 @@ export function RelicsPanel({
         <>
           <button className="btn primary" disabled={scanning} onClick={() => void scan()}>
             Scan now
+          </button>
+          <button
+            className="btn ghost"
+            disabled={!rewards.length}
+            onClick={() => void copyTrade()}
+            title="Copy WTS/WTB lines for trade chat"
+          >
+            {copied ? 'Copied' : 'Copy trade'}
           </button>
           <button className="btn ghost" disabled={!rewards.length} onClick={() => void clear()}>
             Clear
