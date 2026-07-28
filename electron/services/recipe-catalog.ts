@@ -4,9 +4,18 @@ import path from 'node:path'
 import { app } from 'electron'
 import type { FoundryCategory, RecipeComponent, RecipeItem } from '../../shared/types'
 
+/** Bump when RecipeItem shape changes so stale userData caches refetch. */
+const RECIPE_CACHE_VERSION = 2
+
 type RecipeCache = {
+  version?: number
   fetchedAt: string
   items: RecipeItem[]
+}
+
+function parseImageName(raw: Record<string, unknown>): string | null {
+  const name = String(raw.imageName || '').trim()
+  return name || null
 }
 
 let items: RecipeItem[] = []
@@ -83,6 +92,7 @@ function parseComponents(raw: unknown, depth = 0): RecipeComponent[] {
       name: name || uniqueName.split('/').pop() || uniqueName,
       uniqueName,
       itemCount,
+      imageName: parseImageName(c),
       components: nested.length ? nested : undefined,
     })
   }
@@ -105,6 +115,9 @@ function loadCache(): boolean {
     if (!fs.existsSync(file)) return false
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as RecipeCache
     if (!parsed.items?.length) return false
+    if (parsed.version !== RECIPE_CACHE_VERSION) {
+      return false
+    }
     rebuildIndexes(parsed.items)
     const age = Date.now() - new Date(parsed.fetchedAt).getTime()
     if (age > 7 * 24 * 60 * 60 * 1000) {
@@ -137,6 +150,7 @@ function ingestParent(
     buildTime: typeof raw.buildTime === 'number' ? raw.buildTime : null,
     vaulted: typeof raw.vaulted === 'boolean' ? raw.vaulted : null,
     isPrime: /prime/i.test(name),
+    imageName: parseImageName(raw),
     components,
   })
 }
@@ -159,7 +173,11 @@ async function fetchAndCache(): Promise<void> {
   out.sort((a, b) => a.name.localeCompare(b.name))
   rebuildIndexes(out)
   fs.mkdirSync(path.dirname(cachePath()), { recursive: true })
-  const payload: RecipeCache = { fetchedAt: new Date().toISOString(), items: out }
+  const payload: RecipeCache = {
+    version: RECIPE_CACHE_VERSION,
+    fetchedAt: new Date().toISOString(),
+    items: out,
+  }
   fs.writeFileSync(cachePath(), JSON.stringify(payload), 'utf8')
   console.info(`[Everything Warframe] Recipe catalog ready (${out.length} buildable items)`)
 }
@@ -201,4 +219,10 @@ export function resolveComponentRecipe(comp: RecipeComponent): RecipeComponent[]
   if (comp.components?.length) return comp.components
   const item = getRecipeByUnique(comp.uniqueName)
   return item?.components || []
+}
+
+/** Prefer component imageName, else look up catalog parent art. */
+export function resolveImageName(uniqueName: string, imageName?: string | null): string | null {
+  if (imageName) return imageName
+  return getRecipeByUnique(uniqueName)?.imageName ?? null
 }

@@ -6,12 +6,12 @@ import type {
   FoundryScopeFilter,
   FoundryTreeNode,
   FoundryTreeResult,
-  RelicDropSource,
 } from '../../../shared/types'
 import { EmptyState } from '../../components/EmptyState'
+import { ItemThumb } from '../../components/ItemThumb'
 import { Panel } from '../../components/Panel'
+import { SetFarmPanel } from '../../components/SetFarmPanel'
 import { useInventory } from '../../hooks/useInventory'
-import { formatDropSourcesLine } from '../../lib/tradeClipboard'
 import './foundry.css'
 
 type Props = {
@@ -52,9 +52,12 @@ function TreeNodes({ nodes }: { nodes: FoundryTreeNode[] }) {
     <ul className="foundry-tree">
       {nodes.map((n) => (
         <li key={`${n.uniqueName}-${n.required}`}>
-          <div style={{ flex: 1 }}>
-            <span>{n.name}</span>
-            {n.children.length ? <TreeNodes nodes={n.children} /> : null}
+          <div className="foundry-row">
+            <ItemThumb imageName={n.imageName} name={n.name} size="sm" />
+            <div className="foundry-row__body">
+              <span>{n.name}</span>
+              {n.children.length ? <TreeNodes nodes={n.children} /> : null}
+            </div>
           </div>
           <span className={n.missing > 0 ? 'is-missing' : 'is-ok'}>
             {n.owned}/{n.required}
@@ -79,8 +82,6 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [tree, setTree] = useState<FoundryTreeResult | null>(null)
   const [treeLoading, setTreeLoading] = useState(false)
-  const [partDrops, setPartDrops] = useState<Record<string, RelicDropSource[]>>({})
-  const [dropsLoading, setDropsLoading] = useState(false)
 
   const filters = useMemo<FoundryListFilters>(
     () => ({
@@ -155,31 +156,6 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
     inventory.path,
   ])
 
-  useEffect(() => {
-    if (!enabled || !tree?.totals?.length || !window.voidlens?.getDropSources) {
-      setPartDrops({})
-      return
-    }
-    let cancelled = false
-    setDropsLoading(true)
-    const missing = tree.totals.filter((t) => t.missing > 0).slice(0, 10)
-    void Promise.all(
-      missing.map(async (line) => {
-        const src = await window.voidlens!.getDropSources(line.name)
-        return [line.uniqueName, src] as const
-      }),
-    ).then((entries) => {
-      if (cancelled) return
-      const next: Record<string, RelicDropSource[]> = {}
-      for (const [key, src] of entries) next[key] = src
-      setPartDrops(next)
-      setDropsLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [enabled, tree?.totals])
-
   if (!enabled) {
     return (
       <Panel title="Foundry Planner" subtitle="Module disabled">
@@ -200,8 +176,8 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
         <h2 className="page-title">Foundry</h2>
         <div className="page-title-rule" />
         <p className="page-desc">
-          Defaults to gear you own plus anything ready to craft from your inventory. Switch to
-          Browse all only when you need the full catalog.
+          Search a warframe or weapon to see which parts you have, which owned relics drop the gaps,
+          then the full crafting tree. Defaults to gear you own plus ready-to-craft.
         </p>
       </header>
 
@@ -312,7 +288,17 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                 Ready
               </button>
             </div>
-            <p className="muted" style={{ margin: 0, fontSize: '0.78rem', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <p
+              className="muted"
+              style={{
+                margin: 0,
+                fontSize: '0.78rem',
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
               <span>
                 {loading
                   ? scope === 'inventory'
@@ -342,13 +328,20 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                   className={selected === item.uniqueName ? 'is-selected' : ''}
                   onClick={() => setSelected(item.uniqueName)}
                 >
-                  <span className="foundry-list__name">{item.name}</span>
-                  <span className="foundry-list__meta">
-                    {item.owned ? <span className="vl-pill is-ok">Owned</span> : null}
-                    {item.mastered === true ? <span className="vl-pill is-ok">Mastered</span> : null}
-                    {item.readyToBuild ? <span className="vl-pill is-ready">Ready</span> : null}
-                    {item.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
-                    {item.isPrime ? <span className="vl-pill">Prime</span> : null}
+                  <span className="foundry-list__row">
+                    <ItemThumb imageName={item.imageName} name={item.name} size="md" />
+                    <span className="foundry-list__text">
+                      <span className="foundry-list__name">{item.name}</span>
+                      <span className="foundry-list__meta">
+                        {item.owned ? <span className="vl-pill is-ok">Owned</span> : null}
+                        {item.mastered === true ? (
+                          <span className="vl-pill is-ok">Mastered</span>
+                        ) : null}
+                        {item.readyToBuild ? <span className="vl-pill is-ready">Ready</span> : null}
+                        {item.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
+                        {item.isPrime ? <span className="vl-pill">Prime</span> : null}
+                      </span>
+                    </span>
                   </span>
                 </button>
               </li>
@@ -380,21 +373,26 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
             />
           ) : (
             <div key={detail.uniqueName} className="vl-expand-in">
-              <h3>{detail.name}</h3>
-              <div className="foundry-list__meta" style={{ marginBottom: 8 }}>
-                {detail.owned ? <span className="vl-pill is-ok">Owned</span> : null}
-                {detail.mastered === true ? (
-                  <span className="vl-pill is-ok">Mastered</span>
-                ) : detail.mastered === false ? (
-                  <span className="vl-pill">Unmastered</span>
-                ) : (
-                  <span className="vl-pill">Mastery unknown</span>
-                )}
-                {detail.readyToBuild ? (
-                  <span className="vl-pill is-ready">Ready to build</span>
-                ) : (
-                  <span className="vl-pill is-warn">Missing {detail.missingDirect} parts</span>
-                )}
+              <div className="foundry-detail__hero">
+                <ItemThumb imageName={detail.imageName} name={detail.name} size="lg" />
+                <div className="foundry-detail__hero-text">
+                  <h3>{detail.name}</h3>
+                  <div className="foundry-list__meta" style={{ marginBottom: 0 }}>
+                    {detail.owned ? <span className="vl-pill is-ok">Owned</span> : null}
+                    {detail.mastered === true ? (
+                      <span className="vl-pill is-ok">Mastered</span>
+                    ) : detail.mastered === false ? (
+                      <span className="vl-pill">Unmastered</span>
+                    ) : (
+                      <span className="vl-pill">Mastery unknown</span>
+                    )}
+                    {detail.readyToBuild ? (
+                      <span className="vl-pill is-ready">Ready to build</span>
+                    ) : (
+                      <span className="vl-pill is-warn">Missing {detail.missingDirect} parts</span>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="foundry-stats">
                 <span>
@@ -411,6 +409,8 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                 </span>
               </div>
 
+              {tree?.setFarm ? <SetFarmPanel farm={tree.setFarm} /> : null}
+
               <div className="foundry-section-title">Crafting tree</div>
               {tree?.tree?.children?.length ? (
                 <TreeNodes nodes={tree.tree.children} />
@@ -423,13 +423,11 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                 <ul className="foundry-totals">
                   {tree.totals.map((line) => (
                     <li key={line.uniqueName} className={line.missing > 0 ? 'is-missing' : 'is-ok'}>
-                      <div style={{ flex: 1 }}>
-                        <span>{line.name}</span>
-                        {line.missing > 0 && partDrops[line.uniqueName]?.length ? (
-                          <div className="muted" style={{ fontSize: '0.72rem', marginTop: 2 }}>
-                            {formatDropSourcesLine(partDrops[line.uniqueName])}
-                          </div>
-                        ) : null}
+                      <div className="foundry-row">
+                        <ItemThumb imageName={line.imageName} name={line.name} size="sm" />
+                        <div className="foundry-row__body">
+                          <span>{line.name}</span>
+                        </div>
                       </div>
                       <span>
                         need {line.missing} · own {line.owned}
@@ -446,11 +444,6 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                       : 'No leaf totals (or inventory empty for this recipe).'}
                 </p>
               )}
-              {dropsLoading ? (
-                <p className="muted" style={{ marginTop: 8 }}>
-                  Looking up relic drop sources…
-                </p>
-              ) : null}
             </div>
           )}
         </section>

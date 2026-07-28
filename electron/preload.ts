@@ -50,6 +50,7 @@ const api: VoidLensApi = {
   getFoundryTree: (uniqueName: string) => ipcRenderer.invoke('foundry:tree', uniqueName),
   getRelicPlanner: (query) => ipcRenderer.invoke('relicPlanner:list', query),
   getDropSources: (nameOrUnique: string) => ipcRenderer.invoke('relicPlanner:drops', nameOrUnique),
+  getSetFarm: (opts) => ipcRenderer.invoke('setFarm:get', opts),
   getMasteryHelper: (query) => ipcRenderer.invoke('mastery:list', query),
   getHotkeyStatus: () => ipcRenderer.invoke('hotkeys:status') as Promise<HotkeyRegistration[]>,
   getAppVersion: () => ipcRenderer.invoke('app:version') as Promise<string>,

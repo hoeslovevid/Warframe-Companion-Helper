@@ -747,6 +747,8 @@ export type RecipeComponent = {
   name: string
   uniqueName: string
   itemCount: number
+  /** CDN basename from warframestat (e.g. `braton-prime-barrel.png`). */
+  imageName: string | null
   /** Nested recipe when present on the API payload. */
   components?: RecipeComponent[]
 }
@@ -760,6 +762,8 @@ export type RecipeItem = {
   buildTime: number | null
   vaulted: boolean | null
   isPrime: boolean
+  /** CDN basename from warframestat (e.g. `excalibur-prime.png`). */
+  imageName: string | null
   components: RecipeComponent[]
 }
 
@@ -792,6 +796,7 @@ export type FoundryListItem = {
   buildTime: number | null
   vaulted: boolean | null
   isPrime: boolean
+  imageName: string | null
   owned: boolean
   ownedCount: number
   mastered: boolean | null
@@ -805,6 +810,7 @@ export type FoundryTreeNode = {
   required: number
   owned: number
   missing: number
+  imageName: string | null
   children: FoundryTreeNode[]
 }
 
@@ -814,12 +820,15 @@ export type FoundryTotalLine = {
   required: number
   owned: number
   missing: number
+  imageName: string | null
 }
 
 export type FoundryTreeResult = {
   item: FoundryListItem | null
   tree: FoundryTreeNode | null
   totals: FoundryTotalLine[]
+  /** Direct-part checklist + owned-relic farm hints for the selected recipe. */
+  setFarm: SetFarmResult | null
   inventoryLoaded: boolean
   error: string | null
 }
@@ -830,6 +839,39 @@ export type RelicDropSource = {
   rarity: string
   chance: number | null
   vaulted: boolean | null
+}
+
+/** Relic that drops a set part, with how many you own of that relic type. */
+export type SetFarmRelicSource = RelicDropSource & {
+  owned: number
+}
+
+export type SetFarmPart = {
+  name: string
+  uniqueName: string
+  imageName: string | null
+  required: number
+  owned: number
+  missing: number
+  /** True when owned >= required for this direct component. */
+  have: boolean
+  /** Relics you own that can drop this part (sorted by owned count). */
+  sourcesOwned: SetFarmRelicSource[]
+  /** Other relics (unowned / vaulted) — shown when you own none. */
+  sourcesOther: SetFarmRelicSource[]
+}
+
+export type SetFarmResult = {
+  uniqueName: string
+  name: string
+  imageName: string | null
+  /** Finished item already in inventory. */
+  ownedFinished: boolean
+  parts: SetFarmPart[]
+  haveCount: number
+  missingCount: number
+  inventoryLoaded: boolean
+  error: string | null
 }
 
 export type RelicPlannerSort = 'missing' | 'platinum' | 'owned' | 'name'
@@ -879,6 +921,7 @@ export type MasteryHelperItem = {
   xpLevel: number | null
   readyToBuild: boolean
   isPrime: boolean
+  imageName: string | null
 }
 
 export type MasteryHelperResult = {
@@ -1085,6 +1128,10 @@ export type VoidLensApi = {
   getFoundryTree: (uniqueName: string) => Promise<FoundryTreeResult>
   getRelicPlanner: (query?: RelicPlannerQuery) => Promise<RelicPlannerResult>
   getDropSources: (nameOrUnique: string) => Promise<RelicDropSource[]>
+  getSetFarm: (opts?: {
+    uniqueName?: string
+    search?: string
+  }) => Promise<SetFarmResult | null>
   getMasteryHelper: (query?: MasteryHelperQuery) => Promise<MasteryHelperResult>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>
   getAppVersion: () => Promise<string>

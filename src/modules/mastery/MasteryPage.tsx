@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MasteryHelperItem, MasteryHelperQuery } from '../../../shared/types'
 import { EmptyState } from '../../components/EmptyState'
+import { ItemThumb } from '../../components/ItemThumb'
 import { Panel } from '../../components/Panel'
 import { useInventory } from '../../hooks/useInventory'
 import '../foundry/foundry.css'
@@ -135,19 +136,24 @@ export function MasteryPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
                 onClick={() => onOpenFoundry?.(item.uniqueName)}
                 title="Open in Foundry"
               >
-                <span className="foundry-list__name">{item.name}</span>
-                <span className="foundry-list__meta">
-                  {item.readyToBuild ? <span className="vl-pill is-ready">Ready</span> : null}
-                  {item.owned ? <span className="vl-pill is-ok">Owned</span> : null}
-                  {item.mastered === true ? (
-                    <span className="vl-pill is-ok">Mastered</span>
-                  ) : item.mastered === false ? (
-                    <span className="vl-pill is-warn">Unmastered</span>
-                  ) : (
-                    <span className="vl-pill">MR ?</span>
-                  )}
-                  {item.isPrime ? <span className="vl-pill">Prime</span> : null}
-                  <span className="vl-pill">{item.category}</span>
+                <span className="foundry-list__row">
+                  <ItemThumb imageName={item.imageName} name={item.name} size="md" />
+                  <span className="foundry-list__text">
+                    <span className="foundry-list__name">{item.name}</span>
+                    <span className="foundry-list__meta">
+                      {item.readyToBuild ? <span className="vl-pill is-ready">Ready</span> : null}
+                      {item.owned ? <span className="vl-pill is-ok">Owned</span> : null}
+                      {item.mastered === true ? (
+                        <span className="vl-pill is-ok">Mastered</span>
+                      ) : item.mastered === false ? (
+                        <span className="vl-pill is-warn">Unmastered</span>
+                      ) : (
+                        <span className="vl-pill">MR ?</span>
+                      )}
+                      {item.isPrime ? <span className="vl-pill">Prime</span> : null}
+                      <span className="vl-pill">{item.category}</span>
+                    </span>
+                  </span>
                 </span>
               </button>
             </li>

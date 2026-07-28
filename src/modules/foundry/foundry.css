@@ -116,6 +116,17 @@
   box-shadow: inset 2px 0 0 var(--vl-accent);
 }
 
+.foundry-list__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.foundry-list__text {
+  min-width: 0;
+  flex: 1;
+}
+
 .foundry-list__name {
   display: block;
   font-weight: 600;
@@ -135,14 +146,229 @@
   overflow: auto;
 }
 
+.foundry-detail__hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 0 10px;
+}
+
+.foundry-detail__hero-text {
+  min-width: 0;
+  flex: 1;
+}
+
 .foundry-detail h3 {
-  margin: 14px 0 6px;
+  margin: 0 0 8px;
   font-family: var(--vl-font-body);
   font-size: 1.15rem;
   font-weight: 650;
   letter-spacing: 0.01em;
   text-transform: none;
   color: var(--vl-frost);
+}
+
+.foundry-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.foundry-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--vl-radius-sm);
+  border: 1px solid var(--vl-surface-border);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--vl-accent) 12%, transparent), transparent 70%),
+    color-mix(in srgb, var(--vl-panel) 80%, #000);
+}
+
+.item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.item-thumb__fallback {
+  font-weight: 700;
+  color: var(--vl-mist);
+  line-height: 1;
+  user-select: none;
+}
+
+.item-thumb--sm {
+  width: 28px;
+  height: 28px;
+}
+
+.item-thumb--sm .item-thumb__fallback {
+  font-size: 0.7rem;
+}
+
+.item-thumb--md {
+  width: 40px;
+  height: 40px;
+}
+
+.item-thumb--md .item-thumb__fallback {
+  font-size: 0.85rem;
+}
+
+.item-thumb--lg {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--vl-radius);
+}
+
+.item-thumb--lg .item-thumb__fallback {
+  font-size: 1.35rem;
+}
+
+.set-farm {
+  margin: 12px 0 4px;
+}
+
+.set-farm--compact {
+  padding: 12px 14px;
+  border: 1px solid var(--vl-panel-border);
+  border-radius: var(--vl-radius-lg);
+  background: var(--vl-panel);
+  margin-bottom: 14px;
+}
+
+.set-farm__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.set-farm__header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.set-farm__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.set-farm__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--vl-frost);
+}
+
+.set-farm__parts,
+.set-farm__farm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.set-farm__parts li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 0.86rem;
+  border-bottom: 1px solid var(--vl-surface-border);
+}
+
+.set-farm__parts li:last-child {
+  border-bottom: 0;
+}
+
+.set-farm__part-name {
+  color: var(--vl-frost);
+}
+
+.set-farm__farm-list > li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--vl-surface-border);
+}
+
+.set-farm__farm-list > li:last-child {
+  border-bottom: 0;
+}
+
+.set-farm__farm-part {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--vl-frost);
+  font-size: 0.88rem;
+}
+
+.set-farm__sources-stack {
+  display: grid;
+  gap: 8px;
+  padding-left: 36px;
+}
+
+.set-farm__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.set-farm__sources-stack .set-farm__sources {
+  padding-left: 0;
+}
+
+.set-farm__sources-label {
+  width: 100%;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vl-mist-dim);
+  font-weight: 600;
+}
+
+.set-farm__chip {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: var(--vl-radius-sm);
+  border: 1px solid var(--vl-surface-border);
+  background: color-mix(in srgb, var(--vl-panel) 70%, transparent);
+  color: var(--vl-mist);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.set-farm__chip.is-owned {
+  border-color: color-mix(in srgb, var(--vl-ok) 40%, transparent);
+  color: var(--vl-frost);
+  background: color-mix(in srgb, var(--vl-ok) 12%, transparent);
+}
+
+.set-farm__parts .is-missing,
+.set-farm__parts li.is-missing {
+  color: var(--vl-danger);
+}
+
+.set-farm__parts .is-ok,
+.set-farm__parts li.is-ok {
+  color: var(--vl-ok);
 }
 
 .foundry-stats {

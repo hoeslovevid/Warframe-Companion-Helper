@@ -19,6 +19,7 @@ import {
   getRecipeByUnique,
   getRecipeItems,
   resolveComponentRecipe,
+  resolveImageName,
 } from './recipe-catalog'
 
 const MAX_DEPTH = 6
@@ -71,6 +72,7 @@ function toListItem(
     buildTime: item.buildTime,
     vaulted: item.vaulted,
     isPrime: item.isPrime,
+    imageName: item.imageName,
     owned: ownedCount > 0 || (masteryEntry?.owned ?? 0) > 0,
     ownedCount: Math.max(ownedCount, masteryEntry?.owned ?? 0),
     mastered: masteryEntry ? masteryEntry.mastered : null,
@@ -183,10 +185,12 @@ function buildTreeNode(
   depth: number,
   stack: Set<string>,
   index: InventoryIndex,
+  imageName: string | null = null,
 ): FoundryTreeNode {
   const owned = ownedCountFor(uniqueName, index)
   const missing = Math.max(0, required - owned)
   const children: FoundryTreeNode[] = []
+  const resolvedImage = resolveImageName(uniqueName, imageName)
 
   if (missing > 0 && depth < MAX_DEPTH && components.length && !stack.has(uniqueName)) {
     const nextStack = new Set(stack)
@@ -202,12 +206,21 @@ function buildTreeNode(
           depth + 1,
           nextStack,
           index,
+          comp.imageName,
         ),
       )
     }
   }
 
-  return { name, uniqueName, required, owned, missing, children }
+  return {
+    name,
+    uniqueName,
+    required,
+    owned,
+    missing,
+    imageName: resolvedImage,
+    children,
+  }
 }
 
 function accumulateTotals(
@@ -243,6 +256,7 @@ function accumulateTotals(
           required: still,
           owned,
           missing: still,
+          imageName: resolveImageName(comp.uniqueName, comp.imageName),
         })
       }
     }
@@ -251,6 +265,12 @@ function accumulateTotals(
 
 export async function getFoundryTree(uniqueName: string): Promise<FoundryTreeResult> {
   await ensureRecipeCatalog()
+  try {
+    const { ensureRelicCatalog } = await import('./relic-catalog')
+    await ensureRelicCatalog()
+  } catch {
+    // Drop sources optional if relic catalog fails
+  }
   const index = peekInventoryIndex()
   const mastery = peekMasteryIndex()
   const inventoryLoaded = Object.keys(index).length > 0
@@ -260,13 +280,23 @@ export async function getFoundryTree(uniqueName: string): Promise<FoundryTreeRes
       item: null,
       tree: null,
       totals: [],
+      setFarm: null,
       inventoryLoaded,
       error: 'Recipe not found in catalog',
     }
   }
 
   const listItem = toListItem(item, index, mastery)
-  const tree = buildTreeNode(item.name, item.uniqueName, 1, item.components, 0, new Set(), index)
+  const tree = buildTreeNode(
+    item.name,
+    item.uniqueName,
+    1,
+    item.components,
+    0,
+    new Set(),
+    index,
+    item.imageName,
+  )
   const bucket = new Map<string, FoundryTotalLine>()
   const ownedFinished = ownedCountFor(item.uniqueName, index)
   const craftsNeeded = ownedFinished > 0 ? 0 : 1
@@ -275,10 +305,15 @@ export async function getFoundryTree(uniqueName: string): Promise<FoundryTreeRes
   }
 
   const totals = [...bucket.values()].sort((a, b) => a.name.localeCompare(b.name))
+
+  const { buildSetFarmForRecipe } = await import('./set-farm')
+  const setFarm = buildSetFarmForRecipe(item)
+
   return {
     item: listItem,
     tree,
     totals,
+    setFarm,
     inventoryLoaded,
     error: null,
   }

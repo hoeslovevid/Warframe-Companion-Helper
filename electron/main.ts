@@ -1121,6 +1121,13 @@ function registerIpc() {
     await ensureRelicCatalog()
     return getDropSourcesForItem(nameOrUnique || '')
   })
+  ipcMain.handle(
+    'setFarm:get',
+    async (_e, opts?: { uniqueName?: string; search?: string }) => {
+      const { getSetFarm } = await import('./services/set-farm')
+      return getSetFarm(opts || {})
+    },
+  )
   ipcMain.handle('mastery:list', async (_e, query?: MasteryHelperQuery) =>
     getMasteryHelper(query || {}),
   )

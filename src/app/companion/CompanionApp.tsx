@@ -767,6 +767,7 @@ export function CompanionApp() {
               <RelicPlannerPage
                 enabled={settings.modules.relicPlanner !== false}
                 onOpenSettings={() => goTab('settings')}
+                onOpenFoundry={() => goTab('foundry')}
               />
             ) : null}
 

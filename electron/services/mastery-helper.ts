@@ -27,6 +27,7 @@ export type MasteryHelperItem = {
   xpLevel: number | null
   readyToBuild: boolean
   isPrime: boolean
+  imageName: string | null
 }
 
 export type MasteryHelperResult = {
@@ -81,6 +82,7 @@ export async function getMasteryHelper(opts?: {
       xpLevel: m?.xpLevel ?? null,
       readyToBuild,
       isPrime: recipe.isPrime,
+      imageName: recipe.imageName,
     })
   }
 

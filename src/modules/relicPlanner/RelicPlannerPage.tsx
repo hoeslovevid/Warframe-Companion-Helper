@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { RelicPlannerQuery, RelicPlannerRow, RelicPlannerSort } from '../../../shared/types'
+import type {
+  RelicPlannerQuery,
+  RelicPlannerRow,
+  RelicPlannerSort,
+  SetFarmResult,
+} from '../../../shared/types'
 import { EmptyState } from '../../components/EmptyState'
 import { Panel } from '../../components/Panel'
+import { SetFarmPanel } from '../../components/SetFarmPanel'
 import { useInventory } from '../../hooks/useInventory'
 import '../foundry/foundry.css'
 
 type Props = {
   enabled: boolean
   onOpenSettings: () => void
+  onOpenFoundry?: (uniqueName: string) => void
 }
 
 const TIERS = ['all', 'Lith', 'Meso', 'Neo', 'Axi', 'Requiem'] as const
 
-export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
+export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
   const { status: inventory } = useInventory()
   const [ownedOnly, setOwnedOnly] = useState(true)
   const [sort, setSort] = useState<RelicPlannerSort>('missing')
@@ -23,6 +30,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
+  const [setFarm, setSetFarm] = useState<SetFarmResult | null>(null)
 
   const query = useMemo<RelicPlannerQuery>(
     () => ({ ownedOnly, sort, tier, search }),
@@ -55,6 +63,28 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
     return () => window.clearTimeout(t)
   }, [enabled, refresh, inventory.revision, inventory.loaded])
 
+  useEffect(() => {
+    if (!enabled || !window.voidlens?.getSetFarm) {
+      setSetFarm(null)
+      return
+    }
+    const q = search.trim()
+    if (q.length < 3) {
+      setSetFarm(null)
+      return
+    }
+    let cancelled = false
+    const t = window.setTimeout(() => {
+      void window.voidlens!.getSetFarm({ search: q }).then((next) => {
+        if (!cancelled) setSetFarm(next)
+      })
+    }, 180)
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+    }
+  }, [enabled, search, inventory.revision, inventory.loaded])
+
   if (!enabled) {
     return (
       <Panel title="Relic Planner" subtitle="Module disabled">
@@ -76,8 +106,8 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
         <h2 className="page-title">Relic Planner</h2>
         <div className="page-title-rule" />
         <p className="page-desc">
-          Next best farm first — ranked by missing set parts and platinum. Sync inventory so owned
-          counts stay accurate.
+          Search a set like Ember Prime for a parts checklist and which owned relics drop gaps — or
+          browse relics ranked by missing parts and platinum.
         </p>
       </header>
 
@@ -95,7 +125,15 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
         </Panel>
       ) : null}
 
-      {inventoryReady && hero ? (
+      {setFarm && !setFarm.error ? (
+        <SetFarmPanel
+          farm={setFarm}
+          compact
+          onOpenFoundry={onOpenFoundry}
+        />
+      ) : null}
+
+      {inventoryReady && hero && !setFarm ? (
         <section className="planner-hero">
           <p className="planner-hero__eyebrow">Next best relic</p>
           <h3 className="planner-hero__title">{hero.key}</h3>
@@ -134,7 +172,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
           <div className="foundry-sidebar__filters">
             <input
               className="foundry-search"
-              placeholder="Search relic or reward…"
+              placeholder="Search set, relic, or reward…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -193,6 +231,11 @@ export function RelicPlannerPage({ enabled, onOpenSettings }: Props) {
                 ))}
               </select>
             </label>
+            {setFarm ? (
+              <p className="muted" style={{ margin: 0, fontSize: '0.75rem' }}>
+                Set match: {setFarm.name} · relic list still filters below
+              </p>
+            ) : null}
           </div>
           <ul className="foundry-list vl-stagger">
             {rows.map((row) => (

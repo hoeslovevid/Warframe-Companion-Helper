@@ -109,6 +109,11 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Hotkey Alt+Shift+W: hide / restore all worldstate overlay panels',
     'Optional per-panel toggle hotkeys under Settings → Hotkeys',
   ],
+  '0.9.29': [
+    'Foundry & Mastery: warframe/weapon/part thumbnails from warframestat art',
+    'Foundry & Relic Planner: parts checklist with owned vs missing',
+    'Show which owned relics drop missing set parts (plus other/vaulted sources)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

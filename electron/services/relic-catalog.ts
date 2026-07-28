@@ -127,6 +127,17 @@ function rebuildIndexes(next: RelicCatalogEntry[]) {
       const list = dropsByReward.get(norm) || []
       if (!list.includes(entry.key)) list.push(entry.key)
       dropsByReward.set(norm, list)
+
+      // Also index without trailing BLUEPRINT so "Ember Prime Chassis" hits
+      // "Ember Prime Chassis Blueprint" rewards.
+      if (/\bBLUEPRINT\b/.test(norm)) {
+        const stripped = normalizeItemName(reward.name.replace(/\s+Blueprint$/i, ''))
+        if (stripped && stripped !== norm) {
+          const alt = dropsByReward.get(stripped) || []
+          if (!alt.includes(entry.key)) alt.push(entry.key)
+          dropsByReward.set(stripped, alt)
+        }
+      }
     }
   }
 }
@@ -235,11 +246,42 @@ export function getDropSourcesForItem(nameOrUnique: string): Array<{
   chance: number | null
   vaulted: boolean | null
 }> {
-  const norm = normalizeItemName(nameOrUnique)
-  const keys = dropsByReward.get(norm) || []
-  // Also try without "Blueprint" suffix
-  const alt = normalizeItemName(nameOrUnique.replace(/\s+Blueprint$/i, ''))
-  const merged = new Set([...keys, ...(dropsByReward.get(alt) || [])])
+  return getDropSourcesForNames([nameOrUnique])
+}
+
+/** Merge drop sources for any of the candidate display names / unique paths. */
+export function getDropSourcesForNames(names: string[]): Array<{
+  key: string
+  tier: string
+  rarity: string
+  chance: number | null
+  vaulted: boolean | null
+}> {
+  const queryNorms = new Set<string>()
+  for (const raw of names) {
+    if (!raw?.trim()) continue
+    const base = normalizeItemName(raw)
+    if (!base) continue
+    queryNorms.add(base)
+    queryNorms.add(normalizeItemName(raw.replace(/\s+Blueprint$/i, '')))
+    if (!/\bBLUEPRINT\b/i.test(raw)) {
+      queryNorms.add(normalizeItemName(`${raw} Blueprint`))
+    }
+    // uniqueName path → last segment sometimes helps
+    if (raw.includes('/')) {
+      const leaf = raw.split('/').pop() || ''
+      if (leaf) {
+        queryNorms.add(normalizeItemName(leaf))
+        queryNorms.add(normalizeItemName(leaf.replace(/Component$/i, '')))
+      }
+    }
+  }
+
+  const mergedKeys = new Set<string>()
+  for (const norm of queryNorms) {
+    for (const key of dropsByReward.get(norm) || []) mergedKeys.add(key)
+  }
+
   const out: Array<{
     key: string
     tier: string
@@ -247,12 +289,10 @@ export function getDropSourcesForItem(nameOrUnique: string): Array<{
     chance: number | null
     vaulted: boolean | null
   }> = []
-  for (const key of merged) {
+  for (const key of mergedKeys) {
     const relic = byKey.get(key)
     if (!relic) continue
-    const reward =
-      relic.rewards.find((r) => normalizeItemName(r.name) === norm) ||
-      relic.rewards.find((r) => normalizeItemName(r.name) === alt)
+    const reward = relic.rewards.find((r) => queryNorms.has(normalizeItemName(r.name)))
     out.push({
       key,
       tier: relic.tier,
