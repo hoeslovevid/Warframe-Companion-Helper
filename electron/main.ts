@@ -27,6 +27,7 @@ import {
   setCaptureOverlayPause,
   warmScreenCapture,
 } from './services/screen-capture'
+import { disposePersistentCapture } from './services/persistent-screen-capture'
 import {
   clearUserDataAndQuit,
   getUninstallInfo,

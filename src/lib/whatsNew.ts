@@ -102,6 +102,9 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Linux: fix freeze when screen-share opened twice (PipeWire portal deadlock)',
     'Linux: only prompt for capture after Authorize / after setup is acknowledged',
   ],
+  '0.9.27': [
+    'Fix Linux quit crash: restore missing disposePersistentCapture import',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
