@@ -121,6 +121,9 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.31': [
     'Foundry: dedicated All / Prime / Non-Prime filter under search',
   ],
+  '0.9.32': [
+    'Relic Planner: All / Prime / Non-Prime filter for relics and set search',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

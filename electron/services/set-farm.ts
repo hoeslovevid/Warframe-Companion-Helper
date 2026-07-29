@@ -80,10 +80,17 @@ function scoreRecipeMatch(name: string, q: string): number {
 }
 
 /** Best recipe for a free-text search like "ember prime" or "ember prime chassis". */
-export function findRecipeForSearch(search: string): RecipeItem | null {
+export function findRecipeForSearch(
+  search: string,
+  prime: 'any' | 'prime' | 'normal' = 'any',
+): RecipeItem | null {
   const q = normalize(search)
   if (q.length < 2) return null
-  const items = getRecipeItems()
+  const items = getRecipeItems().filter((item) => {
+    if (prime === 'prime') return item.isPrime
+    if (prime === 'normal') return !item.isPrime
+    return true
+  })
 
   let best: RecipeItem | null = null
   let bestScore = 0
@@ -207,6 +214,7 @@ export function buildSetFarmForRecipe(item: RecipeItem): SetFarmResult {
 export async function getSetFarm(opts: {
   uniqueName?: string
   search?: string
+  prime?: 'any' | 'prime' | 'normal'
 }): Promise<SetFarmResult | null> {
   try {
     await Promise.all([ensureRecipeCatalog(), ensureRelicCatalog()])
@@ -224,9 +232,12 @@ export async function getSetFarm(opts: {
     }
   }
 
+  const prime = opts.prime || 'any'
   let item: RecipeItem | null = null
   if (opts.uniqueName) item = getRecipeByUnique(opts.uniqueName)
-  if (!item && opts.search) item = findRecipeForSearch(opts.search)
+  if (item && prime === 'prime' && !item.isPrime) item = null
+  if (item && prime === 'normal' && item.isPrime) item = null
+  if (!item && opts.search) item = findRecipeForSearch(opts.search, prime)
   if (!item) return null
   return buildSetFarmForRecipe(item)
 }

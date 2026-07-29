@@ -916,6 +916,8 @@ export type RelicPlannerQuery = {
   sort?: RelicPlannerSort
   search?: string
   tier?: string
+  /** Filter relics by whether rewards include Prime parts. */
+  prime?: FoundryPrimeFilter
 }
 
 export type MasteryHelperItem = {
@@ -1138,6 +1140,7 @@ export type VoidLensApi = {
   getSetFarm: (opts?: {
     uniqueName?: string
     search?: string
+    prime?: FoundryPrimeFilter
   }) => Promise<SetFarmResult | null>
   getMasteryHelper: (query?: MasteryHelperQuery) => Promise<MasteryHelperResult>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>

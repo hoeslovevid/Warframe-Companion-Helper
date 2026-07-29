@@ -89,11 +89,16 @@ function buildRow(
   }
 }
 
+function relicHasPrimeReward(row: RelicPlannerRow): boolean {
+  return row.rewards.some((r) => /prime/i.test(r.name) && !/^forma\b/i.test(r.name))
+}
+
 export async function getRelicPlanner(opts?: {
   ownedOnly?: boolean
   sort?: RelicPlannerSort
   search?: string
   tier?: string
+  prime?: 'any' | 'prime' | 'normal'
 }): Promise<RelicPlannerResult> {
   try {
     await Promise.all([ensureRelicCatalog(), ensureWfinfoPrices()])
@@ -113,15 +118,24 @@ export async function getRelicPlanner(opts?: {
   const sort = opts?.sort || 'missing'
   const search = (opts?.search || '').trim().toLowerCase()
   const tier = opts?.tier || 'all'
+  const prime = opts?.prime || 'any'
 
   let rows = listIntactRelics().map((e) => buildRow(e, index, ownedByKey))
   if (ownedOnly) rows = rows.filter((r) => r.owned > 0)
   if (tier !== 'all') rows = rows.filter((r) => r.tier.toLowerCase() === tier.toLowerCase())
+  if (prime === 'prime') rows = rows.filter((r) => relicHasPrimeReward(r))
+  if (prime === 'normal') rows = rows.filter((r) => !relicHasPrimeReward(r))
   if (search) {
     rows = rows.filter(
       (r) =>
         r.key.toLowerCase().includes(search) ||
-        r.rewards.some((rw) => rw.name.toLowerCase().includes(search)),
+        r.rewards.some((rw) => {
+          const name = rw.name.toLowerCase()
+          if (!name.includes(search)) return false
+          if (prime === 'prime' && !/prime/i.test(rw.name)) return false
+          if (prime === 'normal' && /prime/i.test(rw.name)) return false
+          return true
+        }),
     )
   }
 

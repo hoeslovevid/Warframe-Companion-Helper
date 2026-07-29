@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
+  FoundryPrimeFilter,
   RelicPlannerQuery,
   RelicPlannerRow,
   RelicPlannerSort,
@@ -24,6 +25,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
   const [ownedOnly, setOwnedOnly] = useState(true)
   const [sort, setSort] = useState<RelicPlannerSort>('missing')
   const [tier, setTier] = useState<string>('all')
+  const [prime, setPrime] = useState<FoundryPrimeFilter>('any')
   const [search, setSearch] = useState('')
   const [rows, setRows] = useState<RelicPlannerRow[]>([])
   const [ownedTypes, setOwnedTypes] = useState(0)
@@ -33,8 +35,8 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
   const [setFarm, setSetFarm] = useState<SetFarmResult | null>(null)
 
   const query = useMemo<RelicPlannerQuery>(
-    () => ({ ownedOnly, sort, tier, search }),
-    [ownedOnly, sort, tier, search],
+    () => ({ ownedOnly, sort, tier, search, prime }),
+    [ownedOnly, sort, tier, search, prime],
   )
 
   const refresh = useCallback(async () => {
@@ -75,7 +77,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
     }
     let cancelled = false
     const t = window.setTimeout(() => {
-      void window.voidlens!.getSetFarm({ search: q }).then((next) => {
+      void window.voidlens!.getSetFarm({ search: q, prime }).then((next) => {
         if (!cancelled) setSetFarm(next)
       })
     }, 180)
@@ -83,7 +85,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
       cancelled = true
       window.clearTimeout(t)
     }
-  }, [enabled, search, inventory.revision, inventory.loaded])
+  }, [enabled, search, prime, inventory.revision, inventory.loaded])
 
   if (!enabled) {
     return (
@@ -176,6 +178,29 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Prime filter">
+              <button
+                type="button"
+                className={`vl-segment__btn ${prime === 'any' ? 'is-on' : ''}`}
+                onClick={() => setPrime('any')}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className={`vl-segment__btn ${prime === 'prime' ? 'is-on' : ''}`}
+                onClick={() => setPrime(prime === 'prime' ? 'any' : 'prime')}
+              >
+                Prime
+              </button>
+              <button
+                type="button"
+                className={`vl-segment__btn ${prime === 'normal' ? 'is-on' : ''}`}
+                onClick={() => setPrime(prime === 'normal' ? 'any' : 'normal')}
+              >
+                Non-Prime
+              </button>
+            </div>
             <div className="vl-segment vl-segment--wrap" role="group" aria-label="Ownership">
               <button
                 type="button"
