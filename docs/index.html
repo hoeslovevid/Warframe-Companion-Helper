@@ -33,7 +33,7 @@
   <body>
     <header class="site-nav">
       <a class="nav-brand" href="#top">
-        <img src="assets/tray.png" alt="" width="28" height="28" />
+        <span class="brand-mark" aria-hidden="true"></span>
         <span>Everything Warframe</span>
       </a>
       <nav class="nav-links" aria-label="Primary">
@@ -48,7 +48,7 @@
           rel="noreferrer"
           >GitHub</a
         >
-        <a class="btn nav-cta" href="#download">Download</a>
+        <a class="btn primary nav-cta" href="#download">Download</a>
       </nav>
     </header>
 
@@ -81,22 +81,22 @@
               </aside>
               <div class="mock-strip">
                 <div class="mock-strip__slot is-best">
-                  <span>Needed</span>
+                  <span class="vl-pill is-ready">Needed</span>
                   <strong>Nikana P. Blade</strong>
                   <em>42p · Best</em>
                 </div>
                 <div class="mock-strip__slot">
-                  <span>Owned ×12</span>
+                  <span class="vl-pill">Owned ×12</span>
                   <strong>Forma BP</strong>
                   <em>—</em>
                 </div>
                 <div class="mock-strip__slot">
-                  <span>Set 3/3</span>
+                  <span class="vl-pill is-ok">Set 3/3</span>
                   <strong>Carrier P. Sys</strong>
                   <em>12p</em>
                 </div>
                 <div class="mock-strip__slot">
-                  <span>Relic</span>
+                  <span class="vl-pill is-premium">Relic</span>
                   <strong>Axi S8</strong>
                   <em>—</em>
                 </div>
@@ -143,19 +143,19 @@
       <section class="trust-bar" aria-label="Trust signals">
         <div class="trust-bar__inner">
           <p>
-            <strong>Open source</strong>
+            <span class="vl-pill is-premium">Open source</span>
             <span>MIT on GitHub</span>
           </p>
           <p>
-            <strong>Local-first</strong>
+            <span class="vl-pill is-ready">Local-first</span>
             <span>Inventory &amp; OCR stay on your PC</span>
           </p>
           <p>
-            <strong>No account</strong>
+            <span class="vl-pill is-ok">No account</span>
             <span>No telemetry, no login</span>
           </p>
           <p>
-            <strong>Windows &amp; Linux</strong>
+            <span class="vl-pill">Windows &amp; Linux</span>
             <span>Native + Steam/Proton play</span>
           </p>
         </div>
@@ -163,6 +163,7 @@
 
       <section id="how" class="section section-how">
         <div class="section-inner">
+          <p class="section-kicker">Getting started</p>
           <h2>How it works</h2>
           <p class="section-lede">
             Run beside Warframe in Borderless Windowed. Panels stay click-through until you unlock
@@ -170,6 +171,7 @@
           </p>
           <ol class="steps">
             <li>
+              <span class="surface-mark" aria-hidden="true"></span>
               <span class="step-num">01</span>
               <div>
                 <h3>Install &amp; launch</h3>
@@ -180,6 +182,7 @@
               </div>
             </li>
             <li>
+              <span class="surface-mark" aria-hidden="true"></span>
               <span class="step-num">02</span>
               <div>
                 <h3>Enable what you need</h3>
@@ -187,6 +190,7 @@
               </div>
             </li>
             <li>
+              <span class="surface-mark" aria-hidden="true"></span>
               <span class="step-num">03</span>
               <div>
                 <h3>Play with intel on-screen</h3>
@@ -202,51 +206,68 @@
 
       <section id="features" class="section section-features">
         <div class="section-inner">
+          <p class="section-kicker">Modules</p>
           <h2>Built for the session</h2>
           <p class="section-lede">
             One job per panel — live worldstate, reward picks, riven compares, and local inventory.
           </p>
 
           <div class="feature-block">
-            <h3>Live worldstate</h3>
-            <p>
-              Cetus, Vallis, Cambion, fissures, Baro Ki’Teer, Nightwave, Archon Hunt, Invasions, and
-              arbitration timers with real countdowns.
-            </p>
+            <span class="surface-mark" aria-hidden="true"></span>
+            <div>
+              <h3>Live worldstate</h3>
+              <p>
+                Cetus, Vallis, Cambion, fissures, Baro Ki’Teer, Nightwave, Archon Hunt, Invasions, and
+                arbitration timers with real countdowns.
+              </p>
+            </div>
           </div>
           <div class="feature-block">
-            <h3>Relic reward overlay</h3>
-            <p>
-              Scan the fissure pick screen (hotkey or EE.log). See set names, owned counts, market
-              platinum, and parts you still need.
-            </p>
+            <span class="surface-mark" aria-hidden="true"></span>
+            <div>
+              <h3>Relic reward overlay</h3>
+              <p>
+                Scan the fissure pick screen (hotkey or EE.log). See set names, owned counts, market
+                platinum, and parts you still need.
+              </p>
+            </div>
           </div>
           <div class="feature-block">
-            <h3>Riven grader</h3>
-            <p>
-              On the Kuva Cycle compare screen, grade current vs new roll and get a keep / take
-              recommendation.
-            </p>
+            <span class="surface-mark" aria-hidden="true"></span>
+            <div>
+              <h3>Riven grader</h3>
+              <p>
+                On the Kuva Cycle compare screen, grade current vs new roll and get a keep / take
+                recommendation.
+              </p>
+            </div>
           </div>
           <div class="feature-block">
-            <h3>Layout your way</h3>
-            <p>
-              Drag every panel on a mock monitor in the app — or unlock in-game with Ctrl+Tab and
-              reposition on the fly.
-            </p>
+            <span class="surface-mark" aria-hidden="true"></span>
+            <div>
+              <h3>Layout your way</h3>
+              <p>
+                Drag every panel on a mock monitor in the app — or unlock in-game with Ctrl+Tab and
+                reposition on the fly.
+              </p>
+            </div>
           </div>
           <div class="feature-block">
-            <h3>Inventory stays local</h3>
-            <p>
-              Optional sync via warframe-api-helper or AlecaFrame exports. Data never leaves your PC
-              for “needed for set” tags.
-            </p>
+            <span class="surface-mark" aria-hidden="true"></span>
+            <div>
+              <h3>Inventory stays local</h3>
+              <p>
+                Optional sync via warframe-api-helper or AlecaFrame exports. Data never leaves your PC
+                for “needed for set” tags.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       <section id="trust" class="section section-trust">
         <div class="section-inner">
+          <p class="section-kicker">Safety</p>
           <h2>Why this is safe to run</h2>
           <p class="section-lede">
             You’re downloading an Electron app (Windows installer/portable or Linux AppImage/deb) —
@@ -254,23 +275,35 @@
           </p>
           <ul class="trust-list">
             <li>
-              <strong>Open source</strong>
-              Full code on GitHub. Review it, fork it, or build from source.
+              <span class="surface-mark" aria-hidden="true"></span>
+              <div>
+                <strong>Open source</strong>
+                Full code on GitHub. Review it, fork it, or build from source.
+              </div>
             </li>
             <li>
-              <strong>Local-first</strong>
-              Inventory files and OCR stay on your machine. No cloud account for core features.
+              <span class="surface-mark" aria-hidden="true"></span>
+              <div>
+                <strong>Local-first</strong>
+                Inventory files and OCR stay on your machine. No cloud account for core features.
+              </div>
             </li>
             <li>
-              <strong>No telemetry</strong>
-              The app doesn’t phone home for analytics. Updates come from GitHub Releases via
-              electron-updater.
+              <span class="surface-mark" aria-hidden="true"></span>
+              <div>
+                <strong>No telemetry</strong>
+                The app doesn’t phone home for analytics. Updates come from GitHub Releases via
+                electron-updater.
+              </div>
             </li>
             <li>
-              <strong>SmartScreen / unsigned</strong>
-              Windows builds aren’t code-signed yet, so SmartScreen may warn on first launch. Linux
-              AppImages are unmarked binaries — verify the download from this site or the official
-              GitHub release.
+              <span class="surface-mark" aria-hidden="true"></span>
+              <div>
+                <strong>SmartScreen / unsigned</strong>
+                Windows builds aren’t code-signed yet, so SmartScreen may warn on first launch. Linux
+                AppImages are unmarked binaries — verify the download from this site or the official
+                GitHub release.
+              </div>
             </li>
           </ul>
           <p class="muted trust-aside">
@@ -281,6 +314,7 @@
 
       <section id="download" class="section section-download">
         <div class="section-inner">
+          <p class="section-kicker">Get the app</p>
           <h2>Download</h2>
           <p class="section-lede">
             Windows 10/11 (x64) · Linux x64 with Warframe via <strong>Steam + Proton</strong>. Keep
@@ -290,19 +324,19 @@
           <div class="download-meta" id="download-meta" hidden>
             <p>
               <span class="meta-label">Version</span>
-              <strong id="meta-version">—</strong>
+              <strong id="meta-version" class="vl-pill is-premium">—</strong>
             </p>
             <p>
               <span class="meta-label">Published</span>
-              <strong id="meta-date">—</strong>
+              <strong id="meta-date" class="vl-pill">—</strong>
             </p>
             <p>
               <span class="meta-label">Windows Setup</span>
-              <strong id="meta-size">—</strong>
+              <strong id="meta-size" class="vl-pill">—</strong>
             </p>
             <p>
               <span class="meta-label">Linux AppImage</span>
-              <strong id="meta-size-linux">—</strong>
+              <strong id="meta-size-linux" class="vl-pill">—</strong>
             </p>
           </div>
 
@@ -347,6 +381,7 @@
 
       <section id="faq" class="section section-faq">
         <div class="section-inner">
+          <p class="section-kicker">Support</p>
           <h2>FAQ</h2>
           <p class="section-lede">Quick answers before you install.</p>
           <div class="faq-list">
