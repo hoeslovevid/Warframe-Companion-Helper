@@ -113,10 +113,32 @@ export const MOCK_NIGHTWAVE: NightwaveInfo = {
 
 export const MOCK_ARBITRATION: ArbitrationInfo = {
   node: 'Tessera (Venus)',
+  nodeKey: 'SolNode22',
   type: 'Defense',
   enemy: 'Corpus',
+  activation: new Date().toISOString(),
   expiry: inHours(1),
   eta: '1h',
+  upcoming: [
+    {
+      node: 'Spear (Mars)',
+      nodeKey: 'SolNode46',
+      type: 'Defense',
+      enemy: 'Grineer',
+      activation: inHours(1),
+      expiry: inHours(2),
+      eta: '1h',
+    },
+    {
+      node: 'Hydron (Sedna)',
+      nodeKey: 'SolNode85',
+      type: 'Defense',
+      enemy: 'Grineer',
+      activation: inHours(2),
+      expiry: inHours(3),
+      eta: '2h',
+    },
+  ],
 }
 
 /** Sample riven compare — used only in the Layout preview. */

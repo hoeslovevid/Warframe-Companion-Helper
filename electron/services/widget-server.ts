@@ -170,8 +170,9 @@ window.__ewRender = (d) => {
     arbitration: `
 window.__ewRender = (d) => {
   const a = d.worldstate.arbitration;
-  if (!a || !a.node) { document.getElementById('root').innerHTML = '<h1>Arbitration</h1><p class="empty">None active</p>'; return; }
-  document.getElementById('root').innerHTML = '<h1>Arbitration</h1><div class="row"><span>'+a.node+' · '+a.type+'</span><span class="accent">'+(a.eta||'')+'</span></div>';
+  if (!a || !a.node) { document.getElementById('root').innerHTML = '<h1>Arbitration</h1><p class="empty">No schedule</p>'; return; }
+  const up = (a.upcoming||[]).slice(0,5).map(s => '<li><span>'+s.node+' · '+s.type+'</span><span class="muted">'+ (s.eta||'') +'</span></li>').join('');
+  document.getElementById('root').innerHTML = '<h1>Arbitration</h1><div class="row"><span>'+a.node+' · '+a.type+'</span><span class="accent">'+(a.eta||'')+'</span></div>'+(up ? '<ul style="margin-top:8px">'+up+'</ul>' : '');
 };`,
     invasions: `
 window.__ewRender = (d) => {

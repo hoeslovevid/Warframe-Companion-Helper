@@ -227,6 +227,55 @@ function addCount(index: InventoryIndex, key: string, count: number) {
   // Also index basename for fuzzy matching later
   const base = key.split('/').pop()
   if (base && base !== key) index[base] = (index[base] || 0) + count
+
+  // Catalogs (warframestat / foundry) often use *Component or omit Blueprint,
+  // while the live inventory API stores those stacks as *Blueprint.
+  for (const alias of inventoryKeyAliases(key)) {
+    index[alias] = (index[alias] || 0) + count
+    const aliasBase = alias.split('/').pop()
+    if (aliasBase && aliasBase !== alias) {
+      index[aliasBase] = (index[aliasBase] || 0) + count
+    }
+  }
+}
+
+/**
+ * Map inventory ItemType paths onto the names foundry/relic catalogs query.
+ * Inventory:  .../EmberPrimeChassisBlueprint (ItemCount 40)
+ * Catalog:    .../EmberPrimeChassisComponent
+ * Inventory:  .../BratonPrimeBarrelBlueprint
+ * Catalog:    .../BratonPrimeBarrel
+ */
+export function inventoryKeyAliases(key: string): string[] {
+  if (!key || !/Blueprint$/i.test(key)) return []
+  const withoutBp = key.replace(/Blueprint$/i, '')
+  const leaf = withoutBp.split('/').pop() || ''
+  const aliases: string[] = []
+
+  // Warframe parts in warframestat use *Component
+  if (/(Chassis|Systems|Helmet)$/i.test(leaf)) {
+    aliases.push(`${withoutBp}Component`)
+  }
+
+  // Weapon / pet / archwing parts: catalog uniqueName usually has no Blueprint suffix
+  if (
+    /(Barrel|Receiver|Stock|Blade|Handle|Hilt|Link|Head|Grip|String|Boot|Gauntlet|Cerebrum|Carapace|Harness|Wings|Pouch|Stars|Ornament|Limb)$/i.test(
+      leaf,
+    )
+  ) {
+    aliases.push(withoutBp)
+  }
+
+  return [...new Set(aliases)]
+}
+
+function readStackCount(row: Record<string, unknown>): number {
+  const raw =
+    row.ItemCount ?? row.Count ?? row.Quantity ?? row.quantity ?? row.itemCount ?? row.count
+  if (raw == null || raw === '') return 1
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/,/g, '').trim())
+  if (!Number.isFinite(n) || n <= 0) return 1
+  return Math.floor(n)
 }
 
 function setMastery(
@@ -295,7 +344,7 @@ export function parseInventoryJson(raw: unknown): {
       if (!entry || typeof entry !== 'object') continue
       const row = entry as Record<string, unknown>
       const type = String(row.ItemType || row.uniqueName || row.ItemName || '')
-      const count = Number(row.ItemCount ?? row.Count ?? 1) || 1
+      const count = readStackCount(row)
       if (!type) continue
       addCount(index, type, count)
       itemCount += count
@@ -398,6 +447,26 @@ export function peekMasteryIndex(): MasteryIndex {
 
 export function ownedCountFor(uniqueName: string, index: InventoryIndex = cachedIndex): number {
   if (!uniqueName) return 0
+  const direct = lookupCount(uniqueName, index)
+  if (direct > 0) return direct
+
+  // Catalog *Component → inventory *Blueprint
+  if (/Component$/i.test(uniqueName)) {
+    const asBp = uniqueName.replace(/Component$/i, 'Blueprint')
+    const n = lookupCount(asBp, index)
+    if (n > 0) return n
+  }
+
+  // Catalog path without Blueprint → inventory *Blueprint
+  if (!/Blueprint$/i.test(uniqueName) && /\/(Recipes|WeaponParts)\//i.test(uniqueName)) {
+    const n = lookupCount(`${uniqueName}Blueprint`, index)
+    if (n > 0) return n
+  }
+
+  return 0
+}
+
+function lookupCount(uniqueName: string, index: InventoryIndex): number {
   if (index[uniqueName] != null) return index[uniqueName]
   const base = uniqueName.split('/').pop()
   if (base && index[base] != null) return index[base]

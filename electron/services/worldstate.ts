@@ -215,6 +215,7 @@ function mapArbitration(payload: {
   enemy?: string
   expiry?: string
   eta?: string
+  activation?: string
   expired?: boolean
 } | null): ArbitrationInfo | null {
   if (!payload?.node) return null
@@ -226,10 +227,13 @@ function mapArbitration(payload: {
 
   return {
     node: payload.node,
+    nodeKey: payload.nodeKey || payload.node,
     type: payload.type || 'Unknown',
     enemy: payload.enemy || 'Unknown',
+    activation: payload.activation || '',
     expiry: payload.expiry || '',
     eta: payload.eta || etaFromExpiry(payload.expiry),
+    upcoming: [],
   }
 }
 
@@ -448,7 +452,15 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
 
   const baro = mapBaro(voidTrader)
   const nw = mapNightwave(nightwave)
-  const arb = mapArbitration(arbitration)
+  // Prefer community hour schedule — official /arbitration is often a dead placeholder.
+  let arb: ArbitrationInfo | null = null
+  try {
+    const { getArbitrationInfo } = await import('./arbitration')
+    arb = await getArbitrationInfo(8)
+  } catch {
+    arb = mapArbitration(arbitration)
+  }
+  if (!arb) arb = mapArbitration(arbitration)
 
   return {
     fetchedAt: new Date().toISOString(),

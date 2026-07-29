@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import { RelicScanState, RewardEval, SetPartOwned } from '../../shared/types'
-import { getInventoryIndex } from './inventory'
+import { getInventoryIndex, ownedCountFor, peekInventoryIndex } from './inventory'
 import { ensureItemCatalog, getSetParts, matchCatalogItem } from './item-catalog'
 import { lookupMarketPrices } from './market-prices'
 import { recognizeRewardNames, warmupOcr } from './ocr'
@@ -116,22 +116,48 @@ function scheduleAutoHide(ms: number) {
 
 function ownedCount(uniqueName: string | null, displayName: string): number {
   if (!uniqueName && !displayName) return 0
-  const index = getInventoryIndex()
-  if (!Object.keys(index).length) return 0
 
   if (uniqueName) {
-    if (index[uniqueName] != null) return index[uniqueName]
-    const base = uniqueName.split('/').pop()
-    if (base && index[base] != null) return index[base]
+    const byUnique = ownedCountFor(uniqueName)
+    if (byUnique > 0) return byUnique
   }
 
-  const upper = displayName.toUpperCase()
+  // Last-resort: match inventory keys against the display name.
+  // Prefer longer keys so "Ember Prime Chassis" does not hit a short "EmberPrime" basename.
+  const index = peekInventoryIndex()
+  const needle = displayName
+    .toUpperCase()
+    .replace(/['’]/g, '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!needle || needle.length < 4) return 0
+
+  let best = 0
+  let bestLen = 0
   for (const [key, count] of Object.entries(index)) {
-    if (key.toUpperCase().includes(upper) || upper.includes(key.toUpperCase())) {
-      return count
+    if (!count) continue
+    const norm = key
+      .toUpperCase()
+      .replace(/['’]/g, '')
+      .replace(/[^A-Z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    const compactKey = norm.replace(/\s+/g, '')
+    const compactNeedle = needle.replace(/\s+/g, '')
+    if (
+      norm === needle ||
+      compactKey === compactNeedle ||
+      (compactNeedle.length >= 8 && compactKey.includes(compactNeedle)) ||
+      (compactKey.length >= 8 && compactNeedle.includes(compactKey))
+    ) {
+      if (compactKey.length >= bestLen) {
+        bestLen = compactKey.length
+        best = count
+      }
     }
   }
-  return 0
+  return best
 }
 
 function buildSetParts(setName: string | null): {

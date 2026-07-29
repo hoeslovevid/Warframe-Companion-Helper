@@ -461,7 +461,7 @@ export const MODULE_META: Record<
   },
   arbitration: {
     label: 'Arbitration',
-    description: 'Current Arbitration node and countdown when one is active',
+    description: 'Current Arbitration node plus upcoming hours in the rotation',
     phase: 1,
   },
   invasions: {
@@ -673,12 +673,19 @@ export type NightwaveInfo = {
   challenges: NightwaveChallenge[]
 }
 
-export type ArbitrationInfo = {
+export type ArbitrationSlot = {
   node: string
+  nodeKey: string
   type: string
   enemy: string
+  activation: string
   expiry: string
   eta: string
+}
+
+export type ArbitrationInfo = ArbitrationSlot & {
+  /** Next hours in the rotation (does not include current). */
+  upcoming: ArbitrationSlot[]
 }
 
 export type InvasionInfo = {
