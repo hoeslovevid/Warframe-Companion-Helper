@@ -48,6 +48,9 @@ function buildOwnedByKey(index: Record<string, number>): Map<string, number> {
     if (!count || unique === 'RegularCredits' || unique === 'Ducats' || unique === 'PremiumCredits') {
       continue
     }
+    // Skip basename aliases — addCount indexes both full path and leaf, which
+    // would double every relic stack (e.g. 9 → 18).
+    if (!unique.includes('/')) continue
     const hit = getRelicByUnique(unique)
     if (!hit) continue
     map.set(hit.key, (map.get(hit.key) || 0) + count)

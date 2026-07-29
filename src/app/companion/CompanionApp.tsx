@@ -24,6 +24,7 @@ import { AppTour, TourStep } from '../../components/AppTour'
 import { StatusStrip } from '../../components/StatusStrip'
 import { TodaySummary } from '../../components/TodaySummary'
 import { HotkeySheet } from '../../components/HotkeySheet'
+import { HotkeyInput } from '../../components/HotkeyInput'
 import { HelpPage } from '../../components/HelpPage'
 import { WhatsNew } from '../../components/WhatsNew'
 import { NowProvider } from '../../hooks/NowContext'
@@ -1244,111 +1245,110 @@ export function CompanionApp() {
                   <Panel title="Hotkeys">
                     <div className="field">
                       <label htmlFor="hk-overlay">Toggle overlay</label>
-                      <input
+                      <HotkeyInput
                         id="hk-overlay"
                         value={settings.hotkeys.toggleOverlay}
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
-                            hotkeys: { ...settings.hotkeys, toggleOverlay: e.target.value },
+                            hotkeys: { ...settings.hotkeys, toggleOverlay: next },
                           })
                         }
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="hk-companion">Open companion</label>
-                      <input
+                      <HotkeyInput
                         id="hk-companion"
                         value={settings.hotkeys.openCompanion}
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
-                            hotkeys: { ...settings.hotkeys, openCompanion: e.target.value },
+                            hotkeys: { ...settings.hotkeys, openCompanion: next },
                           })
                         }
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="hk-refresh">Refresh worldstate</label>
-                      <input
+                      <HotkeyInput
                         id="hk-refresh"
                         value={settings.hotkeys.refreshWorldstate}
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
-                            hotkeys: { ...settings.hotkeys, refreshWorldstate: e.target.value },
+                            hotkeys: { ...settings.hotkeys, refreshWorldstate: next },
                           })
                         }
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="hk-relics">Scan relic rewards</label>
-                      <input
+                      <HotkeyInput
                         id="hk-relics"
                         value={settings.hotkeys.scanRelics}
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
-                            hotkeys: { ...settings.hotkeys, scanRelics: e.target.value },
+                            hotkeys: { ...settings.hotkeys, scanRelics: next },
                           })
                         }
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="hk-dismiss-relics">Dismiss relic popup</label>
-                      <input
+                      <HotkeyInput
                         id="hk-dismiss-relics"
                         value={settings.hotkeys.dismissRelics}
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
-                            hotkeys: { ...settings.hotkeys, dismissRelics: e.target.value },
+                            hotkeys: { ...settings.hotkeys, dismissRelics: next },
                           })
                         }
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="hk-rivens">Scan riven compare</label>
-                      <input
+                      <HotkeyInput
                         id="hk-rivens"
                         value={settings.hotkeys.scanRivens}
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
-                            hotkeys: { ...settings.hotkeys, scanRivens: e.target.value },
+                            hotkeys: { ...settings.hotkeys, scanRivens: next },
                           })
                         }
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="hk-dismiss-rivens">Dismiss riven popup</label>
-                      <input
+                      <HotkeyInput
                         id="hk-dismiss-rivens"
                         value={settings.hotkeys.dismissRivens}
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
-                            hotkeys: { ...settings.hotkeys, dismissRivens: e.target.value },
+                            hotkeys: { ...settings.hotkeys, dismissRivens: next },
                           })
                         }
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="hk-layout">Move panels (unlock drag)</label>
-                      <input
+                      <HotkeyInput
                         id="hk-layout"
                         value={settings.hotkeys.editLayout}
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
-                            hotkeys: { ...settings.hotkeys, editLayout: e.target.value },
+                            hotkeys: { ...settings.hotkeys, editLayout: next },
                           })
                         }
                       />
                     </div>
                     <div className="field">
                       <label htmlFor="hk-worldstate">Hide / restore worldstate panels</label>
-                      <input
+                      <HotkeyInput
                         id="hk-worldstate"
                         value={settings.hotkeys.toggleWorldstatePanels}
-                        placeholder="Alt+Shift+W"
-                        onChange={(e) =>
+                        onChange={(next) =>
                           void updateSettings({
                             hotkeys: {
                               ...settings.hotkeys,
-                              toggleWorldstatePanels: e.target.value,
+                              toggleWorldstatePanels: next,
                             },
                           })
                         }
@@ -1359,7 +1359,7 @@ export function CompanionApp() {
                       </p>
                     </div>
                     <p className="muted" style={{ margin: '12px 0 8px', fontSize: '0.78rem' }}>
-                      Optional per-panel toggles (leave blank to leave unbound):
+                      Optional per-panel toggles (leave unbound / Clear to disable):
                     </p>
                     {(
                       [
@@ -1375,13 +1375,14 @@ export function CompanionApp() {
                     ).map(([key, label]) => (
                       <div className="field" key={key}>
                         <label htmlFor={`hk-${key}`}>{label}</label>
-                        <input
+                        <HotkeyInput
                           id={`hk-${key}`}
                           value={settings.hotkeys[key]}
-                          placeholder="Unbound"
-                          onChange={(e) =>
+                          allowClear
+                          placeholder="Unbound — click to set"
+                          onChange={(next) =>
                             void updateSettings({
-                              hotkeys: { ...settings.hotkeys, [key]: e.target.value },
+                              hotkeys: { ...settings.hotkeys, [key]: next },
                             })
                           }
                         />
@@ -1412,9 +1413,8 @@ export function CompanionApp() {
                       </div>
                     ) : null}
                     <p className="muted">
-                      Press <strong>?</strong> for the cheat sheet. Defaults: overlay Alt+Shift+V,
-                      worldstate panels Alt+Shift+W, move panels Ctrl+Tab, relics Alt+Shift+F,
-                      rivens Alt+Shift+G
+                      Click a binding, then press the new combo (e.g. Alt+Shift+V). Esc cancels.
+                      Press <strong>?</strong> for the cheat sheet.
                     </p>
                   </Panel>
 

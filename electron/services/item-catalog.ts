@@ -20,7 +20,10 @@ type CatalogCache = {
 }
 
 /** Bump when component display-name composition changes. */
-const ITEM_CACHE_VERSION = 2
+const ITEM_CACHE_VERSION = 3
+
+const WFCD_JSON = (file: string) =>
+  `https://cdn.jsdelivr.net/gh/WFCD/warframe-items@master/data/json/${file}`
 
 let catalog: CatalogItem[] = []
 let bySet = new Map<string, CatalogItem[]>()
@@ -180,17 +183,46 @@ function loadCache(opts?: { ignoreVersion?: boolean }): boolean {
   }
 }
 
+async function fetchJsonArray(url: string): Promise<Array<Record<string, unknown>>> {
+  try {
+    const raw = await httpsGetJson(url)
+    return Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * warframestat `/sentinels` is 404; companion primes (Carrier/Shade/…) live on WFCD CDN.
+ * Also pull prime companion collars (Kavasa) from Skins — relic drops use short part names.
+ */
+async function fetchCompanionParents(): Promise<Array<Record<string, unknown>>> {
+  const [sentinels, skins] = await Promise.all([
+    fetchJsonArray(WFCD_JSON('Sentinels.json')),
+    fetchJsonArray(WFCD_JSON('Skins.json')),
+  ])
+  const collarSkins = skins.filter((row) => {
+    const name = String(row.name || '')
+    const comps = row.components
+    return (
+      /prime/i.test(name) &&
+      Array.isArray(comps) &&
+      comps.length > 0 &&
+      /collar|kubrow|kavat/i.test(name)
+    )
+  })
+  return [...sentinels, ...collarSkins]
+}
+
 async function fetchAndCache(): Promise<void> {
   // Primed gear is enough for relic rewards; pull main equipment endpoints
-  const [warframes, weapons, sentinels] = await Promise.all([
-    httpsGetJson('https://api.warframestat.us/warframes') as Promise<Array<Record<string, unknown>>>,
-    httpsGetJson('https://api.warframestat.us/weapons') as Promise<Array<Record<string, unknown>>>,
-    httpsGetJson('https://api.warframestat.us/sentinels').catch(() => []) as Promise<
-      Array<Record<string, unknown>>
-    >,
+  const [warframes, weapons, companions] = await Promise.all([
+    fetchJsonArray('https://api.warframestat.us/warframes'),
+    fetchJsonArray('https://api.warframestat.us/weapons'),
+    fetchCompanionParents(),
   ])
 
-  const parents = [...warframes, ...weapons, ...sentinels]
+  const parents = [...warframes, ...weapons, ...companions]
   const items: CatalogItem[] = []
   const seen = new Set<string>()
 
@@ -221,9 +253,14 @@ async function fetchAndCache(): Promise<void> {
     if (!parentName) continue
     const parentVaulted = typeof parent.vaulted === 'boolean' ? parent.vaulted : null
     const parentIsPrime = /prime/i.test(parentName)
+    const primePrefix = parentName.match(/^(.*?\bPrime)\b/i)?.[1]?.trim() || null
 
     if (parentIsPrime) {
       pushItem(parentName, parentUnique, null, parentVaulted)
+      // "Kavasa Prime Kubrow Collar" → also index set name "Kavasa Prime"
+      if (primePrefix && normalizeItemName(primePrefix) !== normalizeItemName(parentName)) {
+        pushItem(primePrefix, parentUnique, null, parentVaulted)
+      }
     }
 
     const components = parent.components
@@ -237,8 +274,8 @@ async function fetchAndCache(): Promise<void> {
       const ducats = typeof c.ducats === 'number' ? c.ducats : null
       const cVaulted = typeof c.vaulted === 'boolean' ? c.vaulted : parentVaulted
 
-      // warframestat uses short part labels ("Barrel", "Chassis"); relic drops use
-      // full names ("Akstiletto Prime Barrel", "Trinity Prime Chassis Blueprint").
+      // warframestat / WFCD use short part labels ("Barrel", "Cerebrum"); relic drops use
+      // full names ("Akstiletto Prime Barrel", "Carrier Prime Cerebrum").
       let displayName = cName
       if (!/prime/i.test(cName) && parentIsPrime) {
         const isShortPart = SHORT_PART_NAMES.has(cName.toUpperCase())
@@ -251,11 +288,28 @@ async function fetchAndCache(): Promise<void> {
 
       pushItem(displayName, cUnique, ducats, cVaulted)
 
-      // Relic tables often append "Blueprint" to warframe part names.
+      // Collar parents are longer than relic labels: "Kavasa Prime Kubrow Collar" + Band
+      // → also index "Kavasa Prime Band".
+      if (
+        primePrefix &&
+        !/^blueprint$/i.test(cName) &&
+        normalizeItemName(`${primePrefix} ${cName}`) !== normalizeItemName(displayName)
+      ) {
+        pushItem(`${primePrefix} ${cName}`, cUnique, ducats, cVaulted)
+      }
+      if (
+        primePrefix &&
+        /^blueprint$/i.test(cName) &&
+        normalizeItemName(`${primePrefix} Blueprint`) !== normalizeItemName(displayName)
+      ) {
+        pushItem(`${primePrefix} Blueprint`, cUnique, ducats, cVaulted)
+      }
+
+      // Relic tables often append "Blueprint" to warframe/sentinel Systems (and similar).
       if (
         parentIsPrime &&
         !/\bblueprint\b/i.test(displayName) &&
-        /(Neuroptics|Chassis|Systems)$/i.test(displayName)
+        /(Neuroptics|Chassis|Systems|Cerebrum|Carapace)$/i.test(displayName)
       ) {
         pushItem(`${displayName} Blueprint`, cUnique, ducats, cVaulted)
       }

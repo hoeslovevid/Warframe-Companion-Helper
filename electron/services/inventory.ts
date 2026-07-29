@@ -431,6 +431,25 @@ function stripRevisionSuffix(uniqueName: string): string | null {
   return stripped !== uniqueName ? stripped : null
 }
 
+/** Compact token for ownership compares (Neuroptics ≡ Helmet; ignore Blueprint/Component). */
+function compactOwnedToken(name: string): string {
+  return name
+    .toUpperCase()
+    .replace(/['’]/g, '')
+    .replace(/NEUROPTICS/g, 'HELMET')
+    .replace(/[^A-Z0-9]+/g, '')
+    .replace(/(BLUEPRINT|COMPONENT)$/g, '')
+}
+
+const PART_OR_BLUEPRINT_RE =
+  /\b(blueprint|neuroptics|chassis|systems|barrel|receiver|stock|blade|handle|hilt|link|head|grip|string|boot|gauntlet|cerebrum|carapace|harness|wings|pouch|stars|ornament|limb|band|buckle|chain)\b/i
+
+/** Finished warframe/weapon paths — not recipe stacks from relic rewards. */
+function isFinishedGearUniqueName(uniqueName: string): boolean {
+  if (/\/(Recipes|WeaponParts)\//i.test(uniqueName)) return false
+  return /\/Lotus\/(Powersuits|Weapons)\//i.test(uniqueName)
+}
+
 export function ownedCountFor(uniqueName: string, index: InventoryIndex = cachedIndex): number {
   if (!uniqueName) return 0
   // Relic reward rows in WFCD Relics.json currently misuse Projection IDs as item
@@ -463,46 +482,40 @@ export function ownedCountFor(uniqueName: string, index: InventoryIndex = cached
 }
 
 /**
- * Ownership by display name when uniqueName is missing or unreliable
- * (e.g. WFCD relic rewards pointing at Projection IDs).
+ * Ownership by display name when uniqueName is missing or unreliable.
+ * Exact token match only — never treat "Trinity Prime" as owning
+ * "Trinity Prime Systems Blueprint".
  */
 export function ownedCountByDisplayName(
   displayName: string,
   index: InventoryIndex = cachedIndex,
 ): number {
-  const needle = displayName
-    .toUpperCase()
-    .replace(/['’]/g, '')
-    .replace(/[^A-Z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  const needle = compactOwnedToken(displayName)
   if (!needle || needle.length < 4) return 0
+  const wantsBlueprint = /\bBLUEPRINT\b/i.test(displayName)
+  const hasPartWord = PART_OR_BLUEPRINT_RE.test(displayName)
 
-  const compactNeedle = needle.replace(/\s+/g, '')
   let best = 0
-  let bestLen = 0
+  let bestKeyLen = 0
   for (const [key, count] of Object.entries(index)) {
     if (!count) continue
-    // Skip currency / short basenames and relic projections themselves
+    // Basename keys only (full paths are duplicated via addCount and skew "longest wins")
+    if (key.includes('/')) continue
     if (key === 'RegularCredits' || key === 'Ducats' || key === 'PremiumCredits') continue
-    if (/\/Projections\//i.test(key) || /VoidProjection/i.test(key)) continue
-    const norm = key
-      .toUpperCase()
-      .replace(/['’]/g, '')
-      .replace(/[^A-Z0-9]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-    const compactKey = norm.replace(/\s+/g, '')
-    if (
-      norm === needle ||
-      compactKey === compactNeedle ||
-      (compactNeedle.length >= 8 && compactKey.includes(compactNeedle)) ||
-      (compactKey.length >= 8 && compactNeedle.includes(compactKey))
-    ) {
-      if (compactKey.length >= bestLen) {
-        bestLen = compactKey.length
-        best = count
-      }
+    if (/VoidProjection/i.test(key) || /^T[1-4]VoidProjection/i.test(key)) continue
+
+    const token = compactOwnedToken(key)
+    if (!token || token !== needle) continue
+
+    const keyIsRecipe = /Blueprint$/i.test(key) || /Component$/i.test(key)
+    // "X Prime Blueprint" must not match the crafted "XPrime" suit/weapon row.
+    if (wantsBlueprint && !keyIsRecipe) continue
+    // Bare set name ("Banshee Prime") should not consume recipe blueprint stacks.
+    if (!hasPartWord && keyIsRecipe) continue
+
+    if (key.length >= bestKeyLen) {
+      bestKeyLen = key.length
+      best = count
     }
   }
   return best
@@ -514,8 +527,14 @@ export function ownedCountForReward(
   index: InventoryIndex = cachedIndex,
 ): number {
   if (uniqueName) {
-    const byUnique = ownedCountFor(uniqueName, index)
-    if (byUnique > 0) return byUnique
+    const skipFinished =
+      Boolean(displayName) &&
+      PART_OR_BLUEPRINT_RE.test(displayName) &&
+      isFinishedGearUniqueName(uniqueName)
+    if (!skipFinished) {
+      const byUnique = ownedCountFor(uniqueName, index)
+      if (byUnique > 0) return byUnique
+    }
   }
   if (displayName) return ownedCountByDisplayName(displayName, index)
   return 0

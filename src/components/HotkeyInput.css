@@ -1,0 +1,56 @@
+.hotkey-input {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.hotkey-input__btn {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--vl-input-border);
+  background: var(--vl-input-bg);
+  color: var(--vl-frost);
+  border-radius: var(--vl-radius-sm);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms var(--vl-ease), box-shadow 160ms var(--vl-ease);
+  font: inherit;
+}
+
+.hotkey-input__btn:hover {
+  border-color: color-mix(in srgb, var(--vl-teal-bright) 35%, transparent);
+}
+
+.hotkey-input__btn:focus,
+.hotkey-input.is-recording .hotkey-input__btn {
+  outline: none;
+  border-color: color-mix(in srgb, var(--vl-teal-bright) 55%, transparent);
+  box-shadow: 0 0 0 3px var(--vl-teal-dim);
+}
+
+.hotkey-input__kbd {
+  display: inline-block;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.hotkey-input.is-recording .hotkey-input__kbd {
+  color: var(--vl-teal-bright);
+  font-style: italic;
+}
+
+.hotkey-input__btn:not(.is-recording) .hotkey-input__kbd:empty,
+.hotkey-input__btn .hotkey-input__kbd {
+  opacity: 1;
+}
+
+.hotkey-input__clear {
+  flex-shrink: 0;
+  padding-inline: 12px;
+}

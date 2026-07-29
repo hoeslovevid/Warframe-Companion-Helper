@@ -136,6 +136,11 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Relic overlay: recover after item-catalog fetch failures (no more sticky red error)',
     'Fall back to on-disk item catalog when warframestat is briefly unreachable',
   ],
+  '0.9.36': [
+    'Settings: press-to-record hotkey inputs (no more typing accelerators by hand)',
+    'Relics: fix false owned counts from crafted warframes / doubled relic stacks',
+    'Relics: companion primes (Carrier, Shade, Helios, Kavasa, …) back in the catalog',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

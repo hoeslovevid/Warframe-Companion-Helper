@@ -5,7 +5,10 @@ import { app } from 'electron'
 import type { FoundryCategory, RecipeComponent, RecipeItem } from '../../shared/types'
 
 /** Bump when RecipeItem shape changes so stale userData caches refetch. */
-const RECIPE_CACHE_VERSION = 2
+const RECIPE_CACHE_VERSION = 3
+
+const WFCD_JSON = (file: string) =>
+  `https://cdn.jsdelivr.net/gh/WFCD/warframe-items@master/data/json/${file}`
 
 type RecipeCache = {
   version?: number
@@ -155,20 +158,41 @@ function ingestParent(
   })
 }
 
+async function fetchJsonArray(url: string): Promise<Array<Record<string, unknown>>> {
+  try {
+    const raw = await httpsGetJson(url)
+    return Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : []
+  } catch {
+    return []
+  }
+}
+
 async function fetchAndCache(): Promise<void> {
-  const [warframes, weapons, sentinels] = await Promise.all([
-    httpsGetJson('https://api.warframestat.us/warframes') as Promise<Array<Record<string, unknown>>>,
-    httpsGetJson('https://api.warframestat.us/weapons') as Promise<Array<Record<string, unknown>>>,
-    httpsGetJson('https://api.warframestat.us/sentinels').catch(() => []) as Promise<
-      Array<Record<string, unknown>>
-    >,
+  // warframestat `/sentinels` is 404 — load companions from WFCD instead.
+  const [warframes, weapons, sentinels, skins] = await Promise.all([
+    fetchJsonArray('https://api.warframestat.us/warframes'),
+    fetchJsonArray('https://api.warframestat.us/weapons'),
+    fetchJsonArray(WFCD_JSON('Sentinels.json')),
+    fetchJsonArray(WFCD_JSON('Skins.json')),
   ])
+
+  const companionSkins = skins.filter((row) => {
+    const name = String(row.name || '')
+    const comps = row.components
+    return (
+      /prime/i.test(name) &&
+      Array.isArray(comps) &&
+      comps.length > 0 &&
+      /collar|kubrow|kavat/i.test(name)
+    )
+  })
 
   const out: RecipeItem[] = []
   const seen = new Set<string>()
   for (const row of warframes) ingestParent(row, 'warframe', out, seen)
   for (const row of weapons) ingestParent(row, 'weapon', out, seen)
   for (const row of sentinels) ingestParent(row, 'sentinel', out, seen)
+  for (const row of companionSkins) ingestParent(row, 'sentinel', out, seen)
 
   out.sort((a, b) => a.name.localeCompare(b.name))
   rebuildIndexes(out)
