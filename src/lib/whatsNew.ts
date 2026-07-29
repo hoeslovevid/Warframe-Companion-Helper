@@ -149,6 +149,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'In-game layout unlock also shows OCR crop guides so you can align them over Warframe',
     'Custom OCR regions scale as screen fractions across resolutions',
   ],
+  '0.9.39': [
+    'Fix overlay vanishing while rearranging panels (Warframe-focus gate no longer hides during Ctrl+Tab edit)',
+    'Layout unlock always starts locked on launch; OCR pause no longer leaves the overlay stuck hidden',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

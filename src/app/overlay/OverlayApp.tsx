@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ModuleId, OcrScanRegions, PanelAnchor } from '../../../shared/types'
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { NowProvider } from '../../hooks/NowContext'
@@ -21,8 +21,11 @@ export function OverlayApp() {
   )
   const [ocrRegions, setOcrRegions] = useState<OcrScanRegions>(settings.ocrScanRegions)
   const [toggleCue, setToggleCue] = useState<'on' | 'off' | null>(null)
+  /** Skip settings→anchors sync while a panel drag/commit is in flight (OCR saves can race). */
+  const anchorsLocalRef = useRef(false)
 
   useEffect(() => {
+    if (anchorsLocalRef.current) return
     setAnchors(settings.panelAnchors)
   }, [settings.panelAnchors])
 
@@ -61,10 +64,18 @@ export function OverlayApp() {
     return next
   }, [settings.modules, relicScan.active, rivenScan.active])
 
+  const onAnchorsChange = useCallback((next: Partial<Record<ModuleId, PanelAnchor>>) => {
+    anchorsLocalRef.current = true
+    setAnchors(next)
+  }, [])
+
   const commitAnchors = useCallback(
     (next: Partial<Record<ModuleId, PanelAnchor>>) => {
+      anchorsLocalRef.current = true
       setAnchors(next)
-      void updateSettings({ panelAnchors: next })
+      void updateSettings({ panelAnchors: next }).finally(() => {
+        anchorsLocalRef.current = false
+      })
     },
     [updateSettings],
   )
@@ -130,7 +141,7 @@ export function OverlayApp() {
         ocrScanRegions={ocrRegions}
         onOcrScanRegionsChange={setOcrRegions}
         onOcrScanRegionsCommit={commitOcrRegions}
-        onAnchorsChange={setAnchors}
+        onAnchorsChange={onAnchorsChange}
         onAnchorsCommit={commitAnchors}
         onPanelMoved={dismissDragHint}
       />

@@ -597,6 +597,9 @@ let overlayGateRefreshInFlight = false
 
 function isOverlayEffectivelyVisible(settings = loadSettings()): boolean {
   if (!settings.overlayVisible) return false
+  // Layout unlock makes the overlay focusable; clicking a panel steals OS focus from
+  // Warframe and would otherwise trip overlayOnlyInWarframe → hide mid-drag.
+  if (settings.layoutEditMode) return true
   if (!settings.overlayOnlyInWarframe) return true
   return overlayWarframeGateOk
 }
@@ -840,6 +843,12 @@ function toggleWorldstatePanels() {
 function toggleLayoutEditMode() {
   const next = updateSettings({ layoutEditMode: !loadSettings().layoutEditMode })
   applyLayoutEditMode(next.layoutEditMode)
+  if (next.layoutEditMode) {
+    // Keep the window up while rearranging even if Warframe briefly loses focus.
+    syncOverlayWindowVisibility({ silent: true })
+  } else {
+    void refreshOverlayWarframeGate({ force: true })
+  }
   broadcastSettings(next)
 }
 
@@ -965,7 +974,11 @@ function registerIpc() {
   ipcMain.handle('settings:update', (_e, partial: Partial<AppSettings>) => {
     const next = updateSettings(partial)
     if (partial.hotkeys) registerHotkeys()
-    if (partial.layoutEditMode !== undefined) applyLayoutEditMode(next.layoutEditMode)
+    if (partial.layoutEditMode !== undefined) {
+      applyLayoutEditMode(next.layoutEditMode)
+      if (next.layoutEditMode) syncOverlayWindowVisibility({ silent: true })
+      else void refreshOverlayWarframeGate({ force: true })
+    }
     if (partial.overlayVisible !== undefined) {
       syncOverlayWindowVisibility()
       refreshTrayUi()
@@ -1017,6 +1030,8 @@ function registerIpc() {
   ipcMain.handle('overlay:setLayoutEdit', (_e, enabled: boolean) => {
     const next = updateSettings({ layoutEditMode: enabled })
     applyLayoutEditMode(enabled)
+    if (enabled) syncOverlayWindowVisibility({ silent: true })
+    else void refreshOverlayWarframeGate({ force: true })
     broadcastSettings(next)
     return next
   })
@@ -1238,7 +1253,9 @@ app.whenReady().then(async () => {
       } catch {
         // ignore
       }
-      if (wasVisible && isOverlayEffectivelyVisible()) {
+      // Restore from the pre-pause visible flag — don't re-check the Warframe gate
+      // here (it can briefly flip during capture and leave the overlay stuck hidden).
+      if (wasVisible && loadSettings().overlayVisible) {
         restoreOverlayGeometry(overlayWindow)
         overlayWindow.showInactive()
         try {
@@ -1246,13 +1263,18 @@ app.whenReady().then(async () => {
         } catch {
           // ignore
         }
+        syncOverlayWindowVisibility({ silent: true })
       }
     }
   })
   fixLegacyRivenAnchor()
+  // Never boot unlocked — persisted layoutEditMode would steal game clicks.
+  if (loadSettings().layoutEditMode) {
+    updateSettings({ layoutEditMode: false })
+  }
   startOverlayWarframeGateWatcher()
   syncOverlayWindowVisibility()
-  applyLayoutEditMode(loadSettings().layoutEditMode)
+  applyLayoutEditMode(false)
 
   // Overlay is created after companion; ensure companion stays on top
   raiseCompanion()
