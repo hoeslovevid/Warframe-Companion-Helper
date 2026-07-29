@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  DEFAULT_OCR_SCAN_REGIONS,
   FissurePathMode,
   FissureSort,
   MODULE_META,
   ModuleId,
+  OcrScanRegions,
   PanelAnchor,
   PrimaryDisplayInfo,
   WorldstateSnapshot,
@@ -46,7 +48,9 @@ type Props = {
   nightwaveDoneIds?: string[]
   interactionHotkey: string
   liveData: WorldstateSnapshot
+  ocrScanRegions: OcrScanRegions
   onSaveAnchors: (anchors: Partial<Record<ModuleId, PanelAnchor>>) => void
+  onSaveOcrScanRegions: (regions: OcrScanRegions) => void
 }
 
 export function LayoutEditor({
@@ -63,17 +67,25 @@ export function LayoutEditor({
   nightwaveDoneIds = [],
   interactionHotkey,
   liveData,
+  ocrScanRegions,
   onSaveAnchors,
+  onSaveOcrScanRegions,
 }: Props) {
   const shellRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0.45)
   const [showAll, setShowAll] = useState(true)
+  const [editOcrAreas, setEditOcrAreas] = useState(true)
   const [anchors, setAnchors] = useState(panelAnchors)
+  const [ocrRegions, setOcrRegions] = useState(ocrScanRegions)
   const [display, setDisplay] = useState<PrimaryDisplayInfo>(FALLBACK_DISPLAY)
 
   useEffect(() => {
     setAnchors(panelAnchors)
   }, [panelAnchors])
+
+  useEffect(() => {
+    setOcrRegions(ocrScanRegions)
+  }, [ocrScanRegions])
 
   useEffect(() => {
     let cancelled = false
@@ -140,13 +152,30 @@ export function LayoutEditor({
     [onSaveAnchors],
   )
 
+  const commitOcr = useCallback(
+    (next: OcrScanRegions) => {
+      setOcrRegions(next)
+      onSaveOcrScanRegions(next)
+    },
+    [onSaveOcrScanRegions],
+  )
+
   const reset = () => {
     commit(getDefaultPanelAnchors(designW, designH))
+  }
+
+  const resetOcr = () => {
+    commitOcr({ ...DEFAULT_OCR_SCAN_REGIONS })
   }
 
   const applyPreset = (id: LayoutPresetId) => {
     commit(getLayoutPresetAnchors(id, designW, designH))
   }
+
+  const hasCustomOcr =
+    ocrRegions.relicStrip != null ||
+    ocrRegions.rivenCurrent != null ||
+    ocrRegions.rivenReroll != null
 
   return (
     <>
@@ -154,14 +183,15 @@ export function LayoutEditor({
         <h2 className="page-title">Layout</h2>
         <div className="page-title-rule" />
         <p className="page-desc">
-          Arrange overlays on a mock of your primary monitor (
+          Arrange overlays on a mock of your Game/OCR monitor (
           <strong>
             {designW}×{designH}
           </strong>
           ). Drag the <strong>Relic Rewards</strong> strip under the reward cards and the{' '}
-          <strong>Riven Grader</strong> strip above the Cycle compare cards. Presets and
-          reset scale to this resolution. In-game, press <strong>{interactionHotkey}</strong> to
-          unlock and drag during a popup.
+          <strong>Riven Grader</strong> strip above the Cycle compare cards. Dashed boxes are the
+          OCR scan areas — drag or resize them so they cover the in-game Relic names / Riven cards.
+          Presets and reset scale to this resolution. In-game, press{' '}
+          <strong>{interactionHotkey}</strong> to unlock and drag during a popup.
         </p>
       </header>
 
@@ -177,21 +207,31 @@ export function LayoutEditor({
           </button>
         ))}
         <button className="btn ghost" onClick={reset}>
-          Reset positions
+          Reset panels
+        </button>
+        <button className="btn ghost" onClick={resetOcr} disabled={!hasCustomOcr}>
+          Reset OCR areas
         </button>
         <span className="pill muted">
           Monitor {designW}×{designH}
           {display.scaleFactor !== 1 ? ` · ${display.scaleFactor}× DPI` : ''}
         </span>
         <span className="pill muted">Left or right drag · auto-saves</span>
+        {hasCustomOcr ? <span className="pill">Custom OCR</span> : null}
       </div>
 
-      <div style={{ marginBottom: 14, maxWidth: 520 }}>
+      <div style={{ marginBottom: 14, maxWidth: 560, display: 'grid', gap: 10 }}>
         <ToggleRow
           label="Show all modules"
           description="Include disabled modules so you can place them before enabling"
           checked={showAll}
           onChange={setShowAll}
+        />
+        <ToggleRow
+          label="Edit OCR scan areas"
+          description="Show Relic name-band and Riven card crops on the mock monitor. Drag/resize to match your game UI scale."
+          checked={editOcrAreas}
+          onChange={setEditOcrAreas}
         />
       </div>
 
@@ -230,8 +270,13 @@ export function LayoutEditor({
               designHeight={designH}
               relicPreviewRewards={MOCK_RELIC_REWARDS}
               rivenPreviewState={MOCK_RIVEN_SCAN}
-              dragHint="Drag to move (position saves)"
-              hint={`Preview · ${designW}×${designH} primary display · left or right mouse`}
+              showOcrGuides={editOcrAreas}
+              ocrGuidesEditable={editOcrAreas}
+              ocrScanRegions={ocrRegions}
+              onOcrScanRegionsChange={setOcrRegions}
+              onOcrScanRegionsCommit={commitOcr}
+              dragHint="Drag panels or OCR boxes (positions save)"
+              hint={`Preview · ${designW}×${designH} OCR display · left or right mouse`}
               onAnchorsChange={setAnchors}
               onAnchorsCommit={commit}
             />
@@ -240,9 +285,11 @@ export function LayoutEditor({
       </div>
 
       <p className="muted" style={{ marginTop: 8 }}>
-        Canvas matches your primary monitor ({designW}×{designH}). Preset and reset coordinates are
-        scaled from a 1920×1080 design so positions land correctly on ultrawide and 1440p/4K. In-game:
-        press <strong>{interactionHotkey}</strong> to unlock click-through, drag, then lock again.
+        Canvas matches your Game/OCR monitor ({designW}×{designH}). Relic OCR crops the gold name
+        band under reward cards; Riven OCR crops the two Cycle diamonds. Custom areas are stored as
+        screen fractions so they scale if you change resolution. In-game: press{' '}
+        <strong>{interactionHotkey}</strong> to unlock click-through, drag, then lock again — OCR
+        guides also appear while panels are unlocked.
       </p>
     </>
   )

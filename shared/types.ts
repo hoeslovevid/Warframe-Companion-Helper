@@ -58,6 +58,36 @@ export type PanelAnchor = {
   y: number
 }
 
+/**
+ * Normalized OCR crop rectangle as fractions of the capture frame (0–1).
+ * Used so scan areas scale across resolutions / ultrawide.
+ */
+export type OcrRegionNorm = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/**
+ * User-tuned OCR capture areas. `null` fields fall back to built-in
+ * Relic / Riven geometry (WFInfo-style reward strip, Kuva Cycle cards).
+ */
+export type OcrScanRegions = {
+  /** Horizontal band covering all relic reward name slots. */
+  relicStrip: OcrRegionNorm | null
+  /** Left Kuva Cycle card (current roll). */
+  rivenCurrent: OcrRegionNorm | null
+  /** Right Kuva Cycle card (reroll). */
+  rivenReroll: OcrRegionNorm | null
+}
+
+export const DEFAULT_OCR_SCAN_REGIONS: OcrScanRegions = {
+  relicStrip: null,
+  rivenCurrent: null,
+  rivenReroll: null,
+}
+
 export type HotkeyConfig = {
   toggleOverlay: string
   openCompanion: string
@@ -381,6 +411,10 @@ export type AppSettings = {
    * Force 3 or 4 reward slots. `null` = EE.log hint, then image detect.
    */
   relicSquadSizeOverride: 3 | 4 | null
+  /**
+   * User-edited OCR crop areas (Layout tab). Null fields use built-in geometry.
+   */
+  ocrScanRegions: OcrScanRegions
   overlayVisible: boolean
   /**
    * When true, the overlay window is only shown while Warframe is the
@@ -588,6 +622,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ocrDisplayId: null,
   wfThemeOverride: null,
   relicSquadSizeOverride: null,
+  ocrScanRegions: { ...DEFAULT_OCR_SCAN_REGIONS },
   overlayVisible: true,
   overlayOnlyInWarframe: true,
   layoutEditMode: false,

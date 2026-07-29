@@ -56,6 +56,8 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
           <p>
             Use the Layout tab to drag panels on a mock monitor, or unlock in-game with{' '}
             <strong>{prettyHotkey(hk.editLayout)}</strong>, drag, then press it again to lock.
+            On Layout (or while unlocked in-game), drag the dashed OCR boxes so they cover Relic
+            reward names and Riven Cycle cards — scans only read those crops.
           </p>
         </div>
         <div className="help-block">
@@ -65,7 +67,7 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
             a fissure pick screen is detected (EE.log), or when you press{' '}
             <strong>{prettyHotkey(hk.scanRelics)}</strong>. Place that strip in the Layout tab. It
             auto-hides after you leave the pick screen or after ~45s. Sync inventory for “needed
-            for set” tags.
+            for set” tags. If names miss, nudge the gold Relic OCR box on Layout.
           </p>
         </div>
         <div className="help-block">
@@ -74,8 +76,9 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
             On the Kuva Cycle compare screen (current vs new), press{' '}
             <strong>{prettyHotkey(hk.scanRivens)}</strong>. A slim grader panel appears beside the
             in-game cards with tiers and a keep/take tip. EE.log may auto-detect; the hotkey is the
-            reliable path. Dismiss with <strong>{prettyHotkey(hk.dismissRivens)}</strong>. Reset
-            Layout if your panel still sits over the cards from an older default.
+            reliable path. Dismiss with <strong>{prettyHotkey(hk.dismissRivens)}</strong>. Resize
+            the teal/blue Riven OCR boxes on Layout if stats are cut off. Reset Layout if your panel
+            still sits over the cards from an older default.
           </p>
         </div>
         <div className="help-block">
