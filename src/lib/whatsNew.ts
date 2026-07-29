@@ -114,6 +114,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Foundry & Relic Planner: parts checklist with owned vs missing',
     'Show which owned relics drop missing set parts (plus other/vaulted sources)',
   ],
+  '0.9.30': [
+    'Inventory: count stacked prime parts correctly (Blueprint ↔ Component paths)',
+    'Arbitration: show current node and upcoming hours in the rotation',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
