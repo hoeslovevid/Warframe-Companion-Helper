@@ -232,8 +232,8 @@ export function inventoryKeyAliases(key: string): string[] {
   const leaf = withoutBp.split('/').pop() || ''
   const aliases: string[] = []
 
-  // Warframe parts in warframestat use *Component
-  if (/(Chassis|Systems|Helmet)$/i.test(leaf)) {
+  // Warframe parts in warframestat use *Component (Helmet = Neuroptics in older data)
+  if (/(Chassis|Systems|Helmet|Neuroptics)$/i.test(leaf)) {
     aliases.push(`${withoutBp}Component`)
   }
 
@@ -425,24 +425,99 @@ export function peekMasteryIndex(): MasteryIndex {
   return cachedMastery
 }
 
+/** WFCD sometimes appends revision suffixes (BlueprintV2). */
+function stripRevisionSuffix(uniqueName: string): string | null {
+  const stripped = uniqueName.replace(/V\d+$/i, '')
+  return stripped !== uniqueName ? stripped : null
+}
+
 export function ownedCountFor(uniqueName: string, index: InventoryIndex = cachedIndex): number {
   if (!uniqueName) return 0
-  const direct = lookupCount(uniqueName, index)
-  if (direct > 0) return direct
+  // Relic reward rows in WFCD Relics.json currently misuse Projection IDs as item
+  // uniqueNames — never treat those as owned part stacks.
+  if (/\/Projections\//i.test(uniqueName) || /VoidProjection/i.test(uniqueName)) return 0
 
-  // Catalog *Component → inventory *Blueprint
-  if (/Component$/i.test(uniqueName)) {
-    const asBp = uniqueName.replace(/Component$/i, 'Blueprint')
-    const n = lookupCount(asBp, index)
-    if (n > 0) return n
+  const candidates = [uniqueName]
+  const noRev = stripRevisionSuffix(uniqueName)
+  if (noRev) candidates.push(noRev)
+
+  for (const cand of candidates) {
+    const direct = lookupCount(cand, index)
+    if (direct > 0) return direct
+
+    // Catalog *Component → inventory *Blueprint
+    if (/Component$/i.test(cand)) {
+      const asBp = cand.replace(/Component$/i, 'Blueprint')
+      const n = lookupCount(asBp, index)
+      if (n > 0) return n
+    }
+
+    // Catalog path without Blueprint → inventory *Blueprint
+    if (!/Blueprint$/i.test(cand) && /\/(Recipes|WeaponParts)\//i.test(cand)) {
+      const n = lookupCount(`${cand}Blueprint`, index)
+      if (n > 0) return n
+    }
   }
 
-  // Catalog path without Blueprint → inventory *Blueprint
-  if (!/Blueprint$/i.test(uniqueName) && /\/(Recipes|WeaponParts)\//i.test(uniqueName)) {
-    const n = lookupCount(`${uniqueName}Blueprint`, index)
-    if (n > 0) return n
-  }
+  return 0
+}
 
+/**
+ * Ownership by display name when uniqueName is missing or unreliable
+ * (e.g. WFCD relic rewards pointing at Projection IDs).
+ */
+export function ownedCountByDisplayName(
+  displayName: string,
+  index: InventoryIndex = cachedIndex,
+): number {
+  const needle = displayName
+    .toUpperCase()
+    .replace(/['’]/g, '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!needle || needle.length < 4) return 0
+
+  const compactNeedle = needle.replace(/\s+/g, '')
+  let best = 0
+  let bestLen = 0
+  for (const [key, count] of Object.entries(index)) {
+    if (!count) continue
+    // Skip currency / short basenames and relic projections themselves
+    if (key === 'RegularCredits' || key === 'Ducats' || key === 'PremiumCredits') continue
+    if (/\/Projections\//i.test(key) || /VoidProjection/i.test(key)) continue
+    const norm = key
+      .toUpperCase()
+      .replace(/['’]/g, '')
+      .replace(/[^A-Z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    const compactKey = norm.replace(/\s+/g, '')
+    if (
+      norm === needle ||
+      compactKey === compactNeedle ||
+      (compactNeedle.length >= 8 && compactKey.includes(compactNeedle)) ||
+      (compactKey.length >= 8 && compactNeedle.includes(compactKey))
+    ) {
+      if (compactKey.length >= bestLen) {
+        bestLen = compactKey.length
+        best = count
+      }
+    }
+  }
+  return best
+}
+
+export function ownedCountForReward(
+  uniqueName: string | null | undefined,
+  displayName: string,
+  index: InventoryIndex = cachedIndex,
+): number {
+  if (uniqueName) {
+    const byUnique = ownedCountFor(uniqueName, index)
+    if (byUnique > 0) return byUnique
+  }
+  if (displayName) return ownedCountByDisplayName(displayName, index)
   return 0
 }
 

@@ -1,8 +1,9 @@
 import {
-  ownedCountFor,
+  ownedCountForReward,
   peekInventoryIndex,
 } from './inventory'
 import { lookupWfinfoPlatinum, ensureWfinfoPrices } from './wfinfo-prices'
+import { ensureItemCatalog } from './item-catalog'
 import {
   ensureRelicCatalog,
   getRelicByUnique,
@@ -60,7 +61,7 @@ function buildRow(
   ownedByKey: Map<string, number>,
 ): RelicPlannerRow {
   const rewards: RelicPlannerReward[] = entry.rewards.map((r) => {
-    const owned = r.uniqueName ? ownedCountFor(r.uniqueName, index) : 0
+    const owned = ownedCountForReward(r.uniqueName, r.name, index)
     const needed = owned <= 0
     return {
       name: r.name,
@@ -101,7 +102,7 @@ export async function getRelicPlanner(opts?: {
   prime?: 'any' | 'prime' | 'normal'
 }): Promise<RelicPlannerResult> {
   try {
-    await Promise.all([ensureRelicCatalog(), ensureWfinfoPrices()])
+    await Promise.all([ensureRelicCatalog(), ensureWfinfoPrices(), ensureItemCatalog()])
   } catch (err) {
     return {
       rows: [],

@@ -6,10 +6,13 @@ import fs from 'node:fs'
 import https from 'node:https'
 import path from 'node:path'
 import { app } from 'electron'
-import { normalizeItemName } from './item-catalog'
+import { findCatalogItemByName, ensureItemCatalog, normalizeItemName } from './item-catalog'
 
 const RELICS_URL =
   'https://cdn.jsdelivr.net/gh/WFCD/warframe-items@master/data/json/Relics.json'
+
+/** Bump when reward uniqueName sanitization / shape changes. */
+const RELIC_CACHE_VERSION = 2
 
 export type RelicRewardRef = {
   name: string
@@ -30,6 +33,7 @@ export type RelicCatalogEntry = {
 }
 
 type CacheFile = {
+  version?: number
   fetchedAt: string
   relics: RelicCatalogEntry[]
 }
@@ -148,6 +152,9 @@ function loadCache(): boolean {
     if (!fs.existsSync(file)) return false
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as CacheFile
     if (!parsed.relics?.length) return false
+    if (parsed.version !== RELIC_CACHE_VERSION) return false
+    // Guard against older bad caches that stored Projection IDs as reward uniqueNames
+    if (cacheHasProjectionRewardUniques(parsed.relics)) return false
     rebuildIndexes(parsed.relics)
     const age = Date.now() - new Date(parsed.fetchedAt).getTime()
     if (age > 7 * 24 * 60 * 60 * 1000) {
@@ -157,6 +164,49 @@ function loadCache(): boolean {
   } catch {
     return false
   }
+}
+
+/** WFCD Relics.json currently copies the relic Projection uniqueName onto every reward. */
+function isProjectionUniqueName(uniqueName: string | null | undefined): boolean {
+  if (!uniqueName) return false
+  return /\/Projections\//i.test(uniqueName) || /VoidProjection/i.test(uniqueName)
+}
+
+function isPlausibleItemUniqueName(uniqueName: string): boolean {
+  if (!uniqueName || isProjectionUniqueName(uniqueName)) return false
+  // Accept Lotus item/recipe paths; also allow non-path placeholders like "Forma Blueprint"
+  if (uniqueName.includes('/')) {
+    return /\/Lotus\//i.test(uniqueName) && !/\/Projections\//i.test(uniqueName)
+  }
+  return uniqueName.length >= 4
+}
+
+function resolveRewardUniqueName(
+  rewardName: string,
+  rawUnique: string | null | undefined,
+): string | null {
+  const raw = String(rawUnique || '').trim()
+  if (raw && isPlausibleItemUniqueName(raw)) return raw
+
+  const hit = findCatalogItemByName(rewardName)
+  if (hit?.uniqueName && isPlausibleItemUniqueName(hit.uniqueName)) {
+    return hit.uniqueName
+  }
+  return null
+}
+
+function cacheHasProjectionRewardUniques(entries: RelicCatalogEntry[]): boolean {
+  let checked = 0
+  let bad = 0
+  for (const entry of entries) {
+    for (const reward of entry.rewards) {
+      if (!reward.uniqueName) continue
+      checked++
+      if (isProjectionUniqueName(reward.uniqueName)) bad++
+      if (checked >= 40) return bad > checked * 0.5
+    }
+  }
+  return checked > 0 && bad > checked * 0.5
 }
 
 type RawRelic = {
@@ -171,6 +221,9 @@ type RawRelic = {
 }
 
 async function fetchAndCache(): Promise<void> {
+  // Need item catalog so we can replace broken Projection reward uniqueNames.
+  await ensureItemCatalog().catch(() => {})
+
   const raw = (await httpsGetJson(RELICS_URL)) as RawRelic[]
   if (!Array.isArray(raw)) throw new Error('Relic catalog: unexpected payload')
 
@@ -187,7 +240,7 @@ async function fetchAndCache(): Promise<void> {
       if (!name) continue
       rewards.push({
         name,
-        uniqueName: r.item?.uniqueName ? String(r.item.uniqueName) : null,
+        uniqueName: resolveRewardUniqueName(name, r.item?.uniqueName),
         rarity: String(r.rarity || 'Unknown'),
         chance: typeof r.chance === 'number' ? r.chance : null,
       })
@@ -206,7 +259,11 @@ async function fetchAndCache(): Promise<void> {
   out.sort((a, b) => a.key.localeCompare(b.key) || a.refinement.localeCompare(b.refinement))
   rebuildIndexes(out)
   fs.mkdirSync(path.dirname(cachePath()), { recursive: true })
-  const payload: CacheFile = { fetchedAt: new Date().toISOString(), relics: out }
+  const payload: CacheFile = {
+    version: RELIC_CACHE_VERSION,
+    fetchedAt: new Date().toISOString(),
+    relics: out,
+  }
   fs.writeFileSync(cachePath(), JSON.stringify(payload), 'utf8')
   console.info(`[Everything Warframe] Relic catalog ready (${byKey.size} relics, ${out.length} variants)`)
 }

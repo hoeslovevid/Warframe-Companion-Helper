@@ -14,12 +14,17 @@ export type CatalogItem = {
 }
 
 type CatalogCache = {
+  version?: number
   fetchedAt: string
   items: CatalogItem[]
 }
 
+/** Bump when component display-name composition changes. */
+const ITEM_CACHE_VERSION = 2
+
 let catalog: CatalogItem[] = []
 let bySet = new Map<string, CatalogItem[]>()
+let byNormalized = new Map<string, CatalogItem>()
 let ready: Promise<void> | null = null
 
 const PART_SUFFIXES = [
@@ -52,6 +57,8 @@ const PART_SUFFIXES = [
   'Buckle',
   'Chain',
 ]
+
+const SHORT_PART_NAMES = new Set(PART_SUFFIXES.map((s) => s.toUpperCase()))
 
 function cachePath() {
   return path.join(app.getPath('userData'), 'cache', 'item-catalog.json')
@@ -139,7 +146,9 @@ function httpsGetJson(url: string): Promise<unknown> {
 function rebuildIndexes(items: CatalogItem[]) {
   catalog = items
   bySet = new Map()
+  byNormalized = new Map()
   for (const item of items) {
+    byNormalized.set(item.normalized, item)
     if (!item.setName) continue
     const list = bySet.get(item.setName) || []
     list.push(item)
@@ -154,6 +163,7 @@ function loadCache(): boolean {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as CatalogCache
     const age = Date.now() - new Date(parsed.fetchedAt).getTime()
     if (!parsed.items?.length) return false
+    if (parsed.version !== ITEM_CACHE_VERSION) return false
     // Migrate older caches missing vaulted
     for (const item of parsed.items) {
       if (item.vaulted === undefined) (item as CatalogItem).vaulted = null
@@ -209,8 +219,9 @@ async function fetchAndCache(): Promise<void> {
     const parentUnique = String(parent.uniqueName || parentName)
     if (!parentName) continue
     const parentVaulted = typeof parent.vaulted === 'boolean' ? parent.vaulted : null
+    const parentIsPrime = /prime/i.test(parentName)
 
-    if (/prime/i.test(parentName)) {
+    if (parentIsPrime) {
       pushItem(parentName, parentUnique, null, parentVaulted)
     }
 
@@ -219,13 +230,34 @@ async function fetchAndCache(): Promise<void> {
     for (const comp of components) {
       if (!comp || typeof comp !== 'object') continue
       const c = comp as Record<string, unknown>
-      const cName = String(c.name || '')
-      if (!cName || !/prime/i.test(cName)) continue
+      const cName = String(c.name || '').trim()
+      if (!cName) continue
       const cUnique = String(c.uniqueName || `${parentUnique}:${cName}`)
       const ducats = typeof c.ducats === 'number' ? c.ducats : null
-      const cVaulted =
-        typeof c.vaulted === 'boolean' ? c.vaulted : parentVaulted
-      pushItem(cName, cUnique, ducats, cVaulted)
+      const cVaulted = typeof c.vaulted === 'boolean' ? c.vaulted : parentVaulted
+
+      // warframestat uses short part labels ("Barrel", "Chassis"); relic drops use
+      // full names ("Akstiletto Prime Barrel", "Trinity Prime Chassis Blueprint").
+      let displayName = cName
+      if (!/prime/i.test(cName) && parentIsPrime) {
+        const isShortPart = SHORT_PART_NAMES.has(cName.toUpperCase())
+        const isRecipePath = /\/(Recipes|WeaponParts)\//i.test(cUnique)
+        if (!isShortPart && !isRecipePath) continue
+        displayName = /^blueprint$/i.test(cName) ? `${parentName} Blueprint` : `${parentName} ${cName}`
+      } else if (!/prime/i.test(cName)) {
+        continue
+      }
+
+      pushItem(displayName, cUnique, ducats, cVaulted)
+
+      // Relic tables often append "Blueprint" to warframe part names.
+      if (
+        parentIsPrime &&
+        !/\bblueprint\b/i.test(displayName) &&
+        /(Neuroptics|Chassis|Systems)$/i.test(displayName)
+      ) {
+        pushItem(`${displayName} Blueprint`, cUnique, ducats, cVaulted)
+      }
     }
   }
 
@@ -241,7 +273,11 @@ async function fetchAndCache(): Promise<void> {
 
   rebuildIndexes(items)
   fs.mkdirSync(path.dirname(cachePath()), { recursive: true })
-  const payload: CatalogCache = { fetchedAt: new Date().toISOString(), items }
+  const payload: CatalogCache = {
+    version: ITEM_CACHE_VERSION,
+    fetchedAt: new Date().toISOString(),
+    items,
+  }
   fs.writeFileSync(cachePath(), JSON.stringify(payload), 'utf8')
   console.info(`[Everything Warframe] Item catalog ready (${items.length} entries)`)
 }
@@ -366,4 +402,16 @@ export function matchCatalogItem(ocrText: string): { item: CatalogItem; score: n
 export function getSetParts(setName: string | null): CatalogItem[] {
   if (!setName) return []
   return bySet.get(setName) || []
+}
+
+/** Exact (normalized) name lookup, with/without trailing Blueprint. */
+export function findCatalogItemByName(name: string): CatalogItem | null {
+  const needle = normalizeItemName(name)
+  if (!needle) return null
+  const direct = byNormalized.get(needle)
+  if (direct) return direct
+  if (/\bBLUEPRINT\b/.test(needle)) {
+    return byNormalized.get(normalizeItemName(name.replace(/\s+Blueprint$/i, ''))) || null
+  }
+  return byNormalized.get(normalizeItemName(`${name} Blueprint`)) || null
 }

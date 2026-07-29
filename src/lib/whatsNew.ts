@@ -128,6 +128,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Linux: inventory no longer treats Everything Warframe AppImage as the game running',
     'Warframe Running / Not running status refreshes while Inventory settings are open',
   ],
+  '0.9.34': [
+    'Relics: fix inventory ownership — reward counts no longer use relic Projection IDs',
+    'Item catalog: map short warframestat part names to full relic reward names',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
