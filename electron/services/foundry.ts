@@ -11,6 +11,7 @@ import type {
 } from '../../shared/types'
 import {
   ownedCountFor,
+  ownedCountForCraft,
   peekInventoryIndex,
   peekMasteryIndex,
 } from './inventory'
@@ -35,13 +36,13 @@ function normalizeSearch(s: string) {
 
 function directReady(item: RecipeItem, index: InventoryIndex): boolean {
   if (!item.components.length) return false
-  return item.components.every((c) => ownedCountFor(c.uniqueName, index) >= c.itemCount)
+  return item.components.every((c) => ownedCountForCraft(c.uniqueName, index) >= c.itemCount)
 }
 
 function missingDirectCount(item: RecipeItem, index: InventoryIndex): number {
   let missing = 0
   for (const c of item.components) {
-    const owned = ownedCountFor(c.uniqueName, index)
+    const owned = ownedCountForCraft(c.uniqueName, index)
     if (owned < c.itemCount) missing += 1
   }
   return missing
@@ -187,7 +188,7 @@ function buildTreeNode(
   index: InventoryIndex,
   imageName: string | null = null,
 ): FoundryTreeNode {
-  const owned = ownedCountFor(uniqueName, index)
+  const owned = ownedCountForCraft(uniqueName, index)
   const missing = Math.max(0, required - owned)
   const children: FoundryTreeNode[] = []
   const resolvedImage = resolveImageName(uniqueName, imageName)
@@ -235,7 +236,7 @@ function accumulateTotals(
 
   for (const comp of components) {
     const need = comp.itemCount * craftsNeeded
-    const owned = ownedCountFor(comp.uniqueName, index)
+    const owned = ownedCountForCraft(comp.uniqueName, index)
     const still = Math.max(0, need - owned)
     if (still <= 0) continue
 

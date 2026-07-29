@@ -1,6 +1,7 @@
 import type { FoundryCategory, MasteryEntry } from '../../shared/types'
 import {
   ownedCountFor,
+  ownedCountForCraft,
   peekInventoryIndex,
   peekMasteryIndex,
 } from './inventory'
@@ -14,7 +15,7 @@ function isDirectReady(
   index: Record<string, number>,
 ): boolean {
   if (!components.length) return false
-  return components.every((c) => ownedCountFor(c.uniqueName, index) >= c.itemCount)
+  return components.every((c) => ownedCountForCraft(c.uniqueName, index) >= c.itemCount)
 }
 
 export type MasteryHelperItem = {

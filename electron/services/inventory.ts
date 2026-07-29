@@ -225,17 +225,16 @@ function addCount(index: InventoryIndex, key: string, count: number) {
  * Catalog:    .../EmberPrimeChassisComponent
  * Inventory:  .../BratonPrimeBarrelBlueprint
  * Catalog:    .../BratonPrimeBarrel
+ *
+ * Note: we intentionally do NOT index warframe *Blueprint → *Component here.
+ * Uncrafted part BPs must not satisfy Foundry “built component” checks; that
+ * bridge lives in ownedCountFor (non-strict) for relic/set ownership only.
  */
 export function inventoryKeyAliases(key: string): string[] {
   if (!key || !/Blueprint$/i.test(key)) return []
   const withoutBp = key.replace(/Blueprint$/i, '')
   const leaf = withoutBp.split('/').pop() || ''
   const aliases: string[] = []
-
-  // Warframe parts in warframestat use *Component (Helmet = Neuroptics in older data)
-  if (/(Chassis|Systems|Helmet|Neuroptics)$/i.test(leaf)) {
-    aliases.push(`${withoutBp}Component`)
-  }
 
   // Weapon / pet / archwing parts: catalog uniqueName usually has no Blueprint suffix
   if (
@@ -450,12 +449,17 @@ function isFinishedGearUniqueName(uniqueName: string): boolean {
   return /\/Lotus\/(Powersuits|Weapons)\//i.test(uniqueName)
 }
 
-export function ownedCountFor(uniqueName: string, index: InventoryIndex = cachedIndex): number {
+export function ownedCountFor(
+  uniqueName: string,
+  index: InventoryIndex = cachedIndex,
+  opts?: { strict?: boolean },
+): number {
   if (!uniqueName) return 0
   // Relic reward rows in WFCD Relics.json currently misuse Projection IDs as item
   // uniqueNames — never treat those as owned part stacks.
   if (/\/Projections\//i.test(uniqueName) || /VoidProjection/i.test(uniqueName)) return 0
 
+  const strict = opts?.strict === true
   const candidates = [uniqueName]
   const noRev = stripRevisionSuffix(uniqueName)
   if (noRev) candidates.push(noRev)
@@ -464,7 +468,10 @@ export function ownedCountFor(uniqueName: string, index: InventoryIndex = cached
     const direct = lookupCount(cand, index)
     if (direct > 0) return direct
 
-    // Catalog *Component → inventory *Blueprint
+    if (strict) continue
+
+    // Catalog *Component → inventory *Blueprint (relic / set “have this drop”).
+    // Foundry craft checks use ownedCountForCraft so uncrafted BPs don’t count as built parts.
     if (/Component$/i.test(cand)) {
       const asBp = cand.replace(/Component$/i, 'Blueprint')
       const n = lookupCount(asBp, index)
@@ -479,6 +486,14 @@ export function ownedCountFor(uniqueName: string, index: InventoryIndex = cached
   }
 
   return 0
+}
+
+/** Foundry craft checks: built gear / real stacks only — no Blueprint↔Component bridging. */
+export function ownedCountForCraft(
+  uniqueName: string,
+  index: InventoryIndex = cachedIndex,
+): number {
+  return ownedCountFor(uniqueName, index, { strict: true })
 }
 
 /**

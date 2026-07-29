@@ -141,6 +141,9 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Relics: fix false owned counts from crafted warframes / doubled relic stacks',
     'Relics: companion primes (Carrier, Shade, Helios, Kavasa, …) back in the catalog',
   ],
+  '0.9.37': [
+    'Foundry: uncrafted part blueprints no longer count as built components (Ready / craft trees)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
