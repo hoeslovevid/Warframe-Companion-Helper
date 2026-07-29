@@ -206,6 +206,29 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Prime filter">
+              <button
+                type="button"
+                className={`vl-segment__btn ${prime === 'any' ? 'is-on' : ''}`}
+                onClick={() => setPrime('any')}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className={`vl-segment__btn ${prime === 'prime' ? 'is-on' : ''}`}
+                onClick={() => setPrime(prime === 'prime' ? 'any' : 'prime')}
+              >
+                Prime
+              </button>
+              <button
+                type="button"
+                className={`vl-segment__btn ${prime === 'normal' ? 'is-on' : ''}`}
+                onClick={() => setPrime(prime === 'normal' ? 'any' : 'normal')}
+              >
+                Non-Prime
+              </button>
+            </div>
             <div className="vl-segment vl-segment--wrap" role="group" aria-label="Scope">
               <button
                 type="button"
@@ -242,28 +265,7 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                 ))}
               </select>
             </label>
-            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Filters">
-              <button
-                type="button"
-                className={`vl-segment__btn ${prime === 'any' ? 'is-on' : ''}`}
-                onClick={() => setPrime('any')}
-              >
-                Any
-              </button>
-              <button
-                type="button"
-                className={`vl-segment__btn ${prime === 'prime' ? 'is-on' : ''}`}
-                onClick={() => setPrime('prime')}
-              >
-                Prime
-              </button>
-              <button
-                type="button"
-                className={`vl-segment__btn ${prime === 'normal' ? 'is-on' : ''}`}
-                onClick={() => setPrime('normal')}
-              >
-                Normal
-              </button>
+            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Status filters">
               <button
                 type="button"
                 className={`vl-segment__btn ${owned === 'owned' ? 'is-on' : ''}`}

@@ -118,6 +118,9 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Inventory: count stacked prime parts correctly (Blueprint ↔ Component paths)',
     'Arbitration: show current node and upcoming hours in the rotation',
   ],
+  '0.9.31': [
+    'Foundry: dedicated All / Prime / Non-Prime filter under search',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
