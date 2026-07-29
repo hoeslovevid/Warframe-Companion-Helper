@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useInventory } from '../hooks/useInventory'
 import { Panel } from './Panel'
 import { ToggleRow } from './ToggleRow'
@@ -18,6 +19,7 @@ export function InventorySettings() {
     status,
     busy,
     message,
+    refresh,
     setConsent,
     detect,
     useCandidate,
@@ -25,6 +27,15 @@ export function InventorySettings() {
     browse,
     clear,
   } = useInventory()
+
+  // Re-check Warframe process while this panel is open (Linux AppImage used to
+  // false-positive as "Running").
+  useEffect(() => {
+    const poll = window.setInterval(() => {
+      void refresh()
+    }, 4000)
+    return () => window.clearInterval(poll)
+  }, [refresh])
 
   return (
     <Panel
@@ -52,7 +63,7 @@ export function InventorySettings() {
         <div className="mod-stat">
           <span className="mod-stat__label">Warframe</span>
           <span className={`mod-stat__value ${status.warframeRunning ? 'is-ok' : ''}`}>
-            {status.warframeRunning ? 'Running' : 'Not detected'}
+            {status.warframeRunning ? 'Running' : 'Not running'}
           </span>
         </div>
         {status.path ? <p className="muted">File: {status.path}</p> : null}

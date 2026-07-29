@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import https from 'node:https'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn, execSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { app } from 'electron'
 import {
   InventoryCandidate,
@@ -21,7 +21,7 @@ import {
   warframeProtonLocalAppData,
   warframeProtonPrefix,
 } from './steam-paths'
-import { isWarframeRunning as isWarframeProcessRunning } from './warframe-process'
+import { isWarframeRunning as isWarframeProcessRunning, isWarframeGameRunningSync, invalidateWarframeProcessCache } from './warframe-process'
 import { buildWineHelperEnv, scrubWineHelperOutput } from '../linux-child-env'
 
 const HELPER_URL =
@@ -104,27 +104,7 @@ function managedInventoryPath() {
 }
 
 export function isWarframeRunning(): boolean {
-  if (process.platform === 'linux') {
-    try {
-      const out = execSync('pgrep -if "warframe(\\.x64)?(\\.exe)?"', {
-        encoding: 'utf8',
-        timeout: 5000,
-      })
-      return out.trim().length > 0
-    } catch {
-      return false
-    }
-  }
-  try {
-    const out = execSync('tasklist /FI "IMAGENAME eq Warframe.x64.exe" /NH', {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 5000,
-    })
-    return out.toLowerCase().includes('warframe.x64.exe')
-  } catch {
-    return false
-  }
+  return isWarframeGameRunningSync()
 }
 
 function fileMtimeIso(filePath: string): string {
@@ -574,7 +554,8 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       error: 'Permission required. Accept the inventory sync risk acknowledgment first.',
     }
   }
-  const running = isWarframeRunning() || (await isWarframeProcessRunning())
+  invalidateWarframeProcessCache()
+  const running = isWarframeGameRunningSync() || (await isWarframeProcessRunning())
   if (!running) {
     return {
       ok: false,

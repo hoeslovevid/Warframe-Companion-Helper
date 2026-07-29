@@ -124,6 +124,10 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.32': [
     'Relic Planner: All / Prime / Non-Prime filter for relics and set search',
   ],
+  '0.9.33': [
+    'Linux: inventory no longer treats Everything Warframe AppImage as the game running',
+    'Warframe Running / Not running status refreshes while Inventory settings are open',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

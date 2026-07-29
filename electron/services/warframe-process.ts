@@ -1,19 +1,28 @@
-import { execFile } from 'node:child_process'
+import { execFile, execSync } from 'node:child_process'
 import fs from 'node:fs'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
-const PROCESS_NAMES = new Set([
-  'warframe.x64.exe',
-  'warframe.exe',
-  'warframe.x64',
-  'warframe',
-])
+/** Our app (and AppImage) must never count as the game. */
+const OWN_APP_RE = /everything[_-]?warframe/i
+
+/**
+ * Real game binaries under Windows / Proton.
+ * Avoid matching folder paths like `.../Local/Warframe/EE.log` or our AppImage name.
+ */
+const GAME_BINARY_RE = /(?:^|[\\/\s"'])warframe\.x64\.exe(?:\s|$|"')|(?:^|[\\/\s"'])warframe\.exe(?:\s|$|"')|(?:^|[\\/\s"'])warframe\.x64(?:\s|$|"')/i
 
 let lastCheck = 0
 let lastRunning = false
 let lastForeground = false
+
+export function cmdlineLooksLikeWarframeGame(cmdline: string): boolean {
+  const text = cmdline.replace(/\0/g, ' ')
+  if (!text.trim()) return false
+  if (OWN_APP_RE.test(text)) return false
+  return GAME_BINARY_RE.test(text)
+}
 
 async function queryWindows(): Promise<{ running: boolean; foreground: boolean }> {
   try {
@@ -64,7 +73,7 @@ Write-Output ("{0}|{1}" -f $running, $fg)
       const running = String(stdout)
         .toLowerCase()
         .split(/\r?\n/)
-        .some((line) => [...PROCESS_NAMES].some((n) => line.includes(n)))
+        .some((line) => line.includes('warframe.x64.exe') || line.includes('"warframe.exe"'))
       return { running, foreground: running }
     } catch {
       return { running: false, foreground: false }
@@ -73,19 +82,42 @@ Write-Output ("{0}|{1}" -f $running, $fg)
 }
 
 /** Warframe under Proton appears as Warframe.x64.exe in the Linux process list. */
+function scanProcForWarframe(): boolean {
+  try {
+    const self = String(process.pid)
+    for (const dir of fs.readdirSync('/proc')) {
+      if (!/^\d+$/.test(dir) || dir === self) continue
+      try {
+        const cmdline = fs.readFileSync(`/proc/${dir}/cmdline`, 'utf8')
+        if (cmdlineLooksLikeWarframeGame(cmdline)) return true
+      } catch {
+        // ignore unreadable pids
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return false
+}
+
 async function queryLinux(): Promise<{ running: boolean; foreground: boolean }> {
   let running = false
   try {
+    // Tight pattern: require the .x64 / .exe game binary, not the word "warframe" alone
+    // (which matches everything_warframe.AppImage and Steam path folders).
     const { stdout } = await execFileAsync(
       'pgrep',
-      ['-if', 'warframe(\\.x64)?(\\.exe)?'],
+      ['-af', String.raw`Warframe\.x64\.exe|Warframe\.exe|(?:^|/)warframe\.x64(?:\s|$)`],
       { timeout: 2500 },
     )
-    running = stdout.trim().length > 0
+    running = stdout
+      .split(/\n/)
+      .some((line) => cmdlineLooksLikeWarframeGame(line.replace(/^\d+\s+/, '')))
   } catch {
-    // pgrep exits 1 when no match — also try /proc scan
-    running = scanProcForWarframe()
+    // pgrep exits 1 when no match
+    running = false
   }
+  if (!running) running = scanProcForWarframe()
 
   if (!running) return { running: false, foreground: false }
 
@@ -98,36 +130,38 @@ async function queryLinux(): Promise<{ running: boolean; foreground: boolean }> 
       { timeout: 1500 },
     )
     const name = stdout.toLowerCase()
-    foreground = /warframe/.test(name)
+    foreground = /warframe/.test(name) && !/everything/.test(name)
   } catch {
     foreground = running
   }
   return { running, foreground }
 }
 
-function scanProcForWarframe(): boolean {
-  try {
-    for (const dir of fs.readdirSync('/proc')) {
-      if (!/^\d+$/.test(dir)) continue
-      try {
-        const cmdline = fs.readFileSync(`/proc/${dir}/cmdline`, 'utf8').toLowerCase()
-        if (cmdline.includes('warframe.x64') || cmdline.includes('warframe.exe')) {
-          return true
-        }
-      } catch {
-        // ignore unreadable pids
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return false
-}
-
 async function queryPlatform(): Promise<{ running: boolean; foreground: boolean }> {
   if (process.platform === 'win32') return queryWindows()
   if (process.platform === 'linux') return queryLinux()
   return { running: false, foreground: false }
+}
+
+/**
+ * Sync check used by inventory status UI.
+ * Linux: /proc cmdline scan for Warframe.x64.exe (ignores our AppImage).
+ */
+export function isWarframeGameRunningSync(): boolean {
+  if (process.platform === 'linux') return scanProcForWarframe()
+  if (process.platform === 'win32') {
+    try {
+      const out = execSync('tasklist /FI "IMAGENAME eq Warframe.x64.exe" /NH', {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 5000,
+      })
+      return out.toLowerCase().includes('warframe.x64.exe')
+    } catch {
+      return false
+    }
+  }
+  return false
 }
 
 export async function getWarframeProcessState(): Promise<{
