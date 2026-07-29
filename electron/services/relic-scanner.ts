@@ -215,7 +215,17 @@ export async function scanRelicRewards(
   emit()
 
   try {
-    await Promise.all([ensureItemCatalog(), ensureWfinfoPrices().catch(() => {})])
+    // Catalog is required for name matching, but a transient API blip must not
+    // permanently poison the session (ensureItemCatalog clears `ready` on failure).
+    await Promise.all([
+      ensureItemCatalog().catch((err) => {
+        console.warn(
+          '[Everything Warframe] Item catalog unavailable for relic scan:',
+          err instanceof Error ? err.message : err,
+        )
+      }),
+      ensureWfinfoPrices().catch(() => {}),
+    ])
     if (trigger === 'log') {
       // Wine/Proton often buffers EE.log; UI may still be animating after the marker.
       const delay = process.platform === 'linux' ? 1800 : 1200

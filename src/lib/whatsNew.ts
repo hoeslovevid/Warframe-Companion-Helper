@@ -132,6 +132,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Relics: fix inventory ownership — reward counts no longer use relic Projection IDs',
     'Item catalog: map short warframestat part names to full relic reward names',
   ],
+  '0.9.35': [
+    'Relic overlay: recover after item-catalog fetch failures (no more sticky red error)',
+    'Fall back to on-disk item catalog when warframestat is briefly unreachable',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

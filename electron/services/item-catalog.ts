@@ -156,21 +156,22 @@ function rebuildIndexes(items: CatalogItem[]) {
   }
 }
 
-function loadCache(): boolean {
+function loadCache(opts?: { ignoreVersion?: boolean }): boolean {
   try {
     const file = cachePath()
     if (!fs.existsSync(file)) return false
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as CatalogCache
     const age = Date.now() - new Date(parsed.fetchedAt).getTime()
     if (!parsed.items?.length) return false
-    if (parsed.version !== ITEM_CACHE_VERSION) return false
+    const versionOk = parsed.version === ITEM_CACHE_VERSION
+    if (!opts?.ignoreVersion && !versionOk) return false
     // Migrate older caches missing vaulted
     for (const item of parsed.items) {
       if (item.vaulted === undefined) (item as CatalogItem).vaulted = null
     }
     rebuildIndexes(parsed.items)
-    // Refresh weekly in background if stale
-    if (age > 7 * 24 * 60 * 60 * 1000) {
+    // Refresh in background when stale or still on an older schema
+    if (!versionOk || age > 7 * 24 * 60 * 60 * 1000) {
       void fetchAndCache().catch(() => {})
     }
     return true
@@ -285,10 +286,25 @@ async function fetchAndCache(): Promise<void> {
 export function ensureItemCatalog(): Promise<void> {
   if (!ready) {
     ready = (async () => {
-      if (!loadCache()) {
+      if (loadCache()) return
+      try {
         await fetchAndCache()
+      } catch (err) {
+        // Prefer a stale/pre-0.9.34 cache over failing every relic scan for the session.
+        if (loadCache({ ignoreVersion: true })) {
+          console.warn(
+            '[Everything Warframe] Item catalog fetch failed; using on-disk cache until next retry',
+            err instanceof Error ? err.message : err,
+          )
+          return
+        }
+        throw err
       }
-    })()
+    })().catch((err) => {
+      // Allow a later scan / planner open to retry after a network failure.
+      ready = null
+      throw err
+    })
   }
   return ready
 }
