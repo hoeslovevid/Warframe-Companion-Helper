@@ -1,10 +1,94 @@
 /** Shared screen-fraction geometry for OCR crops and overlay placement. */
 
+import type { OcrRegionNorm, OcrScanRegions } from './types'
+import { DEFAULT_OCR_SCAN_REGIONS } from './types'
+
 export type CaptureRegion = {
   x: number
   y: number
   width: number
   height: number
+}
+
+export type { OcrRegionNorm, OcrScanRegions }
+
+function clamp01(n: number) {
+  return Math.min(1, Math.max(0, n))
+}
+
+export function clampNorm(r: OcrRegionNorm): OcrRegionNorm {
+  const x = clamp01(Number.isFinite(r.x) ? r.x : 0)
+  const y = clamp01(Number.isFinite(r.y) ? r.y : 0)
+  const width = Math.min(1 - x, Math.max(0.02, Number.isFinite(r.width) ? r.width : 0.02))
+  const height = Math.min(1 - y, Math.max(0.02, Number.isFinite(r.height) ? r.height : 0.02))
+  return { x, y, width, height }
+}
+
+export function regionToNorm(
+  region: CaptureRegion,
+  width: number,
+  height: number,
+): OcrRegionNorm {
+  const w = Math.max(1, width)
+  const h = Math.max(1, height)
+  return clampNorm({
+    x: region.x / w,
+    y: region.y / h,
+    width: region.width / w,
+    height: region.height / h,
+  })
+}
+
+export function normToRegion(
+  norm: OcrRegionNorm,
+  width: number,
+  height: number,
+): CaptureRegion {
+  const n = clampNorm(norm)
+  const x = Math.round(n.x * width)
+  const y = Math.round(n.y * height)
+  const w = Math.max(1, Math.round(n.width * width))
+  const h = Math.max(1, Math.round(n.height * height))
+  return {
+    x: Math.max(0, Math.min(x, Math.max(0, width - 1))),
+    y: Math.max(0, Math.min(y, Math.max(0, height - 1))),
+    width: Math.min(w, Math.max(1, width - x)),
+    height: Math.min(h, Math.max(1, height - y)),
+  }
+}
+
+function isValidNorm(value: unknown): value is OcrRegionNorm {
+  if (!value || typeof value !== 'object') return false
+  const r = value as OcrRegionNorm
+  return (
+    typeof r.x === 'number' &&
+    typeof r.y === 'number' &&
+    typeof r.width === 'number' &&
+    typeof r.height === 'number' &&
+    Number.isFinite(r.x) &&
+    Number.isFinite(r.y) &&
+    Number.isFinite(r.width) &&
+    Number.isFinite(r.height) &&
+    r.width > 0 &&
+    r.height > 0
+  )
+}
+
+/** Sanitize settings payload; invalid / missing fields → null (built-in defaults). */
+export function mergeOcrScanRegions(
+  raw: Partial<OcrScanRegions> | null | undefined,
+  base: OcrScanRegions = DEFAULT_OCR_SCAN_REGIONS,
+): OcrScanRegions {
+  const pick = (v: unknown, fallback: OcrRegionNorm | null): OcrRegionNorm | null => {
+    if (v === null) return null
+    if (v === undefined) return fallback
+    return isValidNorm(v) ? clampNorm(v) : fallback
+  }
+  return {
+    relicStrip: pick(raw?.relicStrip, base.relicStrip),
+    rivenCurrent: pick(raw?.rivenCurrent, base.rivenCurrent),
+    rivenReroll: pick(raw?.rivenReroll, base.rivenReroll),
+  }
 }
 
 /**
@@ -125,6 +209,98 @@ export function relicRewardRegionVariants(
       height: bandH,
     })),
   )
+}
+
+/** Built-in relic strip as normalized fractions (for Layout preview defaults). */
+export function defaultRelicStripNorm(
+  width = 1920,
+  height = 1080,
+): OcrRegionNorm {
+  const regions = relicRewardRegions(width, height, 4)
+  const left = regions[0]
+  const right = regions[regions.length - 1]
+  return regionToNorm(
+    {
+      x: left.x,
+      y: left.y,
+      width: right.x + right.width - left.x,
+      height: Math.max(...regions.map((r) => r.height)),
+    },
+    width,
+    height,
+  )
+}
+
+/** Built-in riven card crops as normalized fractions. */
+export function defaultRivenCardNorms(
+  width = 1920,
+  height = 1080,
+): { current: OcrRegionNorm; reroll: OcrRegionNorm } {
+  const [current, reroll] = rivenCompareRegions(width, height)
+  return {
+    current: regionToNorm(current, width, height),
+    reroll: regionToNorm(reroll, width, height),
+  }
+}
+
+/**
+ * Effective relic name-band crops: custom strip (subdivided into slots) or
+ * built-in WFInfo geometry.
+ */
+export function resolveRelicRewardRegions(
+  width: number,
+  height: number,
+  slots: 3 | 4 = 4,
+  customStrip?: OcrRegionNorm | null,
+): CaptureRegion[] {
+  if (!customStrip) return relicRewardRegions(width, height, slots)
+  const strip = normToRegion(customStrip, width, height)
+  const cardW = strip.width / slots
+  return Array.from({ length: slots }, (_, i) => ({
+    x: Math.round(strip.x + i * cardW),
+    y: strip.y,
+    width: Math.max(1, Math.round(cardW)),
+    height: strip.height,
+  }))
+}
+
+export function resolveRelicRewardRegionVariants(
+  width: number,
+  height: number,
+  slots: 3 | 4 = 4,
+  customStrip?: OcrRegionNorm | null,
+): CaptureRegion[][] {
+  const primary = resolveRelicRewardRegions(width, height, slots, customStrip)
+  // Smaller vertical search when the user already tuned the strip.
+  const deltas = customStrip ? [-0.015, 0, 0.015] : [-0.04, 0, 0.035]
+  const bandH = customStrip
+    ? Math.max(primary[0]?.height ?? Math.round(height * 0.06), Math.round(height * 0.05))
+    : Math.round(height * 0.12)
+  return primary.map((base) =>
+    deltas.map((dy) => ({
+      x: base.x,
+      y: Math.max(0, Math.min(height - bandH, Math.round(base.y + height * dy))),
+      width: base.width,
+      height: customStrip ? Math.max(base.height, Math.round(height * 0.04)) : bandH,
+    })),
+  )
+}
+
+/** Effective riven card crops: per-side custom or built-in Cycle geometry. */
+export function resolveRivenCompareRegions(
+  width: number,
+  height: number,
+  custom?: Pick<OcrScanRegions, 'rivenCurrent' | 'rivenReroll'> | null,
+): CaptureRegion[] {
+  const defaults = rivenCompareRegions(width, height)
+  return [
+    custom?.rivenCurrent
+      ? normToRegion(custom.rivenCurrent, width, height)
+      : defaults[0],
+    custom?.rivenReroll
+      ? normToRegion(custom.rivenReroll, width, height)
+      : defaults[1],
+  ]
 }
 
 /** Strip geometry as fractions of display size (for overlay alignment). */

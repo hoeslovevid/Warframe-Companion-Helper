@@ -3,15 +3,23 @@ import {
   relicRewardRegionVariants,
   relicRewardRegions,
   relicStripLayout,
+  resolveRelicRewardRegionVariants,
+  resolveRelicRewardRegions,
+  resolveRivenCompareRegions,
   rivenCompareRegions,
   type CaptureRegion,
 } from '../../shared/captureGeometry'
+import { loadSettings } from '../settings'
 import { resolveOcrDisplay } from './display-target'
 import {
   ensurePersistentCapture,
   grabPersistentFrame,
   isPersistentCaptureLive,
 } from './persistent-screen-capture'
+
+function activeOcrScanRegions() {
+  return loadSettings().ocrScanRegions
+}
 
 export type { CaptureRegion }
 
@@ -179,7 +187,8 @@ export function cropRelicBandsFromPng(
   height: number,
   slots: 3 | 4,
 ): Buffer[][] {
-  const variants = relicRewardRegionVariants(width, height, slots)
+  const custom = activeOcrScanRegions().relicStrip
+  const variants = resolveRelicRewardRegionVariants(width, height, slots, custom)
   return variants.map((regions) => regions.map((region) => cropPng(fullPng, region)))
 }
 
@@ -188,9 +197,12 @@ export async function captureRewardRegionPngs(): Promise<Buffer[]> {
     invalidateCaptureCache()
     const shot = await captureBestDisplay()
     if (!shot) return []
-    const regions = relicRewardRegions(shot.width, shot.height)
+    const custom = activeOcrScanRegions().relicStrip
+    const regions = resolveRelicRewardRegions(shot.width, shot.height, 4, custom)
     console.info(
-      `[Everything Warframe] Relic crop ${shot.width}×${shot.height}: ` +
+      `[Everything Warframe] Relic crop ${shot.width}×${shot.height}` +
+        (custom ? ' (custom strip)' : '') +
+        ': ' +
         regions
           .map((r, i) => `slot${i}@(${r.x},${r.y},${r.width}x${r.height})`)
           .join(' · '),
@@ -210,9 +222,17 @@ export async function captureRewardRegionVariants(): Promise<{
     invalidateCaptureCache()
     const shot = await captureBestDisplay()
     if (!shot) return null
-    const variants = relicRewardRegionVariants(shot.width, shot.height)
+    const custom = activeOcrScanRegions().relicStrip
+    const variants = resolveRelicRewardRegionVariants(
+      shot.width,
+      shot.height,
+      4,
+      custom,
+    )
     console.info(
-      `[Everything Warframe] Relic variant crops ${shot.width}×${shot.height}: ` +
+      `[Everything Warframe] Relic variant crops ${shot.width}×${shot.height}` +
+        (custom ? ' (custom strip)' : '') +
+        ': ' +
         variants
           .map(
             (bands, i) =>
@@ -253,9 +273,12 @@ export async function captureRivenCompare(): Promise<RivenCaptureResult | null> 
     invalidateCaptureCache()
     const shot = await captureBestDisplay()
     if (!shot) return null
-    const regions = rivenCompareRegions(shot.width, shot.height)
+    const custom = activeOcrScanRegions()
+    const regions = resolveRivenCompareRegions(shot.width, shot.height, custom)
+    const customLabel =
+      custom.rivenCurrent || custom.rivenReroll ? ' (custom regions)' : ''
     console.info(
-      `[Everything Warframe] Riven card crops ${shot.width}×${shot.height}: ` +
+      `[Everything Warframe] Riven card crops ${shot.width}×${shot.height}${customLabel}: ` +
         regions
           .map((r, i) => `${i === 0 ? 'current' : 'reroll'}@(${r.x},${r.y},${r.width}x${r.height})`)
           .join(' · '),

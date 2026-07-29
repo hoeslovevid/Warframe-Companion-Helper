@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
+import { mergeOcrScanRegions } from '../shared/captureGeometry'
 import {
   AppSettings,
   ColorThemeId,
@@ -194,6 +195,10 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       if (v === 3 || v === 4) return v
       return null
     })(),
+    ocrScanRegions: mergeOcrScanRegions(
+      (raw as { ocrScanRegions?: AppSettings['ocrScanRegions'] }).ocrScanRegions,
+      base.ocrScanRegions,
+    ),
     inventorySource: raw.inventorySource ?? base.inventorySource,
     inventoryConsent: raw.inventoryConsent ?? base.inventoryConsent,
     inventoryLastSynced: raw.inventoryLastSynced ?? base.inventoryLastSynced,
@@ -296,6 +301,13 @@ export function updateSettings(partial: Partial<AppSettings>): AppSettings {
     modules: { ...current.modules, ...(partial.modules ?? {}) },
     panelAnchors: { ...current.panelAnchors, ...(partial.panelAnchors ?? {}) },
     moduleOpacity: { ...current.moduleOpacity, ...(partial.moduleOpacity ?? {}) },
+    ocrScanRegions: mergeOcrScanRegions(
+      {
+        ...current.ocrScanRegions,
+        ...(partial.ocrScanRegions ?? {}),
+      },
+      current.ocrScanRegions,
+    ),
     customPalette: {
       ...current.customPalette,
       ...(partial.customPalette ?? {}),

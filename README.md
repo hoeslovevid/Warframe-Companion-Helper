@@ -39,7 +39,7 @@ This launches Vite, builds the Electron main/preload bundles, then opens:
 - **Companion** — dashboard, module toggles, **Layout** mock preview, settings
 - **Overlay** — always-on-top click-through panels
 
-Use the companion **Layout** tab to drag every overlay panel (including Relic Rewards with sample cards) on a mock monitor. Positions save to the live overlay.
+Use the companion **Layout** tab to drag every overlay panel (including Relic Rewards with sample cards) on a mock monitor. Positions save to the live overlay. The same preview shows **OCR scan areas** (Relic name band + Riven Cycle cards) — drag or resize those boxes so OCR reads the right part of the screen.
 
 In-game (WFHelper-style): press `Ctrl+Tab` to unlock click-through, left- or right-drag panels, then `Ctrl+Tab` again to lock. A teaching chip appears until you move a panel once.
 

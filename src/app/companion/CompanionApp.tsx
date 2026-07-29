@@ -803,7 +803,15 @@ export function CompanionApp() {
                 nightwaveDoneIds={settings.nightwaveDoneIds}
                 interactionHotkey={prettyHotkey(settings.hotkeys.editLayout)}
                 liveData={data}
+                ocrScanRegions={settings.ocrScanRegions ?? {
+                  relicStrip: null,
+                  rivenCurrent: null,
+                  rivenReroll: null,
+                }}
                 onSaveAnchors={(panelAnchors) => void updateSettings({ panelAnchors })}
+                onSaveOcrScanRegions={(ocrScanRegions) =>
+                  void updateSettings({ ocrScanRegions })
+                }
               />
             ) : null}
 

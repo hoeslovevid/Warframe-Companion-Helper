@@ -144,6 +144,11 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.37': [
     'Foundry: uncrafted part blueprints no longer count as built components (Ready / craft trees)',
   ],
+  '0.9.38': [
+    'Layout: edit Relic and Riven OCR scan areas on the mock monitor (drag / resize)',
+    'In-game layout unlock also shows OCR crop guides so you can align them over Warframe',
+    'Custom OCR regions scale as screen fractions across resolutions',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

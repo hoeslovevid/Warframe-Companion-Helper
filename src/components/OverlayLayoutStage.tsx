@@ -3,6 +3,7 @@ import {
   FissurePathMode,
   FissureSort,
   ModuleId,
+  OcrScanRegions,
   PanelAnchor,
   RewardEval,
   RivenScanState,
@@ -18,6 +19,7 @@ import { InvasionsPanel } from '../modules/invasions/InvasionsPanel'
 import { ArchonPanel } from '../modules/archon/ArchonPanel'
 import { DeepArchimedeaPanel } from '../modules/deepArchimedea/DeepArchimedeaPanel'
 import { RivenPanel } from '../modules/rivens/RivenPanel'
+import { OcrScanGuides } from './OcrScanGuides'
 import '../styles/overlay.css'
 import './OverlayLayoutStage.css'
 
@@ -47,6 +49,13 @@ export type OverlayLayoutStageProps = {
   hint?: string
   /** Top teaching chip (WFHelper-style), e.g. "Ctrl + Tab, then drag to move". */
   dragHint?: string
+  /** Show OCR capture guides over the mock / live stage. */
+  showOcrGuides?: boolean
+  /** Allow dragging/resizing OCR guides (Layout tab). */
+  ocrGuidesEditable?: boolean
+  ocrScanRegions?: OcrScanRegions
+  onOcrScanRegionsChange?: (next: OcrScanRegions) => void
+  onOcrScanRegionsCommit?: (next: OcrScanRegions) => void
   onAnchorsChange: (next: Partial<Record<ModuleId, PanelAnchor>>) => void
   onAnchorsCommit: (next: Partial<Record<ModuleId, PanelAnchor>>) => void
   /** Fired once a drag actually moved a panel (used to dismiss the teaching chip). */
@@ -107,6 +116,11 @@ export function OverlayLayoutStage({
   rivenPreviewState,
   hint,
   dragHint,
+  showOcrGuides = false,
+  ocrGuidesEditable = false,
+  ocrScanRegions,
+  onOcrScanRegionsChange,
+  onOcrScanRegionsCommit,
   onAnchorsChange,
   onAnchorsCommit,
   onPanelMoved,
@@ -372,6 +386,23 @@ export function OverlayLayoutStage({
       ) : null}
 
       {dragHint ? <div className="overlay-drag-hint">{dragHint}</div> : null}
+
+      {showOcrGuides && ocrScanRegions && onOcrScanRegionsChange && onOcrScanRegionsCommit ? (
+        <OcrScanGuides
+          width={mode === 'preview' ? designWidth : typeof window !== 'undefined' ? window.innerWidth : designWidth}
+          height={
+            mode === 'preview'
+              ? designHeight
+              : typeof window !== 'undefined'
+                ? window.innerHeight
+                : designHeight
+          }
+          regions={ocrScanRegions}
+          editable={ocrGuidesEditable}
+          onChange={onOcrScanRegionsChange}
+          onCommit={onOcrScanRegionsCommit}
+        />
+      ) : null}
 
       {modules.length === 0 ? (
         <div className="overlay-empty">

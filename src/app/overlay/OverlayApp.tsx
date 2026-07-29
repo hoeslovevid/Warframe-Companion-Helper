@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ModuleId, PanelAnchor } from '../../../shared/types'
+import { ModuleId, OcrScanRegions, PanelAnchor } from '../../../shared/types'
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { NowProvider } from '../../hooks/NowContext'
 import { useColorTheme } from '../../hooks/useColorTheme'
@@ -19,11 +19,16 @@ export function OverlayApp() {
   const [anchors, setAnchors] = useState<Partial<Record<ModuleId, PanelAnchor>>>(
     settings.panelAnchors,
   )
+  const [ocrRegions, setOcrRegions] = useState<OcrScanRegions>(settings.ocrScanRegions)
   const [toggleCue, setToggleCue] = useState<'on' | 'off' | null>(null)
 
   useEffect(() => {
     setAnchors(settings.panelAnchors)
   }, [settings.panelAnchors])
+
+  useEffect(() => {
+    setOcrRegions(settings.ocrScanRegions)
+  }, [settings.ocrScanRegions])
 
   useEffect(() => {
     const unsub = window.voidlens?.onOverlayVisibilityChanged((visible) => {
@@ -64,6 +69,14 @@ export function OverlayApp() {
     [updateSettings],
   )
 
+  const commitOcrRegions = useCallback(
+    (next: OcrScanRegions) => {
+      setOcrRegions(next)
+      void updateSettings({ ocrScanRegions: next })
+    },
+    [updateSettings],
+  )
+
   const dismissDragHint = useCallback(() => {
     if (settings.overlayDragHintDismissed) return
     void updateSettings({ overlayDragHintDismissed: true })
@@ -73,7 +86,7 @@ export function OverlayApp() {
   const dragHint = settings.overlayDragHintDismissed
     ? undefined
     : settings.layoutEditMode
-      ? 'Drag to move (position saves) · left or right mouse'
+      ? 'Drag panels or OCR boxes · left or right mouse'
       : hotkeyLabel
         ? `${hotkeyLabel}, then drag to move`
         : undefined
@@ -109,9 +122,14 @@ export function OverlayApp() {
         dragHint={dragHint}
         hint={
           settings.layoutEditMode
-            ? `${hotkeyLabel || 'Hotkey'} again to lock · positions auto-save`
+            ? `${hotkeyLabel || 'Hotkey'} again to lock · panels + OCR areas auto-save`
             : undefined
         }
+        showOcrGuides={settings.layoutEditMode}
+        ocrGuidesEditable={settings.layoutEditMode}
+        ocrScanRegions={ocrRegions}
+        onOcrScanRegionsChange={setOcrRegions}
+        onOcrScanRegionsCommit={commitOcrRegions}
         onAnchorsChange={setAnchors}
         onAnchorsCommit={commitAnchors}
         onPanelMoved={dismissDragHint}
