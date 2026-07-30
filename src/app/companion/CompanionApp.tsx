@@ -310,7 +310,7 @@ export function CompanionApp() {
   }
 
   return (
-    <NowProvider active intervalMs={1000}>
+    <NowProvider active intervalMs={2000}>
       <div className="companion-root">
         {overlayCue ? (
           <div

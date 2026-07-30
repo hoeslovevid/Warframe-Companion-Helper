@@ -287,12 +287,12 @@ function filterRivenLines(lines: string[]): string[] {
 async function detectPrepared(engine: PaddleOcr, prepared: Buffer): Promise<string[]> {
   const file = tmpPngPath('paddle')
   try {
-    fs.writeFileSync(file, prepared)
+    await fs.promises.writeFile(file, prepared)
     const result = await engine.detect(file)
     return linesFromPaddle(result)
   } finally {
     try {
-      fs.unlinkSync(file)
+      await fs.promises.unlink(file)
     } catch {
       // ignore
     }
@@ -370,14 +370,69 @@ export async function recognizeRewardNames(
   return recognizeRelicsTess(images, theme)
 }
 
+function mergeRivenPasses(passes: string[][]): string {
+  const merged: string[] = []
+  const seen = new Set<string>()
+  for (const lines of passes) {
+    for (const line of lines) {
+      const key = line.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push(line)
+    }
+  }
+  return merged.join('\n').trim()
+}
+
+async function rivenStatsBandPasses(
+  engine: PaddleOcr,
+  png: Buffer,
+  bands: ReadonlyArray<{ top: number; height: number }>,
+  prep: 'normal' | 'harsh' | 'both',
+): Promise<string[][]> {
+  const passes: string[][] = []
+  try {
+    const sharp = nodeRequire('sharp') as typeof import('sharp')
+    const meta = await sharp(png).metadata()
+    const w = meta.width || 0
+    const h = meta.height || 0
+    if (w <= 20 || h <= 20) return passes
+    for (const band of bands) {
+      const statsPng = await sharp(png)
+        .extract({
+          left: Math.round(w * 0.015),
+          top: Math.round(h * band.top),
+          width: Math.round(w * 0.97),
+          height: Math.round(h * band.height),
+        })
+        .toBuffer()
+      if (prep === 'normal' || prep === 'both') {
+        const statsPrep = await prepareRivenCard(statsPng, 'normal')
+        passes.push(filterRivenLines(await detectPrepared(engine, statsPrep)))
+      }
+      if (prep === 'harsh' || prep === 'both') {
+        const statsHarsh = await prepareRivenCard(statsPng, 'harsh')
+        passes.push(filterRivenLines(await detectPrepared(engine, statsHarsh)))
+      }
+    }
+  } catch {
+    // stats band optional
+  }
+  return passes
+}
+
 /**
  * OCR each full riven card independently (current / reroll).
- * Runs a full-card pass plus a stats-band pass and merges lines.
+ * Fast path: 1 full pass + 1 stats band (~2×). Deep: harsh + extra bands for weak reads.
  */
-export async function recognizeRivenBlocks(images: Buffer[]): Promise<string[]> {
+export async function recognizeRivenBlocks(
+  images: Buffer[],
+  opts?: { deep?: boolean },
+): Promise<string[]> {
   const engine = await loadPaddle()
   if (!engine) return recognizeRivensTess(images)
 
+  const deep = opts?.deep === true
   const out: string[] = []
   for (const png of images) {
     const passes: string[][] = []
@@ -385,51 +440,28 @@ export async function recognizeRivenBlocks(images: Buffer[]): Promise<string[]> 
     const fullPrep = await prepareRivenCard(png, 'normal')
     passes.push(filterRivenLines(await detectPrepared(engine, fullPrep)))
 
-    const harshPrep = await prepareRivenCard(png, 'harsh')
-    passes.push(filterRivenLines(await detectPrepared(engine, harshPrep)))
-
-    // Stats-band pass (lower portion of the diamond where rolled lines sit).
-    try {
-      const sharp = nodeRequire('sharp') as typeof import('sharp')
-      const meta = await sharp(png).metadata()
-      const w = meta.width || 0
-      const h = meta.height || 0
-      if (w > 20 && h > 20) {
-        // Mid stats + lower band (last rolled line / negative often sits low on the diamond).
-        for (const band of [
-          { top: 0.3, height: 0.55 },
-          { top: 0.42, height: 0.48 },
-        ] as const) {
-          const statsPng = await sharp(png)
-            .extract({
-              // Keep near-edge multipliers (x1.64) inside the OCR band.
-              left: Math.round(w * 0.015),
-              top: Math.round(h * band.top),
-              width: Math.round(w * 0.97),
-              height: Math.round(h * band.height),
-            })
-            .toBuffer()
-          const statsPrep = await prepareRivenCard(statsPng, 'normal')
-          passes.push(filterRivenLines(await detectPrepared(engine, statsPrep)))
-          const statsHarsh = await prepareRivenCard(statsPng, 'harsh')
-          passes.push(filterRivenLines(await detectPrepared(engine, statsHarsh)))
-        }
-      }
-    } catch {
-      // stats band optional
+    if (deep) {
+      const harshPrep = await prepareRivenCard(png, 'harsh')
+      passes.push(filterRivenLines(await detectPrepared(engine, harshPrep)))
+      passes.push(
+        ...(await rivenStatsBandPasses(
+          engine,
+          png,
+          [
+            { top: 0.3, height: 0.55 },
+            { top: 0.42, height: 0.48 },
+          ],
+          'both',
+        )),
+      )
+    } else {
+      // One mid-band pass covers most rolled lines without 6× inference cost.
+      passes.push(
+        ...(await rivenStatsBandPasses(engine, png, [{ top: 0.32, height: 0.55 }], 'normal')),
+      )
     }
 
-    const merged: string[] = []
-    const seen = new Set<string>()
-    for (const lines of passes) {
-      for (const line of lines) {
-        const key = line.toLowerCase()
-        if (seen.has(key)) continue
-        seen.add(key)
-        merged.push(line)
-      }
-    }
-    out.push(merged.join('\n').trim())
+    out.push(mergeRivenPasses(passes))
   }
   return out
 }

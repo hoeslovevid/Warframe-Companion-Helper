@@ -421,6 +421,9 @@ export function matchCatalogItem(ocrText: string): { item: CatalogItem; score: n
   const needleToks = tokens(needle)
   if (!needleToks.length) return null
 
+  const exact = byNormalized.get(needle)
+  if (exact) return { item: exact, score: 1 }
+
   let best: CatalogItem | null = null
   let bestScore = 0
 

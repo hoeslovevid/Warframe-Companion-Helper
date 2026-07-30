@@ -27,6 +27,7 @@ export function cmdlineLooksLikeWarframeGame(cmdline: string): boolean {
 async function queryWindows(): Promise<{ running: boolean; foreground: boolean }> {
   try {
     // NOTE: do not use $PID — it is a read-only automatic variable in PowerShell.
+    // Guard Add-Type so we don't recompile the C# helper on every poll.
     const script = `
 $procs = Get-Process -ErrorAction SilentlyContinue | Where-Object {
   $_.ProcessName -match '^(?i)Warframe(\\.x64)?$'
@@ -34,7 +35,8 @@ $procs = Get-Process -ErrorAction SilentlyContinue | Where-Object {
 $running = $procs.Count -gt 0
 $fg = $false
 if ($running) {
-  Add-Type @"
+  if (-not ('Fw' -as [type])) {
+    Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public class Fw {
@@ -42,6 +44,7 @@ public class Fw {
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 }
 "@
+  }
   $hwnd = [Fw]::GetForegroundWindow()
   $fgPid = 0
   [void][Fw]::GetWindowThreadProcessId($hwnd, [ref]$fgPid)

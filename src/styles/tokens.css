@@ -6,7 +6,8 @@
   --vl-radius-lg: 14px;
   --vl-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --vl-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --vl-scroll-size: 8px;
+  --vl-scroll-size: 12px;
+  --vl-scroll-thumb-size: 5px;
   --vl-duration-fast: 120ms;
   --vl-duration: 180ms;
   --vl-duration-slow: 320ms;
@@ -147,10 +148,10 @@ code {
   padding: 1px 6px;
 }
 
-/* ---------- Custom scrollbars ---------- */
+/* ---------- Custom scrollbars (polished void chrome) ---------- */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--vl-scroll-thumb) var(--vl-scroll-track);
+  scrollbar-color: color-mix(in srgb, var(--vl-mist) 40%, transparent) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -159,25 +160,66 @@ code {
 }
 
 *::-webkit-scrollbar-track {
-  background: var(--vl-scroll-track);
+  background: transparent;
   border-radius: 999px;
+  margin: 6px 2px;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--vl-scroll-thumb);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vl-frost) 22%, transparent),
+      color-mix(in srgb, var(--vl-mist) 38%, transparent) 45%,
+      color-mix(in srgb, var(--vl-accent) 28%, transparent)
+    );
   border-radius: 999px;
-  border: 2px solid transparent;
+  border: calc((var(--vl-scroll-size) - var(--vl-scroll-thumb-size)) / 2) solid transparent;
   background-clip: padding-box;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--vl-frost) 12%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--vl-void-950) 35%, transparent);
+  min-height: 36px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--vl-scroll-thumb-hover);
-  border: 2px solid transparent;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vl-frost) 35%, transparent),
+      color-mix(in srgb, var(--vl-accent) 55%, transparent) 50%,
+      color-mix(in srgb, var(--vl-teal) 45%, transparent)
+    );
+  border: calc((var(--vl-scroll-size) - var(--vl-scroll-thumb-size)) / 2) solid transparent;
   background-clip: padding-box;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--vl-accent) 35%, transparent),
+    0 0 10px color-mix(in srgb, var(--vl-accent) 22%, transparent);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vl-accent) 75%, white),
+      var(--vl-accent) 40%,
+      var(--vl-teal)
+    );
+  border: calc((var(--vl-scroll-size) - var(--vl-scroll-thumb-size)) / 2) solid transparent;
+  background-clip: padding-box;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--vl-frost) 28%, transparent),
+    0 0 12px color-mix(in srgb, var(--vl-accent) 35%, transparent);
 }
 
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* ---------- Shared status pills (use sparingly) ---------- */

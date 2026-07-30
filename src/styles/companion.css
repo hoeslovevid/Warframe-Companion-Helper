@@ -51,8 +51,10 @@
   display: grid;
   grid-template-columns: 248px 1fr;
   min-height: 100vh;
+  height: 100vh;
   position: relative;
   z-index: 1;
+  min-width: 0;
 }
 
 .companion-nav {
@@ -208,6 +210,8 @@
   padding: 28px 36px 48px;
   overflow: auto;
   max-height: 100vh;
+  min-height: 0;
+  min-width: 0;
   animation: vlFadeUp var(--vl-duration-slow) var(--vl-ease) both;
 }
 
@@ -252,17 +256,146 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+  align-items: start;
 }
 
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
+  align-items: start;
+}
+
+/*
+ * Companion-only: scroll inside each module panel instead of growing the whole page.
+ * Overlay / layout-preview panels are excluded via .overlay-layout-stage.
+ */
+.companion-main .grid-2 > .vl-panel,
+.companion-main .grid-3 > .vl-panel,
+.companion-main > .vl-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(48vh, 420px);
+  min-height: 0;
+}
+
+.companion-main .grid-2 > .vl-panel .vl-panel__header,
+.companion-main .grid-3 > .vl-panel .vl-panel__header,
+.companion-main > .vl-panel .vl-panel__header {
+  flex-shrink: 0;
+}
+
+.companion-main .grid-2 > .vl-panel .vl-panel__body,
+.companion-main .grid-3 > .vl-panel .vl-panel__body,
+.companion-main > .vl-panel .vl-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--vl-accent) 45%, var(--vl-mist)) transparent;
+}
+
+/* Soft rail behind the thumb inside module panels */
+.companion-main .grid-2 > .vl-panel .vl-panel__body::-webkit-scrollbar-track,
+.companion-main .grid-3 > .vl-panel .vl-panel__body::-webkit-scrollbar-track,
+.companion-main > .vl-panel .vl-panel__body::-webkit-scrollbar-track {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--vl-mist) 8%, transparent) 35%,
+      color-mix(in srgb, var(--vl-mist) 8%, transparent) 65%,
+      transparent 100%
+    );
+  border-radius: 999px;
+  margin: 8px 1px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vl-mist) 6%, transparent);
+}
+
+.companion-main .grid-2 > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb,
+.companion-main .grid-3 > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb,
+.companion-main > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vl-frost) 28%, transparent),
+      color-mix(in srgb, var(--vl-mist) 42%, transparent) 40%,
+      color-mix(in srgb, var(--vl-accent) 40%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--vl-frost) 22%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--vl-teal) 25%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--vl-void-950) 40%, transparent);
+}
+
+.companion-main .grid-2 > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb:hover,
+.companion-main .grid-3 > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb:hover,
+.companion-main > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vl-frost) 45%, transparent),
+      color-mix(in srgb, var(--vl-accent) 65%, transparent) 48%,
+      color-mix(in srgb, var(--vl-teal) 55%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--vl-frost) 35%, transparent),
+    0 0 12px color-mix(in srgb, var(--vl-accent) 28%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--vl-accent) 30%, transparent);
+}
+
+.companion-main .grid-2 > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb:active,
+.companion-main .grid-3 > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb:active,
+.companion-main > .vl-panel .vl-panel__body::-webkit-scrollbar-thumb:active {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vl-accent) 80%, white),
+      var(--vl-accent) 42%,
+      var(--vl-teal)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--vl-frost) 40%, transparent),
+    0 0 14px color-mix(in srgb, var(--vl-accent) 40%, transparent);
+}
+
+/* Nav + main column pick up the same polished chrome */
+.companion-nav::-webkit-scrollbar-track,
+.companion-main::-webkit-scrollbar-track {
+  margin: 10px 2px;
+}
+
+.companion-nav::-webkit-scrollbar-thumb,
+.companion-main::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vl-frost) 20%, transparent),
+      color-mix(in srgb, var(--vl-mist) 36%, transparent) 50%,
+      color-mix(in srgb, var(--vl-accent) 26%, transparent)
+    );
+}
+
+.companion-main .overlay-layout-stage .vl-panel {
+  display: block;
+  max-height: none;
+}
+
+.companion-main .overlay-layout-stage .vl-panel__body {
+  overflow: visible;
+  flex: unset;
+  min-height: 0;
+  scrollbar-gutter: auto;
 }
 
 @media (max-width: 980px) {
   .companion-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
   }
 
   .companion-nav {
@@ -274,6 +407,12 @@
 
   .companion-main {
     max-height: none;
+  }
+
+  .companion-main .grid-2 > .vl-panel,
+  .companion-main .grid-3 > .vl-panel,
+  .companion-main > .vl-panel {
+    max-height: min(56vh, 380px);
   }
 
   .grid-2,

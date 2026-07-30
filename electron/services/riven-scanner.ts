@@ -8,22 +8,25 @@ import { enrichRivensWithMarket } from './riven-market'
 import { captureRivenCompare } from './screen-capture'
 
 function saveRivenDebugCrops(crops: Buffer[], label: string, fullPng?: Buffer) {
-  try {
-    const dir = path.join(app.getPath('userData'), 'riven-debug')
-    fs.mkdirSync(dir, { recursive: true })
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    crops.forEach((buf, i) => {
-      const side = i === 0 ? 'current' : 'reroll'
-      const file = path.join(dir, `${stamp}-${label}-${side}.png`)
-      fs.writeFileSync(file, buf)
-    })
-    if (fullPng?.length) {
-      fs.writeFileSync(path.join(dir, `${stamp}-${label}-full.png`), fullPng)
+  void (async () => {
+    try {
+      const dir = path.join(app.getPath('userData'), 'riven-debug')
+      await fs.promises.mkdir(dir, { recursive: true })
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      await Promise.all(
+        crops.map((buf, i) => {
+          const side = i === 0 ? 'current' : 'reroll'
+          return fs.promises.writeFile(path.join(dir, `${stamp}-${label}-${side}.png`), buf)
+        }),
+      )
+      if (fullPng?.length) {
+        await fs.promises.writeFile(path.join(dir, `${stamp}-${label}-full.png`), fullPng)
+      }
+      console.info(`[Everything Warframe] Saved riven debug crops → ${dir}`)
+    } catch (err) {
+      console.warn('[Everything Warframe] Could not save riven debug crops', err)
     }
-    console.info(`[Everything Warframe] Saved riven debug crops → ${dir}`)
-  } catch (err) {
-    console.warn('[Everything Warframe] Could not save riven debug crops', err)
-  }
+  })()
 }
 
 type Listener = (state: RivenScanState) => void
@@ -152,19 +155,37 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
           : ''),
     )
 
-    const weakRead =
+    let weakRead =
       !leftOk || !rightOk || left.stats.length < 3 || right.stats.length < 3
+
+    // Escalate to deep OCR on the same crops before waiting for a second capture.
+    if (weakRead) {
+      const deepTexts = await recognizeRivenBlocks(crops, { deep: true })
+      const deepLeft = parseRivenOcr(deepTexts[0] || '', 'current')
+      const deepRight = parseRivenOcr(deepTexts[1] || '', 'reroll')
+      if (deepLeft.stats.length >= left.stats.length) left = deepLeft
+      if (deepRight.stats.length >= right.stats.length) right = deepRight
+      leftOk = left.stats.length > 0
+      rightOk = right.stats.length > 0
+      texts = deepTexts
+      weakRead =
+        !leftOk || !rightOk || left.stats.length < 3 || right.stats.length < 3
+      console.info(
+        `[Everything Warframe] Riven deep OCR: current=${left.stats.length} stats, reroll=${right.stats.length} stats`,
+      )
+    }
+
     if (weakRead) {
       saveRivenDebugCrops(crops, 'weak', capture.fullPng)
     }
 
-    // Retry on empty OR partial reads (1–2 stats) — common when UI is still animating.
+    // Retry capture when still weak — common while Cycle UI is animating.
     if (weakRead) {
       const retryDelay = process.platform === 'linux' ? 1100 : 900
       await new Promise((r) => setTimeout(r, retryDelay))
       const retry = await captureRivenCompare()
       if (retry && retry.crops.length >= 2) {
-        const retryTexts = await recognizeRivenBlocks(retry.crops)
+        const retryTexts = await recognizeRivenBlocks(retry.crops, { deep: true })
         console.info(
           '[Everything Warframe] Riven OCR retry current:\n' +
             (retryTexts[0] || '(empty)').slice(0, 400),

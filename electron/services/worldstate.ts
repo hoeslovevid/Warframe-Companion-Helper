@@ -325,6 +325,10 @@ function mapDeepArchimedea(
 }
 
 export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
+  const arbitrationCommunityP = import('./arbitration')
+    .then((m) => m.getArbitrationInfo(8))
+    .catch(() => null)
+
   const [
     cetus,
     vallis,
@@ -339,6 +343,7 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     invasions,
     archonHunt,
     archimedeas,
+    arbCommunity,
   ] = await Promise.all([
     getJson<CyclePayload>('/cetusCycle'),
     getJson<CyclePayload>('/vallisCycle'),
@@ -420,6 +425,7 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
         }>
       }>
     >('/archimedeas').catch(() => []),
+    arbitrationCommunityP,
   ])
 
   const cycles: CycleInfo[] = [
@@ -453,14 +459,7 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
   const baro = mapBaro(voidTrader)
   const nw = mapNightwave(nightwave)
   // Prefer community hour schedule — official /arbitration is often a dead placeholder.
-  let arb: ArbitrationInfo | null = null
-  try {
-    const { getArbitrationInfo } = await import('./arbitration')
-    arb = await getArbitrationInfo(8)
-  } catch {
-    arb = mapArbitration(arbitration)
-  }
-  if (!arb) arb = mapArbitration(arbitration)
+  const arb = arbCommunity || mapArbitration(arbitration)
 
   return {
     fetchedAt: new Date().toISOString(),
@@ -475,6 +474,34 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     archonHunt: mapArchonHunt(archonHunt),
     deepArchimedea: mapDeepArchimedea(archimedeas),
   }
+}
+
+/** Soonest future expiry timestamp, or null if none usable. */
+export function nextWorldstateExpiryMs(data: WorldstateSnapshot, now = Date.now()): number | null {
+  const expiries: string[] = []
+  for (const c of data.cycles) if (c.expiry) expiries.push(c.expiry)
+  for (const f of data.fissures) if (f.expiry) expiries.push(f.expiry)
+  if (data.baro) {
+    if (data.baro.active && data.baro.departure) expiries.push(data.baro.departure)
+    else if (!data.baro.active && data.baro.arrival) expiries.push(data.baro.arrival)
+  }
+  if (data.arbitration?.expiry) expiries.push(data.arbitration.expiry)
+  if (data.nightwave?.expiry) expiries.push(data.nightwave.expiry)
+  for (const c of data.nightwave?.challenges || []) {
+    if (c.expiry) expiries.push(c.expiry)
+  }
+  if (data.archonHunt?.expiry) expiries.push(data.archonHunt.expiry)
+  if (data.deepArchimedea?.expiry) expiries.push(data.deepArchimedea.expiry)
+  for (const inv of data.invasions || []) if (inv.expiry) expiries.push(inv.expiry)
+
+  let soonest: number | null = null
+  for (const e of expiries) {
+    const end = new Date(e).getTime()
+    if (!Number.isFinite(end) || end > now + 1000 * 60 * 60 * 24 * 365 * 5) continue
+    if (end <= now) continue
+    if (soonest == null || end < soonest) soonest = end
+  }
+  return soonest
 }
 
 /** True when any cached countdown boundary has passed (main-process rollover). */

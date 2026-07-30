@@ -10,6 +10,7 @@ import {
   nativeImage,
   screen,
   shell,
+  type WebContents,
 } from 'electron'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -37,7 +38,7 @@ import {
 } from './services/uninstall'
 import { ensureWfinfoPrices } from './services/wfinfo-prices'
 import { defaultRivenAnchor } from '../shared/captureGeometry'
-import { fetchWorldstate, hasExpiredWorldstate } from './services/worldstate'
+import { fetchWorldstate, hasExpiredWorldstate, nextWorldstateExpiryMs } from './services/worldstate'
 import { detectEeLogPath } from './services/log-path'
 import {
   clearInventoryData,
@@ -280,8 +281,9 @@ function broadcastRivenScan() {
   }
 }
 
-function broadcastSettings(settings: AppSettings) {
+function broadcastSettings(settings: AppSettings, except?: WebContents) {
   for (const win of BrowserWindow.getAllWindows()) {
+    if (except && win.webContents === except) continue
     win.webContents.send('settings:changed', settings)
   }
 }
@@ -347,6 +349,7 @@ async function refreshWorldstate(force = false): Promise<WorldstateSnapshot> {
     }
   }
   broadcastWorldstate(worldstateCache)
+  scheduleWorldstateExpiryCheck()
   return worldstateCache
 }
 
@@ -761,6 +764,36 @@ function checkWorldstateExpiries() {
   )
 }
 
+/** Fire once at the next known expiry instead of polling every 2s. */
+function scheduleWorldstateExpiryCheck() {
+  if (expiryTimer) {
+    clearTimeout(expiryTimer)
+    expiryTimer = null
+  }
+  const data = worldstateCache
+  if (!data) {
+    expiryTimer = setTimeout(() => {
+      expiryTimer = null
+      scheduleWorldstateExpiryCheck()
+    }, 30_000)
+    return
+  }
+  if (hasExpiredWorldstate(data)) {
+    checkWorldstateExpiries()
+    return
+  }
+  const nextMs = nextWorldstateExpiryMs(data)
+  const delay =
+    nextMs == null
+      ? 60_000
+      : Math.min(Math.max(nextMs - Date.now() + 250, 750), 5 * 60_000)
+  expiryTimer = setTimeout(() => {
+    expiryTimer = null
+    checkWorldstateExpiries()
+    scheduleWorldstateExpiryCheck()
+  }, delay)
+}
+
 function applyLayoutEditMode(enabled: boolean) {
   if (!overlayWindow || overlayWindow.isDestroyed()) return
   setOverlayClickThrough(overlayWindow, !enabled)
@@ -971,7 +1004,7 @@ function getPrimaryDisplayInfo() {
 
 function registerIpc() {
   ipcMain.handle('settings:get', () => loadSettings())
-  ipcMain.handle('settings:update', (_e, partial: Partial<AppSettings>) => {
+  ipcMain.handle('settings:update', (e, partial: Partial<AppSettings>) => {
     const next = updateSettings(partial)
     if (partial.hotkeys) registerHotkeys()
     if (partial.layoutEditMode !== undefined) {
@@ -1004,12 +1037,13 @@ function registerIpc() {
     ) {
       void syncWidgetServerFromSettings()
     }
-    broadcastSettings(next)
+    // Caller already applied the returned settings — skip echoing to that window.
+    broadcastSettings(next, e.sender)
     return next
   })
-  ipcMain.handle('settings:setModule', (_e, id: ModuleId, enabled: boolean) => {
+  ipcMain.handle('settings:setModule', (e, id: ModuleId, enabled: boolean) => {
     const next = setModuleEnabled(id, enabled)
-    broadcastSettings(next)
+    broadcastSettings(next, e.sender)
     if (
       enabled &&
       process.platform === 'linux' &&
@@ -1372,7 +1406,7 @@ app.whenReady().then(async () => {
     void refreshWorldstate(true).catch((err) => console.error(err))
   }, 60_000)
 
-  expiryTimer = setInterval(() => checkWorldstateExpiries(), 2000)
+  scheduleWorldstateExpiryCheck()
 
   inventorySyncTimer = setInterval(() => {
     void (async () => {
@@ -1404,7 +1438,7 @@ app.on('will-quit', () => {
   stopOverlayWarframeGateWatcher()
   if (worldstateTimer) clearInterval(worldstateTimer)
   if (inventorySyncTimer) clearInterval(inventorySyncTimer)
-  if (expiryTimer) clearInterval(expiryTimer)
+  if (expiryTimer) clearTimeout(expiryTimer)
   void stopWidgetServer()
   disposePersistentCapture()
   void shutdownOcr()

@@ -153,6 +153,11 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Fix overlay vanishing while rearranging panels (Warframe-focus gate no longer hides during Ctrl+Tab edit)',
     'Layout unlock always starts locked on launch; OCR pause no longer leaves the overlay stuck hidden',
   ],
+  '0.9.40': [
+    'Performance: faster riven OCR (fewer passes unless a weak read), lighter Warframe-focus polling, snappier catalog matches',
+    'Performance: countdown clock only re-renders timer panels; worldstate expiry checks on demand; less settings IPC chatter',
+    'Companion: scroll inside module panels + polished theme scrollbars',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
