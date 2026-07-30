@@ -128,7 +128,7 @@ export function MasteryPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
           </p>
         </div>
 
-        <ul className="foundry-list vl-stagger" style={{ maxHeight: 'none' }}>
+        <ul className="foundry-list vl-stagger">
           {items.map((item) => (
             <li key={item.uniqueName}>
               <button

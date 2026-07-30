@@ -23,45 +23,70 @@ function cleanRelicOcr(ocrText: string): string {
 }
 
 function saveRelicDebugCrops(bands: Buffer[][], label: string, fullPng?: Buffer) {
-  try {
-    const dir = path.join(app.getPath('userData'), 'relic-debug')
-    fs.mkdirSync(dir, { recursive: true })
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    bands.forEach((slotBands, slot) => {
-      slotBands.forEach((buf, band) => {
-        fs.writeFileSync(path.join(dir, `${stamp}-${label}-s${slot}-b${band}.png`), buf)
+  void (async () => {
+    try {
+      const dir = path.join(app.getPath('userData'), 'relic-debug')
+      await fs.promises.mkdir(dir, { recursive: true })
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const writes: Promise<void>[] = []
+      bands.forEach((slotBands, slot) => {
+        slotBands.forEach((buf, band) => {
+          writes.push(
+            fs.promises.writeFile(path.join(dir, `${stamp}-${label}-s${slot}-b${band}.png`), buf),
+          )
+        })
       })
-    })
-    if (fullPng?.length) {
-      fs.writeFileSync(path.join(dir, `${stamp}-${label}-full.png`), fullPng)
+      if (fullPng?.length) {
+        writes.push(fs.promises.writeFile(path.join(dir, `${stamp}-${label}-full.png`), fullPng))
+      }
+      await Promise.all(writes)
+      console.info(`[Everything Warframe] Saved relic debug crops → ${dir}`)
+    } catch (err) {
+      console.warn('[Everything Warframe] Could not save relic debug crops', err)
     }
-    console.info(`[Everything Warframe] Saved relic debug crops → ${dir}`)
-  } catch (err) {
-    console.warn('[Everything Warframe] Could not save relic debug crops', err)
+  })()
+}
+
+function scoreOcrCandidate(cleaned: string): number {
+  if (!cleaned) return -1
+  const matched = matchCatalogItem(cleaned)
+  if (matched) return matched.score
+  if (
+    cleaned.length >= 8 &&
+    /prime|blueprint|systems|chassis|neuro|barrel|receiver|blade|stock|link|grip|handle|string|hilt/i.test(
+      cleaned,
+    )
+  ) {
+    return 0.35
   }
+  if (cleaned.length > 4) return 0.12
+  return 0
 }
 
 /** Pick the OCR string that best matches the item catalog (or longest fallback). */
 async function bestOcrForSlot(bandCrops: Buffer[], theme: WfThemeId | null): Promise<string> {
   if (!bandCrops.length) return ''
-  const texts = await recognizeRewardNames(bandCrops, theme)
+  // Variants are [above, primary, below] — try primary first, then neighbors only if weak.
+  const order =
+    bandCrops.length >= 3
+      ? [1, 0, 2, ...Array.from({ length: bandCrops.length - 3 }, (_, i) => i + 3)]
+      : bandCrops.map((_, i) => i)
+
   let best = ''
   let bestScore = -1
-  for (const raw of texts) {
-    const cleaned = cleanRelicOcr(raw)
+  for (const idx of order) {
+    const crop = bandCrops[idx]
+    if (!crop) continue
+    const [raw] = await recognizeRewardNames([crop], theme)
+    const cleaned = cleanRelicOcr(raw || '')
     if (!cleaned) continue
-    const matched = matchCatalogItem(cleaned)
-    const score =
-      matched?.score ??
-      (cleaned.length >= 8 && /prime|blueprint|systems|chassis|neuro|barrel|receiver|blade|stock|link|grip|handle|string|hilt/i.test(cleaned)
-        ? 0.35
-        : cleaned.length > 4
-          ? 0.12
-          : 0)
+    const score = scoreOcrCandidate(cleaned)
     if (score > bestScore || (score === bestScore && cleaned.length > best.length)) {
       bestScore = score
       best = cleaned
     }
+    // Strong catalog hit — skip remaining bands for this slot.
+    if (bestScore >= 0.72) break
   }
   return best
 }
@@ -228,7 +253,8 @@ export async function scanRelicRewards(
     ])
     if (trigger === 'log') {
       // Wine/Proton often buffers EE.log; UI may still be animating after the marker.
-      const delay = process.platform === 'linux' ? 1800 : 1200
+      // Keep this short — reward pick timer is tight.
+      const delay = process.platform === 'linux' ? 900 : 450
       await new Promise((r) => setTimeout(r, delay))
     }
 
@@ -264,14 +290,17 @@ export async function scanRelicRewards(
           ? cropRelicBandsFromPng(capture.fullPng, capture.width, capture.height, 3)
           : capture.bands
 
-      const ocrNames: string[] = []
-      for (let slot = 0; slot < bands.length; slot++) {
-        const best = await bestOcrForSlot(bands[slot], theme)
-        ocrNames.push(best)
-        console.info(
-          `[Everything Warframe] Relic OCR slot ${slot}: ${best || '(empty)'}`,
-        )
-      }
+      // OCR all slots in parallel (primary band first per slot).
+      const ocrNames = await Promise.all(
+        bands.map((slotBands, slot) =>
+          bestOcrForSlot(slotBands, theme).then((best) => {
+            console.info(
+              `[Everything Warframe] Relic OCR slot ${slot}: ${best || '(empty)'}`,
+            )
+            return best
+          }),
+        ),
+      )
 
       let next: RewardEval[] = ocrNames.map((cleaned, slot) => {
         const matched = matchCatalogItem(cleaned)
@@ -341,7 +370,7 @@ export async function scanRelicRewards(
     // Proton log flush / UI paint can lag — one retry when the first pass is empty.
     if (!useful) {
       console.info('[Everything Warframe] Relic OCR weak — retrying capture…')
-      await new Promise((r) => setTimeout(r, process.platform === 'linux' ? 1400 : 1000))
+      await new Promise((r) => setTimeout(r, process.platform === 'linux' ? 700 : 400))
       rewards = await buildRewards(true)
       useful = rewards.some((r) => r.matchScore >= 0.45)
     }
@@ -356,22 +385,13 @@ export async function scanRelicRewards(
       )
     }
 
-    // Local WFInfo price DB first (instant) — live warframe.market only fills gaps.
+    // Local WFInfo prices first (instant), then show the strip immediately.
     try {
       const local = lookupWfinfoPrices(rewards.map((r) => r.name))
       rewards = rewards.map((r) => {
         const hit = local.get(r.name)
         return hit ? { ...r, platinum: hit.platinum, volume: hit.volume } : r
       })
-      const missing = rewards.filter((r) => r.platinum == null).map((r) => r.name)
-      if (missing.length) {
-        const live = await lookupMarketPrices(missing)
-        rewards = rewards.map((r) => {
-          if (r.platinum != null) return r
-          const hit = live.get(r.name)
-          return hit ? { ...r, platinum: hit.platinum, volume: hit.volume } : r
-        })
-      }
     } catch {
       // pricing optional
     }
@@ -391,6 +411,28 @@ export async function scanRelicRewards(
     }
     emit()
     scheduleAutoHide(AUTO_HIDE_SUCCESS_MS)
+
+    // Live market fill-in after the overlay is already visible (don't burn pick timer).
+    const missing = rewards.filter((r) => r.platinum == null).map((r) => r.name)
+    if (missing.length) {
+      void lookupMarketPrices(missing)
+        .then((live) => {
+          if (!state.active || state.scanning) return
+          let changed = false
+          const next = state.rewards.map((r) => {
+            if (r.platinum != null) return r
+            const hit = live.get(r.name)
+            if (!hit) return r
+            changed = true
+            return { ...r, platinum: hit.platinum, volume: hit.volume }
+          })
+          if (!changed) return
+          state = { ...state, rewards: pickBest(next) }
+          emit()
+        })
+        .catch(() => {})
+    }
+
     return state
   } catch (err) {
     state = {

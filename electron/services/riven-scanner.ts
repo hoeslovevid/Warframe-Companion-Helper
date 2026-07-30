@@ -155,25 +155,41 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
           : ''),
     )
 
-    let weakRead =
-      !leftOk || !rightOk || left.stats.length < 3 || right.stats.length < 3
+    const leftWeak = !leftOk || left.stats.length < 3
+    const rightWeak = !rightOk || right.stats.length < 3
 
-    // Escalate to deep OCR on the same crops before waiting for a second capture.
-    if (weakRead) {
-      const deepTexts = await recognizeRivenBlocks(crops, { deep: true })
-      const deepLeft = parseRivenOcr(deepTexts[0] || '', 'current')
-      const deepRight = parseRivenOcr(deepTexts[1] || '', 'reroll')
-      if (deepLeft.stats.length >= left.stats.length) left = deepLeft
-      if (deepRight.stats.length >= right.stats.length) right = deepRight
+    // Deep-OCR only the weak card(s) — avoid re-running a good side.
+    if (leftWeak || rightWeak) {
+      const deepInputs: Buffer[] = []
+      const deepSides: Array<'current' | 'reroll'> = []
+      if (leftWeak) {
+        deepInputs.push(crops[0])
+        deepSides.push('current')
+      }
+      if (rightWeak) {
+        deepInputs.push(crops[1])
+        deepSides.push('reroll')
+      }
+      const deepTexts = await recognizeRivenBlocks(deepInputs, { deep: true })
+      deepSides.forEach((side, i) => {
+        const parsed = parseRivenOcr(deepTexts[i] || '', side)
+        if (side === 'current' && parsed.stats.length >= left.stats.length) {
+          left = parsed
+          texts[0] = deepTexts[i] || texts[0]
+        }
+        if (side === 'reroll' && parsed.stats.length >= right.stats.length) {
+          right = parsed
+          texts[1] = deepTexts[i] || texts[1]
+        }
+      })
       leftOk = left.stats.length > 0
       rightOk = right.stats.length > 0
-      texts = deepTexts
-      weakRead =
-        !leftOk || !rightOk || left.stats.length < 3 || right.stats.length < 3
       console.info(
         `[Everything Warframe] Riven deep OCR: current=${left.stats.length} stats, reroll=${right.stats.length} stats`,
       )
     }
+
+    let weakRead = !leftOk || !rightOk || left.stats.length < 3 || right.stats.length < 3
 
     if (weakRead) {
       saveRivenDebugCrops(crops, 'weak', capture.fullPng)

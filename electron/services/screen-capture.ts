@@ -49,7 +49,7 @@ async function withOverlayPaused<T>(fn: () => Promise<T>): Promise<T> {
   const resume = pauseOverlayForCapture?.()
   try {
     // Overlay hide is async on Wayland/XWayland — give the compositor time.
-    const settleMs = isPersistentCaptureLive() ? 80 : process.platform === 'linux' ? 220 : 100
+    const settleMs = isPersistentCaptureLive() ? 60 : process.platform === 'linux' ? 180 : 70
     await new Promise((r) => setTimeout(r, settleMs))
     return await fn()
   } finally {

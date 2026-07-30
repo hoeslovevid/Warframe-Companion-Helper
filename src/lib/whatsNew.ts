@@ -158,6 +158,11 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Performance: countdown clock only re-renders timer panels; worldstate expiry checks on demand; less settings IPC chatter',
     'Companion: scroll inside module panels + polished theme scrollbars',
   ],
+  '0.9.41': [
+    'Riven OCR: fix glitchy reads from stats-band merge; deep-OCR only weak cards',
+    'Relic OCR: much faster — parallel slots, primary band first, show results before live market lookup',
+    'Foundry / Relic Planner: scroll list and detail panes instead of the whole page',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

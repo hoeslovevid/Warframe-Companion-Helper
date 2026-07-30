@@ -34,9 +34,20 @@ type PaddleModule = {
 let paddle: PaddleOcr | null = null
 let paddleLoading: Promise<PaddleOcr | null> | null = null
 let paddleFailed = false
+/** Serialize Paddle detect() — the ONNX engine is not safely re-entrant. */
+let paddleDetectChain: Promise<unknown> = Promise.resolve()
 
 let tessWorker: Worker | null = null
 let tessLoading: Promise<Worker> | null = null
+
+function withPaddleDetect<T>(fn: () => Promise<T>): Promise<T> {
+  const run = paddleDetectChain.then(fn, fn)
+  paddleDetectChain = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
 
 const RELIC_WHITELIST =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 '&-"
@@ -285,18 +296,20 @@ function filterRivenLines(lines: string[]): string[] {
 }
 
 async function detectPrepared(engine: PaddleOcr, prepared: Buffer): Promise<string[]> {
-  const file = tmpPngPath('paddle')
-  try {
-    await fs.promises.writeFile(file, prepared)
-    const result = await engine.detect(file)
-    return linesFromPaddle(result)
-  } finally {
+  return withPaddleDetect(async () => {
+    const file = tmpPngPath('paddle')
     try {
-      await fs.promises.unlink(file)
-    } catch {
-      // ignore
+      await fs.promises.writeFile(file, prepared)
+      const result = await engine.detect(file)
+      return linesFromPaddle(result)
+    } finally {
+      try {
+        await fs.promises.unlink(file)
+      } catch {
+        // ignore
+      }
     }
-  }
+  })
 }
 
 async function recognizeRelicsTess(
@@ -310,7 +323,7 @@ async function recognizeRelicsTess(
   })
   const names: string[] = []
   for (const png of images) {
-    const prepared = await prepareRelicPng(png, 2.4, theme)
+    const prepared = await prepareRelicPng(png, 2.0, theme)
     const result = await w.recognize(prepared)
     const text = (result.data.text || '')
       .split(/\r?\n/)
@@ -359,13 +372,14 @@ export async function recognizeRewardNames(
 ): Promise<string[]> {
   const engine = await loadPaddle()
   if (engine) {
-    const out: string[] = []
-    for (const png of images) {
-      const prepared = await prepareRelicPng(png, 2.4, theme)
-      const lines = await detectPrepared(engine, prepared)
-      out.push(lines.join(' ').replace(/\s+/g, ' ').trim())
-    }
-    return out
+    return Promise.all(
+      images.map(async (png) => {
+        // 2.0× is enough for name lines and much faster than 2.4× on 4 slots.
+        const prepared = await prepareRelicPng(png, 2.0, theme)
+        const lines = await detectPrepared(engine, prepared)
+        return lines.join(' ').replace(/\s+/g, ' ').trim()
+      }),
+    )
   }
   return recognizeRelicsTess(images, theme)
 }
@@ -423,7 +437,8 @@ async function rivenStatsBandPasses(
 
 /**
  * OCR each full riven card independently (current / reroll).
- * Fast path: 1 full pass + 1 stats band (~2×). Deep: harsh + extra bands for weak reads.
+ * Fast path: full-card normal + harsh only (bands glitch the parser when merged).
+ * Deep: adds stats-band crops when a card is still weak.
  */
 export async function recognizeRivenBlocks(
   images: Buffer[],
@@ -433,37 +448,39 @@ export async function recognizeRivenBlocks(
   if (!engine) return recognizeRivensTess(images)
 
   const deep = opts?.deep === true
-  const out: string[] = []
-  for (const png of images) {
+
+  const readOne = async (png: Buffer): Promise<string> => {
     const passes: string[][] = []
 
     const fullPrep = await prepareRivenCard(png, 'normal')
     passes.push(filterRivenLines(await detectPrepared(engine, fullPrep)))
 
+    const harshPrep = await prepareRivenCard(png, 'harsh')
+    passes.push(filterRivenLines(await detectPrepared(engine, harshPrep)))
+
     if (deep) {
-      const harshPrep = await prepareRivenCard(png, 'harsh')
-      passes.push(filterRivenLines(await detectPrepared(engine, harshPrep)))
-      passes.push(
-        ...(await rivenStatsBandPasses(
-          engine,
-          png,
-          [
-            { top: 0.3, height: 0.55 },
-            { top: 0.42, height: 0.48 },
-          ],
-          'both',
-        )),
+      // Band lines often miss weapon titles — only keep clear ±stat rows.
+      const bandPasses = await rivenStatsBandPasses(
+        engine,
+        png,
+        [
+          { top: 0.3, height: 0.55 },
+          { top: 0.42, height: 0.48 },
+        ],
+        'both',
       )
-    } else {
-      // One mid-band pass covers most rolled lines without 6× inference cost.
-      passes.push(
-        ...(await rivenStatsBandPasses(engine, png, [{ top: 0.32, height: 0.55 }], 'normal')),
-      )
+      for (const lines of bandPasses) {
+        passes.push(
+          lines.filter((line) => /^[+\-–—]?\s*\d/.test(line) || /%|x\d/i.test(line)),
+        )
+      }
     }
 
-    out.push(mergeRivenPasses(passes))
+    return mergeRivenPasses(passes)
   }
-  return out
+
+  // Cards are independent — OCR both in parallel.
+  return Promise.all(images.map((png) => readOne(png)))
 }
 
 export async function warmupOcr(): Promise<void> {
