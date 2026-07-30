@@ -444,6 +444,8 @@ export type AppSettings = {
   widgetServerPort: number
   /** After first-run checklist, minimize companion to tray on launch. */
   quietMode: boolean
+  /** Collapse companion sidebar to icon-only. */
+  navCollapsed: boolean
   /** Auto-resync inventory while Warframe is running. */
   inventoryAutoSync: boolean
   /** Last app version for which “What’s new” was dismissed. */
@@ -637,6 +639,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   widgetServerEnabled: false,
   widgetServerPort: 17862,
   quietMode: false,
+  navCollapsed: false,
   inventoryAutoSync: true,
   lastSeenVersion: '',
   onboarding: {

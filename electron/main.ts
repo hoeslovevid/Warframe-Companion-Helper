@@ -60,12 +60,14 @@ import {
   onRelicScanUpdated,
   scanRelicRewards,
   setRelicSquadSizeHint,
+  warmupRelicScanner,
 } from './services/relic-scanner'
 import {
   clearRivenScan,
   getRivenScanState,
   onRivenScanUpdated,
   scanRivens,
+  warmupRivenScanner,
 } from './services/riven-scanner'
 import { shutdownOcr } from './services/ocr'
 import { getFoundryTree, listFoundryItems } from './services/foundry'
@@ -1423,8 +1425,36 @@ app.whenReady().then(async () => {
     console.error('Initial worldstate fetch failed', err)
   }
 
-  // OCR/catalog warmup deferred until first relic scan (avoids startup CPU/RAM spike)
-  // Prefetch local WFInfo price DB early so relic scans stay offline-fast.
+  // Prefetch prices + warm OCR/catalog while idle so the first scan isn't cold.
+  // Delayed so launch stays snappy; still finishes before a typical mission load.
+  if (loadSettings().modules.relics || loadSettings().modules.rivens) {
+    setTimeout(() => {
+      void (async () => {
+        const settings = loadSettings()
+        console.info('[Everything Warframe] Warming OCR / catalogs…')
+        try {
+          if (settings.modules.relics) {
+            await warmupRelicScanner()
+          } else if (settings.modules.rivens) {
+            await warmupRivenScanner()
+          }
+          if (
+            process.platform !== 'linux' ||
+            settings.onboarding.linuxCaptureAck
+          ) {
+            await warmScreenCapture().catch(() => {})
+          }
+          console.info('[Everything Warframe] OCR / catalog warmup done')
+        } catch (err) {
+          console.warn(
+            '[Everything Warframe] OCR warmup failed',
+            err instanceof Error ? err.message : err,
+          )
+        }
+      })()
+    }, 3500)
+  }
+
   if (loadSettings().modules.relics) {
     setTimeout(() => {
       void ensureWfinfoPrices().catch(() => {})
@@ -1434,6 +1464,7 @@ app.whenReady().then(async () => {
   // Linux/Wayland: only warm the PipeWire share after the user has authorized
   // (or skipped) via the capture wizard — auto-prompting at launch races the
   // wizard and can open a second portal that freezes the session.
+  // (Also covered by the OCR warmup path above when linuxCaptureAck is set.)
   if (
     process.platform === 'linux' &&
     loadSettings().onboarding.linuxCaptureAck &&

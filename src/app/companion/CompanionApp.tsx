@@ -323,11 +323,11 @@ export function CompanionApp() {
             Overlay {overlayCue === 'on' ? 'ON' : 'OFF'}
           </div>
         ) : null}
-        <div className="companion-shell">
-          <aside className="companion-nav">
+        <div className={`companion-shell${settings.navCollapsed ? ' is-nav-collapsed' : ''}`}>
+          <aside className={`companion-nav${settings.navCollapsed ? ' is-collapsed' : ''}`}>
             <div className="brand-lockup">
               <div className="brand-mark" aria-hidden />
-              <div>
+              <div className="brand-lockup__text">
                 <h1 className="brand">Everything Warframe</h1>
               </div>
             </div>
@@ -474,6 +474,31 @@ export function CompanionApp() {
                 </svg>
               </span>
               Help
+            </button>
+            <button
+              type="button"
+              className="nav-btn nav-collapse-btn"
+              title={settings.navCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={settings.navCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!settings.navCollapsed}
+              onClick={() => void updateSettings({ navCollapsed: !settings.navCollapsed })}
+            >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  {settings.navCollapsed ? (
+                    <>
+                      <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 3v10" strokeLinecap="round" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M13 3v10" strokeLinecap="round" />
+                    </>
+                  )}
+                </svg>
+              </span>
+              {settings.navCollapsed ? 'Expand' : 'Collapse'}
             </button>
           </aside>
 

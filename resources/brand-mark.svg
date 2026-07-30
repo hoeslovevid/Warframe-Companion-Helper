@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <!-- Companion .brand-mark, scaled from 34px CSS ? 256px canvas -->
+  <defs>
+    <linearGradient id="wash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4ab5ac" stop-opacity="0.28"/>
+      <stop offset="70%" stop-color="#4ab5ac" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="63.5" ry="63.5" fill="#0a1016"/>
+  <rect x="8" y="8" width="240" height="240" rx="63.5" ry="63.5" fill="url(#wash)"/>
+  <rect
+    x="11.5"
+    y="11.5"
+    width="233"
+    height="233"
+    rx="61"
+    ry="61"
+    stroke="#4ab5ac"
+    stroke-opacity="0.35"
+    stroke-width="7"
+  />
+  <!-- CSS ::after: inset square, top+right borders only, rotate(45deg) ? chevron -->
+  <g transform="translate(128 128) rotate(45)">
+    <path
+      d="M -63.5 -63.5 H 63.5 V 63.5"
+      stroke="#4ab5ac"
+      stroke-opacity="0.78"
+      stroke-width="11"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

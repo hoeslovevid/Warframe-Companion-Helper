@@ -179,6 +179,12 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Market: create buy/sell orders and riven/lich/sister contracts from the companion',
     'Inventory browser: show WFCD / recipe catalog names instead of raw path leaves',
   ],
+  '0.9.45': [
+    'Companion sidebar can collapse to icons only (persists across restarts)',
+    'App / tray / installer icon matches the companion brand mark',
+    'OCR: warm Paddle at idle, in-memory detects (no temp files), priority boost while scanning',
+    'OCR: fewer relic band / riven passes unless the first read is weak',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

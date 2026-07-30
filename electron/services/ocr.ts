@@ -19,8 +19,14 @@ type PaddleResult = {
   rawTexts?: string[]
 }
 
+type ImageRawData = {
+  data: Uint8Array | Uint8ClampedArray
+  width: number
+  height: number
+}
+
 type PaddleOcr = {
-  detect: (image: string) => Promise<PaddleResult>
+  detect: (image: string | ImageRawData) => Promise<PaddleResult>
 }
 
 type PaddleModule = {
@@ -40,6 +46,10 @@ let paddleDetectChain: Promise<unknown> = Promise.resolve()
 let tessWorker: Worker | null = null
 let tessLoading: Promise<Worker> | null = null
 
+/** Reused scratch path if buffer detect fails (rare). */
+let paddleScratchPath: string | null = null
+let ocrPriorityDepth = 0
+
 function withPaddleDetect<T>(fn: () => Promise<T>): Promise<T> {
   const run = paddleDetectChain.then(fn, fn)
   paddleDetectChain = run.then(
@@ -58,11 +68,39 @@ const RIVEN_WHITELIST =
 const RIVEN_NOISE =
   /^(accept|decline|cycle|kuva|confirm|cancel|riven|keep|take|current|new|reroll|vs|polarity|rank|mr\.?|mastery|disposition|ok|yes|no)$/i
 
-function tmpPngPath(tag: string) {
-  return path.join(
-    os.tmpdir(),
-    `everything-warframe-${tag}-${Date.now()}-${Math.random().toString(36).slice(2)}.png`,
-  )
+function getScratchPath() {
+  if (!paddleScratchPath) {
+    paddleScratchPath = path.join(os.tmpdir(), `everything-warframe-paddle-${process.pid}.png`)
+  }
+  return paddleScratchPath
+}
+
+/** Briefly raise priority while OCR runs so Warframe doesn't starve us. */
+export async function withOcrPriority<T>(fn: () => Promise<T>): Promise<T> {
+  ocrPriorityDepth += 1
+  if (ocrPriorityDepth === 1) {
+    try {
+      os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL)
+    } catch {
+      try {
+        os.setPriority(os.constants.priority.PRIORITY_NORMAL)
+      } catch {
+        // ignore
+      }
+    }
+  }
+  try {
+    return await fn()
+  } finally {
+    ocrPriorityDepth -= 1
+    if (ocrPriorityDepth === 0) {
+      try {
+        os.setPriority(os.constants.priority.PRIORITY_BELOW_NORMAL)
+      } catch {
+        // ignore
+      }
+    }
+  }
 }
 
 async function loadPaddle(): Promise<PaddleOcr | null> {
@@ -295,19 +333,38 @@ function filterRivenLines(lines: string[]): string[] {
   })
 }
 
+function countRivenStatHints(lines: string[]): number {
+  return lines.filter(
+    (line) => /^[+\-–—]?\s*\d/.test(line) || /%|x\d/i.test(line),
+  ).length
+}
+
+async function pngToRaw(png: Buffer): Promise<ImageRawData> {
+  const sharp = nodeRequire('sharp') as typeof import('sharp')
+  const { data, info } = await sharp(png)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  return {
+    data: new Uint8Array(data),
+    width: info.width,
+    height: info.height,
+  }
+}
+
 async function detectPrepared(engine: PaddleOcr, prepared: Buffer): Promise<string[]> {
   return withPaddleDetect(async () => {
-    const file = tmpPngPath('paddle')
+    // Prefer in-memory raw pixels — avoids temp-file write/read per detect.
     try {
+      const raw = await pngToRaw(prepared)
+      const result = await engine.detect(raw)
+      return linesFromPaddle(result)
+    } catch {
+      // Fallback: reused scratch file (some builds only accept paths).
+      const file = getScratchPath()
       await fs.promises.writeFile(file, prepared)
       const result = await engine.detect(file)
       return linesFromPaddle(result)
-    } finally {
-      try {
-        await fs.promises.unlink(file)
-      } catch {
-        // ignore
-      }
     }
   })
 }
@@ -370,18 +427,20 @@ export async function recognizeRewardNames(
   images: Buffer[],
   theme?: WfThemeId | null,
 ): Promise<string[]> {
-  const engine = await loadPaddle()
-  if (engine) {
-    return Promise.all(
-      images.map(async (png) => {
-        // 2.0× is enough for name lines and much faster than 2.4× on 4 slots.
-        const prepared = await prepareRelicPng(png, 2.0, theme)
-        const lines = await detectPrepared(engine, prepared)
-        return lines.join(' ').replace(/\s+/g, ' ').trim()
-      }),
-    )
-  }
-  return recognizeRelicsTess(images, theme)
+  return withOcrPriority(async () => {
+    const engine = await loadPaddle()
+    if (engine) {
+      return Promise.all(
+        images.map(async (png) => {
+          // 2.0× is enough for name lines and much faster than 2.4× on 4 slots.
+          const prepared = await prepareRelicPng(png, 2.0, theme)
+          const lines = await detectPrepared(engine, prepared)
+          return lines.join(' ').replace(/\s+/g, ' ').trim()
+        }),
+      )
+    }
+    return recognizeRelicsTess(images, theme)
+  })
 }
 
 function mergeRivenPasses(passes: string[][]): string {
@@ -437,56 +496,88 @@ async function rivenStatsBandPasses(
 
 /**
  * OCR each full riven card independently (current / reroll).
- * Fast path: full-card normal + harsh only (bands glitch the parser when merged).
- * Deep: adds stats-band crops when a card is still weak.
+ * Fast path: one normal full-card pass; harsh only if that read looks weak.
+ * Deep: adds harsh + stats-band crops (caller uses when parse is still weak).
  */
 export async function recognizeRivenBlocks(
   images: Buffer[],
   opts?: { deep?: boolean },
 ): Promise<string[]> {
-  const engine = await loadPaddle()
-  if (!engine) return recognizeRivensTess(images)
+  return withOcrPriority(async () => {
+    const engine = await loadPaddle()
+    if (!engine) return recognizeRivensTess(images)
 
-  const deep = opts?.deep === true
+    const deep = opts?.deep === true
 
-  const readOne = async (png: Buffer): Promise<string> => {
-    const passes: string[][] = []
+    const readOne = async (png: Buffer): Promise<string> => {
+      const passes: string[][] = []
 
-    const fullPrep = await prepareRivenCard(png, 'normal')
-    passes.push(filterRivenLines(await detectPrepared(engine, fullPrep)))
+      const fullPrep = await prepareRivenCard(png, 'normal')
+      const normalLines = filterRivenLines(await detectPrepared(engine, fullPrep))
+      passes.push(normalLines)
 
-    const harshPrep = await prepareRivenCard(png, 'harsh')
-    passes.push(filterRivenLines(await detectPrepared(engine, harshPrep)))
-
-    if (deep) {
-      // Band lines often miss weapon titles — only keep clear ±stat rows.
-      const bandPasses = await rivenStatsBandPasses(
-        engine,
-        png,
-        [
-          { top: 0.3, height: 0.55 },
-          { top: 0.42, height: 0.48 },
-        ],
-        'both',
-      )
-      for (const lines of bandPasses) {
-        passes.push(
-          lines.filter((line) => /^[+\-–—]?\s*\d/.test(line) || /%|x\d/i.test(line)),
-        )
+      const weakNormal = countRivenStatHints(normalLines) < 2
+      if (deep || weakNormal) {
+        const harshPrep = await prepareRivenCard(png, 'harsh')
+        passes.push(filterRivenLines(await detectPrepared(engine, harshPrep)))
       }
+
+      if (deep) {
+        // Band lines often miss weapon titles — only keep clear ±stat rows.
+        const bandPasses = await rivenStatsBandPasses(
+          engine,
+          png,
+          [
+            { top: 0.3, height: 0.55 },
+            { top: 0.42, height: 0.48 },
+          ],
+          'both',
+        )
+        for (const lines of bandPasses) {
+          passes.push(
+            lines.filter((line) => /^[+\-–—]?\s*\d/.test(line) || /%|x\d/i.test(line)),
+          )
+        }
+      }
+
+      return mergeRivenPasses(passes)
     }
 
-    return mergeRivenPasses(passes)
-  }
+    // Cards are independent — prep in parallel; detect() stays serialized.
+    return Promise.all(images.map((png) => readOne(png)))
+  })
+}
 
-  // Cards are independent — OCR both in parallel.
-  return Promise.all(images.map((png) => readOne(png)))
+function tinyWarmupPng(): Buffer {
+  // 64×24 white strip with a dark glyph — enough to JIT detection + recognition.
+  const w = 64
+  const h = 24
+  const bitmap = Buffer.alloc(w * h * 4, 255)
+  for (let y = 6; y < 18; y++) {
+    for (let x = 20; x < 44; x++) {
+      const i = (y * w + x) * 4
+      bitmap[i] = bitmap[i + 1] = bitmap[i + 2] = 20
+    }
+  }
+  return nativeImage.createFromBitmap(bitmap, { width: w, height: h }).toPNG()
 }
 
 export async function warmupOcr(): Promise<void> {
   const engine = await loadPaddle()
-  if (engine) return
+  if (engine) {
+    try {
+      await detectPrepared(engine, tinyWarmupPng())
+      console.info('[Everything Warframe] OCR warmup: Paddle ready')
+    } catch (err) {
+      console.warn(
+        '[Everything Warframe] OCR warmup detect skipped',
+        err instanceof Error ? err.message : err,
+      )
+    }
+    return
+  }
   await getTessWorker()
+  console.info('[Everything Warframe] OCR warmup: Tesseract ready')
 }
 
 export async function shutdownOcr(): Promise<void> {
@@ -498,6 +589,14 @@ export async function shutdownOcr(): Promise<void> {
   }
   paddle = null
   paddleLoading = null
+  if (paddleScratchPath) {
+    try {
+      await fs.promises.unlink(paddleScratchPath)
+    } catch {
+      // ignore
+    }
+    paddleScratchPath = null
+  }
   if (tessWorker) {
     await tessWorker.terminate().catch(() => {})
     tessWorker = null

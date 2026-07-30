@@ -74,10 +74,12 @@ async function bestOcrForSlot(bandCrops: Buffer[], theme: WfThemeId | null): Pro
 
   let best = ''
   let bestScore = -1
+  let tried = 0
   for (const idx of order) {
     const crop = bandCrops[idx]
     if (!crop) continue
     const [raw] = await recognizeRewardNames([crop], theme)
+    tried += 1
     const cleaned = cleanRelicOcr(raw || '')
     if (!cleaned) continue
     const score = scoreOcrCandidate(cleaned)
@@ -85,8 +87,10 @@ async function bestOcrForSlot(bandCrops: Buffer[], theme: WfThemeId | null): Pro
       bestScore = score
       best = cleaned
     }
-    // Strong catalog hit — skip remaining bands for this slot.
-    if (bestScore >= 0.72) break
+    // Catalog hit — skip remaining neighbors.
+    if (bestScore >= 0.45) break
+    // After two attempts with something readable, stop burning OCR slots.
+    if (tried >= 2 && best.length >= 6) break
   }
   return best
 }

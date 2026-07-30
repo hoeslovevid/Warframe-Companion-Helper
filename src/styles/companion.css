@@ -206,6 +206,63 @@
   color: var(--vl-accent);
 }
 
+.companion-shell.is-nav-collapsed {
+  grid-template-columns: 64px 1fr;
+}
+
+.companion-nav.is-collapsed {
+  padding: 16px 8px 12px;
+  align-items: stretch;
+}
+
+.companion-nav.is-collapsed .brand-lockup {
+  justify-content: center;
+  padding: 0;
+  margin-bottom: 10px;
+}
+
+.companion-nav.is-collapsed .brand-lockup__text,
+.companion-nav.is-collapsed .brand-sub,
+.companion-nav.is-collapsed .nav-section {
+  display: none;
+}
+
+.companion-nav.is-collapsed .nav-btn {
+  justify-content: center;
+  padding: 10px 8px;
+  gap: 0;
+  font-size: 0;
+  letter-spacing: 0;
+}
+
+.companion-nav.is-collapsed .nav-btn::before {
+  left: 1px;
+  top: 10px;
+  bottom: 10px;
+}
+
+.companion-nav.is-collapsed .nav-btn__icon {
+  width: 18px;
+  height: 18px;
+  color: var(--vl-mist);
+  opacity: 0.78;
+}
+
+.companion-nav.is-collapsed .nav-btn:hover .nav-btn__icon {
+  color: var(--vl-frost);
+  opacity: 0.95;
+}
+
+.companion-nav.is-collapsed .nav-btn.active .nav-btn__icon {
+  color: var(--vl-accent);
+  opacity: 1;
+}
+
+.nav-collapse-btn {
+  margin-top: auto;
+  margin-bottom: 0;
+}
+
 .companion-main {
   padding: 28px 36px 48px;
   overflow: auto;
@@ -392,7 +449,8 @@
 }
 
 @media (max-width: 980px) {
-  .companion-shell {
+  .companion-shell,
+  .companion-shell.is-nav-collapsed {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 100vh;

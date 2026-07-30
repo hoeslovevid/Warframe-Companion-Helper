@@ -243,6 +243,7 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
         ? Math.floor(raw.widgetServerPort)
         : base.widgetServerPort,
     quietMode: raw.quietMode ?? base.quietMode,
+    navCollapsed: raw.navCollapsed ?? base.navCollapsed,
     overlayOnlyInWarframe:
       typeof (raw as { overlayOnlyInWarframe?: boolean }).overlayOnlyInWarframe === 'boolean'
         ? (raw as { overlayOnlyInWarframe: boolean }).overlayOnlyInWarframe
