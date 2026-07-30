@@ -96,11 +96,6 @@
   opacity: 0.85;
 }
 
-.inventory-path {
-  opacity: 0.55;
-  word-break: break-all;
-}
-
 .inventory-count {
   font-weight: 700;
   color: #d8c48a;

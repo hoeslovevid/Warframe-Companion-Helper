@@ -472,8 +472,7 @@ export function ownedCountFor(
 
     if (strict) continue
 
-    // Catalog *Component → inventory *Blueprint (relic / set “have this drop”).
-    // Foundry craft checks use ownedCountForCraft so uncrafted BPs don’t count as built parts.
+    // Catalog *Component → inventory *Blueprint (parts / Foundry materials / relic ownership).
     if (/Component$/i.test(cand)) {
       const asBp = cand.replace(/Component$/i, 'Blueprint')
       const n = lookupCount(asBp, index)
@@ -490,7 +489,7 @@ export function ownedCountFor(
   return 0
 }
 
-/** Foundry craft checks: built gear / real stacks only — no Blueprint↔Component bridging. */
+/** Strict lookup: exact path / basename only (no Blueprint↔Component bridging). */
 export function ownedCountForCraft(
   uniqueName: string,
   index: InventoryIndex = cachedIndex,

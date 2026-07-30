@@ -11,7 +11,6 @@ import type {
 } from '../../shared/types'
 import {
   ownedCountFor,
-  ownedCountForCraft,
   peekInventoryIndex,
   peekMasteryIndex,
 } from './inventory'
@@ -36,16 +35,29 @@ function normalizeSearch(s: string) {
 
 function directReady(item: RecipeItem, index: InventoryIndex): boolean {
   if (!item.components.length) return false
-  return item.components.every((c) => ownedCountForCraft(c.uniqueName, index) >= c.itemCount)
+  // Non-strict: catalog *Component paths match inventory *Blueprint stacks.
+  return item.components.every((c) => ownedCountFor(c.uniqueName, index) >= c.itemCount)
 }
 
 function missingDirectCount(item: RecipeItem, index: InventoryIndex): number {
   let missing = 0
   for (const c of item.components) {
-    const owned = ownedCountForCraft(c.uniqueName, index)
+    const owned = ownedCountFor(c.uniqueName, index)
     if (owned < c.itemCount) missing += 1
   }
   return missing
+}
+
+/** Main recipe BP component (name "Blueprint"), if present. */
+function mainBlueprintUnique(item: RecipeItem): string | null {
+  const named = item.components.find((c) => /^blueprint$/i.test(c.name.trim()))
+  return named?.uniqueName || null
+}
+
+function hasMainBlueprint(item: RecipeItem, index: InventoryIndex): boolean {
+  const bp = mainBlueprintUnique(item)
+  if (!bp) return false
+  return ownedCountFor(bp, index) > 0
 }
 
 function isOwnedItem(item: RecipeItem, index: InventoryIndex, mastery: MasteryIndex): boolean {
@@ -64,6 +76,7 @@ function toListItem(
   const ownedCount = ownedCountFor(item.uniqueName, index)
   const masteryEntry =
     mastery[item.uniqueName] || mastery[item.uniqueName.split('/').pop() || ''] || null
+  const owned = ownedCount > 0 || (masteryEntry?.owned ?? 0) > 0
   return {
     uniqueName: item.uniqueName,
     name: item.name,
@@ -74,7 +87,8 @@ function toListItem(
     vaulted: item.vaulted,
     isPrime: item.isPrime,
     imageName: item.imageName,
-    owned: ownedCount > 0 || (masteryEntry?.owned ?? 0) > 0,
+    owned,
+    hasBlueprint: hasMainBlueprint(item, index),
     ownedCount: Math.max(ownedCount, masteryEntry?.owned ?? 0),
     mastered: masteryEntry ? masteryEntry.mastered : null,
     readyToBuild: directReady(item, index),
@@ -188,7 +202,7 @@ function buildTreeNode(
   index: InventoryIndex,
   imageName: string | null = null,
 ): FoundryTreeNode {
-  const owned = ownedCountForCraft(uniqueName, index)
+  const owned = ownedCountFor(uniqueName, index)
   const missing = Math.max(0, required - owned)
   const children: FoundryTreeNode[] = []
   const resolvedImage = resolveImageName(uniqueName, imageName)
@@ -236,7 +250,7 @@ function accumulateTotals(
 
   for (const comp of components) {
     const need = comp.itemCount * craftsNeeded
-    const owned = ownedCountForCraft(comp.uniqueName, index)
+    const owned = ownedCountFor(comp.uniqueName, index)
     const still = Math.max(0, need - owned)
     if (still <= 0) continue
 

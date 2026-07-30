@@ -181,7 +181,6 @@ export function InventoryPage({ onOpenSettings }: Props) {
                     <span className={`inventory-kind kind-${r.kind}`}>{kindLabel(r.kind)}</span>
                     {r.isBlueprint ? <span className="inventory-tag">Blueprint</span> : null}
                     {r.isComponent ? <span className="inventory-tag">Component</span> : null}
-                    <span className="inventory-path">{r.uniqueName}</span>
                   </div>
                 </div>
                 <span className="inventory-count">×{r.count}</span>

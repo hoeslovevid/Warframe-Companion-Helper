@@ -843,6 +843,8 @@ export type FoundryListItem = {
   isPrime: boolean
   imageName: string | null
   owned: boolean
+  /** Own the main recipe blueprint (not necessarily the finished item). */
+  hasBlueprint: boolean
   ownedCount: number
   mastered: boolean | null
   readyToBuild: boolean

@@ -188,6 +188,11 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.46': [
     'Scroll indicators are floating light-beams (no scrollbar rail/chrome)',
   ],
+  '0.9.47': [
+    'Foundry: owned part blueprints count toward Ready / missing (Component↔Blueprint match)',
+    'Foundry: “Has blueprint” when you own the main recipe BP but not the finished item',
+    'Inventory browser: hide raw /Lotus path under item names',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

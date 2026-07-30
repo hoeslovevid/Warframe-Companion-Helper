@@ -336,6 +336,9 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                       <span className="foundry-list__name">{item.name}</span>
                       <span className="foundry-list__meta">
                         {item.owned ? <span className="vl-pill is-ok">Owned</span> : null}
+                        {!item.owned && item.hasBlueprint ? (
+                          <span className="vl-pill is-ready">Has blueprint</span>
+                        ) : null}
                         {item.mastered === true ? (
                           <span className="vl-pill is-ok">Mastered</span>
                         ) : null}
@@ -381,6 +384,9 @@ export function FoundryPage({ enabled, onOpenSettings }: Props) {
                   <h3>{detail.name}</h3>
                   <div className="foundry-list__meta" style={{ marginBottom: 0 }}>
                     {detail.owned ? <span className="vl-pill is-ok">Owned</span> : null}
+                    {!detail.owned && detail.hasBlueprint ? (
+                      <span className="vl-pill is-ready">Has blueprint</span>
+                    ) : null}
                     {detail.mastered === true ? (
                       <span className="vl-pill is-ok">Mastered</span>
                     ) : detail.mastered === false ? (
