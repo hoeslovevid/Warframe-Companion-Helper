@@ -528,7 +528,7 @@ export const MODULE_META: Record<
   market: {
     label: 'Market',
     description:
-      'warframe.market watchlist with platinum quotes; ties into relic and riven scans',
+      'warframe.market watchlist, JWT sign-in for your orders, and ties into relic / riven scans',
     phase: 3,
   },
   relicPlanner: {
@@ -992,6 +992,27 @@ export type InventoryCandidate = {
   mtime: string
 }
 
+/** warframe.market browser JWT session (no password stored). */
+export type WfmSession = {
+  linked: boolean
+  ingameName: string | null
+  platform: string | null
+  reputation: number | null
+  status: string | null
+  error: string | null
+}
+
+export type WfmOrder = {
+  id: string
+  orderType: 'buy' | 'sell'
+  platinum: number
+  quantity: number
+  visible: boolean
+  itemName: string
+  itemUrlName: string | null
+  lastUpdate: string | null
+}
+
 export type InventoryStatus = {
   path: string
   source: InventorySource
@@ -1195,6 +1216,11 @@ export type VoidLensApi = {
   lookupMarketPrices: (
     names: string[],
   ) => Promise<Array<{ name: string; platinum: number; volume: number }>>
+  getWfmSession: () => Promise<WfmSession>
+  setWfmJwt: (jwt: string) => Promise<WfmSession>
+  clearWfmJwt: () => Promise<WfmSession>
+  getWfmOrders: () => Promise<{ orders: WfmOrder[]; error: string | null }>
+  deleteWfmOrder: (orderId: string) => Promise<{ ok: boolean; error?: string }>
   openExternal: (url: string) => Promise<boolean>
   testScreenCapture: () => Promise<{ ok: boolean; message: string }>
   getWidgetServerStatus: () => Promise<{ running: boolean; port: number; baseUrl: string }>

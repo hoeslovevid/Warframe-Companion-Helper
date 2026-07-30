@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { AppSettings } from '../../shared/types'
 import { BugReportPanel } from './BugReportPanel'
 import { Panel } from './Panel'
@@ -10,10 +11,30 @@ type Props = {
   onStartTour: () => void
   onShowHotkeys: () => void
   onResetChecklist: () => void
+  onGoMarket?: () => void
+  /** Scroll to a help block id when opening from another tab (e.g. `help-wfm-jwt`). */
+  scrollToId?: string | null
+  onScrollToConsumed?: () => void
 }
 
-export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklist }: Props) {
+export function HelpPage({
+  settings,
+  onStartTour,
+  onShowHotkeys,
+  onResetChecklist,
+  onGoMarket,
+  scrollToId,
+  onScrollToConsumed,
+}: Props) {
   const hk = settings.hotkeys
+
+  useEffect(() => {
+    if (!scrollToId) return
+    const el = document.getElementById(scrollToId)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    onScrollToConsumed?.()
+  }, [scrollToId, onScrollToConsumed])
+
   return (
     <>
       <header className="page-header">
@@ -90,6 +111,60 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
             materials.
           </p>
         </div>
+        <div className="help-block" id="help-wfm-jwt">
+          <h3>7. Link warframe.market (JWT)</h3>
+          <p>
+            The Market tab can show and cancel your buy/sell orders. You paste a browser session
+            cookie — your password never enters Everything Warframe.
+          </p>
+          <p>
+            <strong>Chrome / Edge</strong>
+          </p>
+          <ol>
+            <li>
+              Open{' '}
+              <a href="https://warframe.market/" target="_blank" rel="noreferrer">
+                warframe.market
+              </a>{' '}
+              and sign in
+            </li>
+            <li>Press F12 (or right-click → Inspect) for DevTools</li>
+            <li>
+              Go to <strong>Application</strong> → <strong>Cookies</strong> →{' '}
+              <code>https://warframe.market</code>
+            </li>
+            <li>
+              Select the cookie named <strong>JWT</strong>
+            </li>
+            <li>Copy the Value field (long string starting with eyJ…)</li>
+            <li>
+              Paste it under Market → warframe.market account → Link account
+            </li>
+          </ol>
+          <p>
+            <strong>Firefox</strong>
+          </p>
+          <ol>
+            <li>Same site, signed in</li>
+            <li>
+              F12 → <strong>Storage</strong> → <strong>Cookies</strong> → warframe.market
+            </li>
+            <li>
+              Copy the <strong>JWT</strong> cookie value, then paste on the Market tab
+            </li>
+          </ol>
+          <p>
+            Tokens expire or reset when you sign out of the site — grab a fresh JWT if linking
+            fails. You can cancel listings here; completing a trade still happens in Warframe.
+          </p>
+          {onGoMarket ? (
+            <p>
+              <button type="button" className="btn primary" onClick={onGoMarket}>
+                Open Market tab
+              </button>
+            </p>
+          ) : null}
+        </div>
       </Panel>
 
       <div className="section-gap" />
@@ -132,6 +207,21 @@ export function HelpPage({ settings, onStartTour, onShowHotkeys, onResetChecklis
             worldstate panels (Cycles, Fissures, Baro, …) without turning off relic/riven popups.
             Assign optional per-panel hotkeys under Settings → Hotkeys. Global overlay on/off remains{' '}
             <strong>{prettyHotkey(hk.toggleOverlay)}</strong>.
+          </p>
+        </div>
+        <div className="help-block">
+          <h3>How do I link warframe.market?</h3>
+          <p>
+            See <strong>7. Link warframe.market (JWT)</strong> above for Chrome/Edge and Firefox
+            steps, then paste the cookie on the{' '}
+            {onGoMarket ? (
+              <button type="button" className="linkish" onClick={onGoMarket}>
+                Market
+              </button>
+            ) : (
+              'Market'
+            )}{' '}
+            tab. Never paste your password.
           </p>
         </div>
         <div className="help-block">

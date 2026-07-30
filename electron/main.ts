@@ -92,6 +92,13 @@ import {
 } from './services/bug-report'
 import { fetchItemQuotes } from './services/market'
 import {
+  clearWfmJwt,
+  deleteWfmOrder,
+  fetchWfmMyOrders,
+  getWfmSession,
+  setWfmJwt,
+} from './services/wfm-auth'
+import {
   setWidgetWorldstateProvider,
   syncWidgetServerFromSettings,
   getWidgetServerStatus,
@@ -1200,6 +1207,15 @@ function registerIpc() {
     const list = Array.isArray(names) ? names.filter((n) => typeof n === 'string') : []
     return fetchItemQuotes(list)
   })
+  ipcMain.handle('market:wfmSession', async () => getWfmSession())
+  ipcMain.handle('market:wfmSetJwt', async (_e, jwt: string) =>
+    setWfmJwt(typeof jwt === 'string' ? jwt : ''),
+  )
+  ipcMain.handle('market:wfmClear', async () => clearWfmJwt())
+  ipcMain.handle('market:wfmOrders', async () => fetchWfmMyOrders())
+  ipcMain.handle('market:wfmDeleteOrder', async (_e, orderId: string) =>
+    deleteWfmOrder(typeof orderId === 'string' ? orderId : ''),
+  )
   ipcMain.handle('shell:openExternal', async (_e, url: string) => {
     if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return false
     await shell.openExternal(url)

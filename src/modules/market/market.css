@@ -56,3 +56,89 @@
   color: #d87a7a;
   font-size: 0.85rem;
 }
+
+.market-session {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.market-jwt {
+  display: grid;
+  gap: 10px;
+}
+
+.market-jwt-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 4px;
+  font-size: 0.88rem;
+}
+
+.market-jwt textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.market-jwt-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.market-jwt-note {
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.market-jwt-help {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.market-orders {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(157, 180, 196, 0.12);
+}
+
+.market-orders-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.market-order-type {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+
+.market-order-type.sell {
+  color: #d8c48a;
+}
+
+.market-order-type.buy {
+  color: var(--vl-teal-bright, #5fd0c5);
+}
+
+.btn.ghost.danger {
+  color: #d87a7a;
+}
+
+button.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--vl-teal-bright, #5fd0c5);
+  cursor: pointer;
+  text-decoration: underline;
+  font: inherit;
+}
+

@@ -136,6 +136,7 @@ export function CompanionApp() {
   const [tourOpen, setTourOpen] = useState(false)
   const [hotkeysOpen, setHotkeysOpen] = useState(false)
   const [whatsNewOpen, setWhatsNewOpen] = useState(false)
+  const [helpScrollTo, setHelpScrollTo] = useState<string | null>(null)
   const [appVersion, setAppVersion] = useState('')
   const [hotkeyStatus, setHotkeyStatus] = useState<HotkeyRegistration[]>([])
   const [overlayCue, setOverlayCue] = useState<'on' | 'off' | null>(null)
@@ -785,6 +786,10 @@ export function CompanionApp() {
                 settings={settings}
                 enabled={settings.modules.market}
                 onUpdate={(partial) => void updateSettings(partial)}
+                onOpenHelp={() => {
+                  setHelpScrollTo('help-wfm-jwt')
+                  goTab('help')
+                }}
               />
             ) : null}
 
@@ -1479,6 +1484,9 @@ export function CompanionApp() {
                     inventoryTouched: false,
                   })
                 }
+                onGoMarket={() => goTab('market')}
+                scrollToId={helpScrollTo}
+                onScrollToConsumed={() => setHelpScrollTo(null)}
               />
             ) : null}
           </main>

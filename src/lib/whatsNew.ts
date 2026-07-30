@@ -163,6 +163,11 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Relic OCR: much faster — parallel slots, primary band first, show results before live market lookup',
     'Foundry / Relic Planner: scroll list and detail panes instead of the whole page',
   ],
+  '0.9.42': [
+    'Market: link warframe.market with a browser JWT cookie (no password stored)',
+    'Market: view and cancel your buy/sell orders from the companion',
+    'Help: Chrome/Firefox steps for the JWT cookie, linked from the Market tab',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

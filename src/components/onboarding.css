@@ -356,6 +356,26 @@ button.status-chip {
   padding-left: 1.2rem;
 }
 
+.help-block ol {
+  margin: 0 0 10px;
+  padding-left: 1.2rem;
+}
+
+.help-block code {
+  font-size: 0.85em;
+  color: var(--vl-teal-bright, #5fd0c5);
+}
+
+.help-block button.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--vl-teal-bright, #5fd0c5);
+  cursor: pointer;
+  text-decoration: underline;
+  font: inherit;
+}
+
 .nav-btn[title] {
   position: relative;
 }
