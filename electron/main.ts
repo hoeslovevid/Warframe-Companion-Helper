@@ -41,6 +41,7 @@ import { defaultRivenAnchor } from '../shared/captureGeometry'
 import { fetchWorldstate, hasExpiredWorldstate, nextWorldstateExpiryMs } from './services/worldstate'
 import { detectEeLogPath } from './services/log-path'
 import {
+  browseInventory,
   clearInventoryData,
   getInventoryIndex,
   getInventoryStatus,
@@ -93,9 +94,14 @@ import {
 import { fetchItemQuotes } from './services/market'
 import {
   clearWfmJwt,
+  createWfmContract,
+  createWfmOrder,
+  deleteWfmContract,
   deleteWfmOrder,
+  fetchWfmMyContracts,
   fetchWfmMyOrders,
   getWfmSession,
+  searchWfmItems,
   setWfmJwt,
 } from './services/wfm-auth'
 import {
@@ -1148,6 +1154,17 @@ function registerIpc() {
     return status
   })
   ipcMain.handle('inventory:index', () => getInventoryIndex())
+  ipcMain.handle('inventory:browse', async (_e, query) => {
+    await Promise.all([
+      import('./services/recipe-catalog')
+        .then((m) => m.ensureRecipeCatalog())
+        .catch(() => {}),
+      import('./services/item-catalog')
+        .then((m) => m.ensureItemCatalog())
+        .catch(() => {}),
+    ])
+    return browseInventory(query)
+  })
   ipcMain.handle('relics:get', () => getRelicScanState())
   ipcMain.handle('relics:scan', async () => runRelicScan('manual'))
   ipcMain.handle('relics:clear', () => dismissRelicPopup())
@@ -1216,6 +1233,15 @@ function registerIpc() {
   ipcMain.handle('market:wfmDeleteOrder', async (_e, orderId: string) =>
     deleteWfmOrder(typeof orderId === 'string' ? orderId : ''),
   )
+  ipcMain.handle('market:wfmContracts', async () => fetchWfmMyContracts())
+  ipcMain.handle('market:wfmDeleteContract', async (_e, contractId: string) =>
+    deleteWfmContract(typeof contractId === 'string' ? contractId : ''),
+  )
+  ipcMain.handle('market:wfmSearchItems', async (_e, query: string) =>
+    searchWfmItems(typeof query === 'string' ? query : ''),
+  )
+  ipcMain.handle('market:wfmCreateOrder', async (_e, input) => createWfmOrder(input || {}))
+  ipcMain.handle('market:wfmCreateContract', async (_e, input) => createWfmContract(input || {}))
   ipcMain.handle('shell:openExternal', async (_e, url: string) => {
     if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return false
     await shell.openExternal(url)
@@ -1430,6 +1456,9 @@ app.whenReady().then(async () => {
       if (!settings.inventoryAutoSync || !settings.inventoryConsent) return
       const running = await isWarframeRunning()
       if (!running) return
+      const last = Date.parse(settings.inventoryLastSynced || '') || 0
+      // Poll often so we catch Warframe launch; only sync when 10+ min stale.
+      if (Date.now() - last < 10 * 60_000) return
       try {
         const result = await syncInventoryFromGame()
         if (result.ok) await warmFoundryAfterInventorySync()
@@ -1439,7 +1468,7 @@ app.whenReady().then(async () => {
         // quiet
       }
     })()
-  }, 10 * 60_000)
+  }, 2 * 60_000)
 
   applyOverlayPerformanceMode(loadSettings().overlayVisible)
 

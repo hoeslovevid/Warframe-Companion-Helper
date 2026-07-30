@@ -1,3 +1,4 @@
+import dns from 'node:dns'
 import {
   ArbitrationInfo,
   ArchonHuntInfo,
@@ -13,14 +14,52 @@ import {
 
 const BASE = 'https://api.warframestat.us/pc'
 
+// Windows / some networks hang on broken IPv6 → Cloudflare before falling back.
+try {
+  dns.setDefaultResultOrder('ipv4first')
+} catch {
+  // older Node
+}
+
+const FETCH_TIMEOUT_MS = 12_000
+const FETCH_RETRIES = 3
+
+async function sleep(ms: number) {
+  await new Promise((r) => setTimeout(r, ms))
+}
+
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { Accept: 'application/json', 'Accept-Language': 'en' },
-  })
-  if (!res.ok) {
-    throw new Error(`Worldstate request failed: ${res.status} ${path}`)
+  let lastErr: unknown
+  for (let attempt = 0; attempt < FETCH_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${BASE}${path}`, {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'en',
+          'User-Agent': 'EverythingWarframe/worldstate',
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      })
+      if (!res.ok) {
+        throw new Error(`Worldstate request failed: ${res.status} ${path}`)
+      }
+      return (await res.json()) as T
+    } catch (err) {
+      lastErr = err
+      const retryable =
+        attempt < FETCH_RETRIES - 1 &&
+        (err instanceof Error
+          ? /timeout|fetch failed|ECONN|ENOTFOUND|UND_ERR|aborted/i.test(
+              `${err.message} ${(err as { cause?: { code?: string } }).cause?.code || ''}`,
+            )
+          : false)
+      if (!retryable) break
+      await sleep(400 * 2 ** attempt)
+    }
   }
-  return (await res.json()) as T
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error(`Worldstate request failed: ${path}`)
 }
 
 function etaFromExpiry(expiry?: string): string {
@@ -345,9 +384,9 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     archimedeas,
     arbCommunity,
   ] = await Promise.all([
-    getJson<CyclePayload>('/cetusCycle'),
-    getJson<CyclePayload>('/vallisCycle'),
-    getJson<CyclePayload>('/cambionCycle'),
+    getJson<CyclePayload>('/cetusCycle').catch(() => ({}) as CyclePayload),
+    getJson<CyclePayload>('/vallisCycle').catch(() => ({}) as CyclePayload),
+    getJson<CyclePayload>('/cambionCycle').catch(() => ({}) as CyclePayload),
     getJson<CyclePayload>('/duviriCycle').catch(() => ({}) as CyclePayload),
     getJson<CyclePayload>('/zarimanCycle').catch(() => ({}) as CyclePayload),
     getJson<CyclePayload>('/entratiLabCycle').catch(() =>
@@ -366,7 +405,7 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
         expiry: string
       }>
     >('/fissures').catch(() => []),
-    getJson<VoidTraderPayload>('/voidTrader'),
+    getJson<VoidTraderPayload>('/voidTrader').catch(() => ({}) as VoidTraderPayload),
     getJson<{
       active?: boolean
       season?: number

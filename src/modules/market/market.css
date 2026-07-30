@@ -57,6 +57,50 @@
   font-size: 0.85rem;
 }
 
+.market-create {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.market-create-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.market-create-row input,
+.market-create-row select {
+  min-width: 0;
+  flex: 1 1 90px;
+}
+
+.market-create textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.market-hints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.market-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--vl-mist, #9db4c4);
+  white-space: nowrap;
+}
+
 .market-session {
   display: flex;
   justify-content: space-between;
@@ -126,6 +170,18 @@
 
 .market-order-type.buy {
   color: var(--vl-teal-bright, #5fd0c5);
+}
+
+.market-order-type.contract-riven {
+  color: #c9a0e8;
+}
+
+.market-order-type.contract-lich {
+  color: #e88a6a;
+}
+
+.market-order-type.contract-sister {
+  color: #6ab0e8;
 }
 
 .btn.ghost.danger {

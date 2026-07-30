@@ -58,7 +58,10 @@ export function InventorySettings() {
         </div>
         <div className="mod-stat">
           <span className="mod-stat__label">Last sync</span>
-          <span className="mod-stat__value">{formatWhen(status.lastSynced)}</span>
+          <span className={`mod-stat__value ${status.stale ? '' : 'is-ok'}`}>
+            {formatWhen(status.lastSynced)}
+            {status.loaded ? (status.stale ? ' · stale' : ' · fresh') : ''}
+          </span>
         </div>
         <div className="mod-stat">
           <span className="mod-stat__label">Warframe</span>
@@ -67,6 +70,12 @@ export function InventorySettings() {
           </span>
         </div>
         {status.path ? <p className="muted">File: {status.path}</p> : null}
+
+        {status.stale && status.loaded ? (
+          <p className="muted" style={{ color: '#d8c48a' }}>
+            Inventory is stale — Foundry / relic “owned” tags may be wrong until you sync again.
+          </p>
+        ) : null}
 
         <ToggleRow
           label="Allow game inventory sync"

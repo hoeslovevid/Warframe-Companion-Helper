@@ -1013,6 +1013,61 @@ export type WfmOrder = {
   lastUpdate: string | null
 }
 
+/** warframe.market auction contract (riven / lich / sister). */
+export type WfmContract = {
+  id: string
+  kind: 'riven' | 'lich' | 'sister' | 'unknown'
+  title: string
+  detail: string | null
+  startingPrice: number
+  buyoutPrice: number | null
+  topBid: number | null
+  isDirectSell: boolean
+  visible: boolean
+  closed: boolean
+  marketUrl: string
+  lastUpdate: string | null
+}
+
+export type WfmCreateOrderInput = {
+  itemId?: string
+  itemSlugOrName?: string
+  orderType: 'buy' | 'sell'
+  platinum: number
+  quantity: number
+  visible?: boolean
+  rank?: number | null
+}
+
+export type WfmCreateContractInput = {
+  kind: 'riven' | 'lich' | 'sister'
+  weaponUrlName: string
+  startingPrice: number
+  buyoutPrice?: number | null
+  isDirectSell?: boolean
+  visible?: boolean
+  note?: string
+  /** Riven */
+  rivenName?: string
+  modRank?: number
+  reRolls?: number
+  polarity?: string
+  masteryLevel?: number
+  /** Lines like "+critical_chance 187.2" or "-ammo_maximum 6" */
+  attributesText?: string
+  /** Lich / Sister */
+  element?: string
+  damage?: number
+  havingEphemera?: boolean
+  quirk?: string
+}
+
+export type WfmItemHint = {
+  id: string
+  slug: string
+  name: string
+}
+
 export type InventoryStatus = {
   path: string
   source: InventorySource
@@ -1028,12 +1083,33 @@ export type InventoryStatus = {
   loaded: boolean
   helperReady: boolean
   warframeRunning: boolean
+  /** True when lastSynced is missing or older than ~6 hours. */
+  stale: boolean
+  /** Milliseconds since lastSynced, or null if never synced. */
+  staleAgeMs: number | null
   /** Node process.platform */
   platform: string
   /** Linux: Warframe Steam/Proton prefix detected */
   protonPlay: boolean
   error: string | null
   candidates: InventoryCandidate[]
+}
+
+export type InventoryBrowseKind = 'part' | 'gear' | 'relic' | 'resource' | 'currency' | 'other'
+
+export type InventoryBrowseItem = {
+  uniqueName: string
+  displayName: string
+  count: number
+  kind: InventoryBrowseKind
+  isBlueprint: boolean
+  isComponent: boolean
+}
+
+export type InventoryBrowseQuery = {
+  search?: string
+  kind?: InventoryBrowseKind | 'all'
+  limit?: number
 }
 
 export type InventorySyncResult = {
@@ -1182,6 +1258,7 @@ export type VoidLensApi = {
   syncInventoryFromGame: () => Promise<InventorySyncResult>
   clearInventory: () => Promise<InventoryStatus>
   getInventoryIndex: () => Promise<InventoryIndex>
+  browseInventory: (query?: InventoryBrowseQuery) => Promise<InventoryBrowseItem[]>
   getRelicScan: () => Promise<RelicScanState>
   scanRelicRewards: () => Promise<RelicScanState>
   clearRelicScan: () => Promise<RelicScanState>
@@ -1221,6 +1298,15 @@ export type VoidLensApi = {
   clearWfmJwt: () => Promise<WfmSession>
   getWfmOrders: () => Promise<{ orders: WfmOrder[]; error: string | null }>
   deleteWfmOrder: (orderId: string) => Promise<{ ok: boolean; error?: string }>
+  getWfmContracts: () => Promise<{ contracts: WfmContract[]; error: string | null }>
+  deleteWfmContract: (contractId: string) => Promise<{ ok: boolean; error?: string }>
+  searchWfmItems: (query: string) => Promise<WfmItemHint[]>
+  createWfmOrder: (
+    input: WfmCreateOrderInput,
+  ) => Promise<{ ok: boolean; error?: string; order?: WfmOrder }>
+  createWfmContract: (
+    input: WfmCreateContractInput,
+  ) => Promise<{ ok: boolean; error?: string; contract?: WfmContract }>
   openExternal: (url: string) => Promise<boolean>
   testScreenCapture: () => Promise<{ ok: boolean; message: string }>
   getWidgetServerStatus: () => Promise<{ running: boolean; port: number; baseUrl: string }>

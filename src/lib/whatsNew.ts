@@ -168,6 +168,17 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Market: view and cancel your buy/sell orders from the companion',
     'Help: Chrome/Firefox steps for the JWT cookie, linked from the Market tab',
   ],
+  '0.9.43': [
+    'Market: fix JWT linking — use warframe.market API v2 (v1 profile was deprecated)',
+    'Market: watchlist platinum quotes use the v2 orders endpoint',
+    'Market: pull your riven / lich / sister contracts (auctions) when linked',
+  ],
+  '0.9.44': [
+    'Inventory browser tab: search stacks with blueprint vs component labels and stale warnings',
+    'Inventory auto-sync reacts faster when Warframe starts (still ~10 min between syncs)',
+    'Market: create buy/sell orders and riven/lich/sister contracts from the companion',
+    'Inventory browser: show WFCD / recipe catalog names instead of raw path leaves',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

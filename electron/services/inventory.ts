@@ -23,6 +23,8 @@ import {
 } from './steam-paths'
 import { isWarframeRunning as isWarframeProcessRunning, isWarframeGameRunningSync, invalidateWarframeProcessCache } from './warframe-process'
 import { buildWineHelperEnv, scrubWineHelperOutput } from '../linux-child-env'
+import { getRecipeByUnique } from './recipe-catalog'
+import { findCatalogItemByUnique } from './item-catalog'
 
 const HELPER_URL =
   'https://github.com/Sainan/warframe-api-helper/releases/download/1.1.2/warframe-api-helper.exe'
@@ -880,22 +882,134 @@ export function getInventoryStatus(): InventoryStatus {
     reloadConfiguredInventory()
   }
 
+  const lastSynced = settings.inventoryLastSynced
+  const syncedAt = lastSynced ? Date.parse(lastSynced) : NaN
+  const staleAgeMs = Number.isFinite(syncedAt) ? Math.max(0, Date.now() - syncedAt) : null
+  const STALE_AFTER_MS = 6 * 60 * 60 * 1000
+  const stale = staleAgeMs == null || staleAgeMs >= STALE_AFTER_MS
+
   return {
     path: settings.inventoryPath,
     source: settings.inventorySource,
     consent: settings.inventoryConsent,
-    lastSynced: settings.inventoryLastSynced,
+    lastSynced,
     itemCount: cachedMeta.itemCount,
     uniqueCount: cachedMeta.uniqueCount,
     revision: inventoryRevision,
     loaded: cachedMeta.uniqueCount > 0,
     helperReady: helperIsReady(),
     warframeRunning: isWarframeRunning(),
+    stale,
+    staleAgeMs,
     platform: process.platform,
     protonPlay: isProtonPlayAvailable(),
     error: null,
     candidates: detectInventoryCandidates(),
   }
+}
+
+function leafDisplayName(uniqueName: string): string {
+  const leaf = uniqueName.split('/').pop() || uniqueName
+  return leaf
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const CURRENCY_NAMES: Record<string, string> = {
+  RegularCredits: 'Credits',
+  PremiumCredits: 'Platinum',
+  Ducats: 'Ducats',
+}
+
+function resolveBrowseDisplayName(uniqueName: string): string {
+  if (CURRENCY_NAMES[uniqueName]) return CURRENCY_NAMES[uniqueName]
+
+  const recipe = getRecipeByUnique(uniqueName)
+  if (recipe?.name) return recipe.name
+  if (/Blueprint$/i.test(uniqueName)) {
+    const asComp = getRecipeByUnique(uniqueName.replace(/Blueprint$/i, 'Component'))
+    if (asComp?.name) {
+      return /blueprint/i.test(asComp.name) ? asComp.name : `${asComp.name} Blueprint`
+    }
+  }
+  if (/Component$/i.test(uniqueName)) {
+    const asBp = getRecipeByUnique(uniqueName.replace(/Component$/i, 'Blueprint'))
+    if (asBp?.name) return asBp.name.replace(/\s+Blueprint$/i, '')
+  }
+
+  const item = findCatalogItemByUnique(uniqueName)
+  if (item?.name) return item.name
+
+  return leafDisplayName(uniqueName)
+}
+
+function classifyInventoryKey(uniqueName: string): {
+  kind: import('../../shared/types').InventoryBrowseKind
+  isBlueprint: boolean
+  isComponent: boolean
+} {
+  const isBlueprint = /Blueprint$/i.test(uniqueName)
+  const isComponent = /Component$/i.test(uniqueName)
+  if (uniqueName === 'RegularCredits' || uniqueName === 'Ducats' || uniqueName === 'PremiumCredits') {
+    return { kind: 'currency', isBlueprint, isComponent }
+  }
+  if (/\/Projections\//i.test(uniqueName) || /VoidProjection/i.test(uniqueName)) {
+    return { kind: 'relic', isBlueprint, isComponent }
+  }
+  if (
+    isBlueprint ||
+    isComponent ||
+    /\/(Recipes|WeaponParts)\//i.test(uniqueName)
+  ) {
+    return { kind: 'part', isBlueprint, isComponent }
+  }
+  if (
+    /\/(Powersuits|Weapons|Melee|LongGuns|Pistols|Sentinels|KubrowPet|Cat|Moa|Hoverboard|Mechs|OperatorAmps)\//i.test(
+      uniqueName,
+    )
+  ) {
+    return { kind: 'gear', isBlueprint, isComponent }
+  }
+  if (/\/(Types\/Items|Resources|Fish|Plants|MiscItems)\//i.test(uniqueName) || /Resource/i.test(uniqueName)) {
+    return { kind: 'resource', isBlueprint, isComponent }
+  }
+  return { kind: 'other', isBlueprint, isComponent }
+}
+
+/** Browseable inventory rows (full paths only — skips basename alias duplicates). */
+export function browseInventory(
+  query?: import('../../shared/types').InventoryBrowseQuery,
+): import('../../shared/types').InventoryBrowseItem[] {
+  const search = String(query?.search || '')
+    .trim()
+    .toLowerCase()
+  const kindFilter = query?.kind || 'all'
+  const limit = Math.min(Math.max(Number(query?.limit) || 500, 1), 5000)
+  const rows: import('../../shared/types').InventoryBrowseItem[] = []
+
+  for (const [uniqueName, count] of Object.entries(cachedIndex)) {
+    if (!count || count <= 0) continue
+    // Skip basename / alias shortcuts — keep canonical paths (+ currencies)
+    if (!uniqueName.includes('/') && !['RegularCredits', 'Ducats', 'PremiumCredits'].includes(uniqueName)) {
+      continue
+    }
+    const { kind, isBlueprint, isComponent } = classifyInventoryKey(uniqueName)
+    if (kindFilter !== 'all' && kind !== kindFilter) continue
+    const displayName = resolveBrowseDisplayName(uniqueName)
+    if (search) {
+      const hay = `${displayName} ${uniqueName} ${leafDisplayName(uniqueName)}`.toLowerCase()
+      if (!hay.includes(search)) continue
+    }
+    rows.push({ uniqueName, displayName, count, kind, isBlueprint, isComponent })
+  }
+
+  rows.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count
+    return a.displayName.localeCompare(b.displayName)
+  })
+  return rows.slice(0, limit)
 }
 
 export function onInventoryUpdated(cb: (status: InventoryStatus) => void) {

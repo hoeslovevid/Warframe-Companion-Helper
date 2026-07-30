@@ -51,21 +51,20 @@ async function fetchOne(name: string): Promise<PriceHit | null> {
   if (!slug || slug.includes('forma') || slug.includes('relic')) return null
 
   try {
-    const res = await fetch(`https://api.warframe.market/v1/items/${slug}/orders?include=item`, {
+    const res = await fetch(`https://api.warframe.market/v2/orders/item/${slug}`, {
       headers: {
         Accept: 'application/json',
         Platform: 'pc',
         Language: 'en',
+        'User-Agent': 'EverythingWarframe/market',
       },
     })
     if (!res.ok) return null
     const json = (await res.json()) as {
-      payload?: {
-        orders?: Array<{ order_type?: string; platinum?: number; visible?: boolean }>
-      }
+      data?: Array<{ type?: string; platinum?: number; visible?: boolean }>
     }
-    const sells = (json.payload?.orders || [])
-      .filter((o) => o.order_type === 'sell' && o.visible !== false && typeof o.platinum === 'number')
+    const sells = (json.data || [])
+      .filter((o) => o.type === 'sell' && o.visible !== false && typeof o.platinum === 'number')
       .map((o) => o.platinum as number)
       .sort((a, b) => a - b)
     if (!sells.length) return null

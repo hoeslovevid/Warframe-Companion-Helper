@@ -28,6 +28,7 @@ const WFCD_JSON = (file: string) =>
 let catalog: CatalogItem[] = []
 let bySet = new Map<string, CatalogItem[]>()
 let byNormalized = new Map<string, CatalogItem>()
+let byUnique = new Map<string, CatalogItem>()
 let ready: Promise<void> | null = null
 
 const PART_SUFFIXES = [
@@ -150,8 +151,23 @@ function rebuildIndexes(items: CatalogItem[]) {
   catalog = items
   bySet = new Map()
   byNormalized = new Map()
+  byUnique = new Map()
   for (const item of items) {
     byNormalized.set(item.normalized, item)
+    if (item.uniqueName) {
+      const prev = byUnique.get(item.uniqueName)
+      // Prefer longer / more specific display names when several share a uniqueName.
+      if (!prev || item.name.length > prev.name.length) {
+        byUnique.set(item.uniqueName, item)
+      }
+      const leaf = item.uniqueName.split('/').pop()
+      if (leaf && leaf !== item.uniqueName) {
+        const prevLeaf = byUnique.get(leaf)
+        if (!prevLeaf || item.name.length > prevLeaf.name.length) {
+          byUnique.set(leaf, item)
+        }
+      }
+    }
     if (!item.setName) continue
     const list = bySet.get(item.setName) || []
     list.push(item)
@@ -487,4 +503,30 @@ export function findCatalogItemByName(name: string): CatalogItem | null {
     return byNormalized.get(normalizeItemName(name.replace(/\s+Blueprint$/i, ''))) || null
   }
   return byNormalized.get(normalizeItemName(`${name} Blueprint`)) || null
+}
+
+/** Lookup by DE uniqueName path (and common Blueprint/Component aliases). */
+export function findCatalogItemByUnique(uniqueName: string): CatalogItem | null {
+  if (!uniqueName) return null
+  const candidates = [uniqueName]
+  const leaf = uniqueName.split('/').pop()
+  if (leaf && leaf !== uniqueName) candidates.push(leaf)
+  if (/Blueprint$/i.test(uniqueName)) {
+    candidates.push(uniqueName.replace(/Blueprint$/i, 'Component'))
+    candidates.push(uniqueName.replace(/Blueprint$/i, ''))
+  } else if (/Component$/i.test(uniqueName)) {
+    candidates.push(uniqueName.replace(/Component$/i, 'Blueprint'))
+  } else if (/\/(Recipes|WeaponParts)\//i.test(uniqueName)) {
+    candidates.push(`${uniqueName}Blueprint`)
+  }
+  for (const cand of candidates) {
+    const hit = byUnique.get(cand)
+    if (hit) return hit
+    const leafCand = cand.split('/').pop()
+    if (leafCand && leafCand !== cand) {
+      const leafHit = byUnique.get(leafCand)
+      if (leafHit) return leafHit
+    }
+  }
+  return null
 }

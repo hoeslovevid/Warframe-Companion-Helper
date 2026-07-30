@@ -46,6 +46,7 @@ import { FoundryPage } from '../../modules/foundry/FoundryPage'
 import { MarketPage } from '../../modules/market/MarketPage'
 import { RelicPlannerPage } from '../../modules/relicPlanner/RelicPlannerPage'
 import { MasteryPage } from '../../modules/mastery/MasteryPage'
+import { InventoryPage } from '../../modules/inventory/InventoryPage'
 import { LinuxCaptureWizard } from '../../components/LinuxCaptureWizard'
 import { LayoutEditor } from './LayoutEditor'
 import { prettyHotkey } from '../../lib/hotkey'
@@ -59,6 +60,7 @@ type Tab =
   | 'foundry'
   | 'relicPlanner'
   | 'mastery'
+  | 'inventory'
   | 'market'
   | 'layout'
   | 'settings'
@@ -400,6 +402,19 @@ export function CompanionApp() {
               Mastery
             </button>
             <button
+              className={`nav-btn ${tab === 'inventory' ? 'active' : ''}`}
+              title="Browse synced inventory counts"
+              onClick={() => goTab('inventory')}
+            >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="3" y="3.5" width="10" height="9" rx="1.5" />
+                  <path d="M5.5 6.5h5M5.5 9h3.5" strokeLinecap="round" />
+                </svg>
+              </span>
+              Inventory
+            </button>
+            <button
               className={`nav-btn ${tab === 'market' ? 'active' : ''}`}
               data-tour="nav-market"
               title="warframe.market watchlist and scan prices"
@@ -481,7 +496,7 @@ export function CompanionApp() {
                   onGoLayout={() => goTab('layout')}
                   onGoInventory={() => {
                     patchOnboarding({ inventoryTouched: true })
-                    goTab('settings')
+                    goTab('inventory')
                   }}
                   onStartTour={() => setTourOpen(true)}
                 />
@@ -779,6 +794,10 @@ export function CompanionApp() {
                 onOpenSettings={() => goTab('settings')}
                 onOpenFoundry={() => goTab('foundry')}
               />
+            ) : null}
+
+            {tab === 'inventory' ? (
+              <InventoryPage onOpenSettings={() => goTab('settings')} />
             ) : null}
 
             {tab === 'market' ? (
@@ -1204,10 +1223,18 @@ export function CompanionApp() {
                     </div>
                     <ToggleRow
                       label="Auto-sync inventory"
-                      description="Resync inventory while Warframe is running"
+                      description="While Warframe is running, resync about every 10 minutes (checks every 2 minutes)"
                       checked={settings.inventoryAutoSync}
                       onChange={(enabled) => void updateSettings({ inventoryAutoSync: enabled })}
                     />
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ marginTop: 8 }}
+                      onClick={() => goTab('inventory')}
+                    >
+                      Open inventory browser
+                    </button>
                   </Panel>
 
                   <Panel

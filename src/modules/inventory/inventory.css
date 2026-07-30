@@ -1,0 +1,109 @@
+.inventory-page {
+  display: grid;
+  gap: 0;
+}
+
+.inventory-stale {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(216, 196, 138, 0.35);
+  background: rgba(216, 196, 138, 0.08);
+  color: #d8c48a;
+  font-size: 0.88rem;
+}
+
+.inventory-toolbar {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.inventory-toolbar input {
+  width: 100%;
+}
+
+.inventory-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.inventory-kinds .btn.ghost.is-active {
+  color: var(--vl-teal-bright, #5fd0c5);
+  border-color: rgba(95, 208, 197, 0.4);
+}
+
+.inventory-meta {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+}
+
+.inventory-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  max-height: min(62vh, 720px);
+  overflow: auto;
+}
+
+.inventory-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(157, 180, 196, 0.12);
+}
+
+.inventory-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 2px;
+  font-size: 0.78rem;
+}
+
+.inventory-kind {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+}
+
+.kind-part {
+  color: #d8c48a;
+}
+
+.kind-gear {
+  color: var(--vl-teal-bright, #5fd0c5);
+}
+
+.kind-relic {
+  color: #c9a0e8;
+}
+
+.kind-resource {
+  color: #9db4c4;
+}
+
+.kind-currency {
+  color: #e8c86a;
+}
+
+.inventory-tag {
+  opacity: 0.85;
+}
+
+.inventory-path {
+  opacity: 0.55;
+  word-break: break-all;
+}
+
+.inventory-count {
+  font-weight: 700;
+  color: #d8c48a;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
