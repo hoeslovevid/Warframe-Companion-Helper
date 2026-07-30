@@ -185,6 +185,9 @@ export const WHATS_NEW: Record<string, string[]> = {
     'OCR: warm Paddle at idle, in-memory detects (no temp files), priority boost while scanning',
     'OCR: fewer relic band / riven passes unless the first read is weak',
   ],
+  '0.9.46': [
+    'Scroll indicators are floating light-beams (no scrollbar rail/chrome)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

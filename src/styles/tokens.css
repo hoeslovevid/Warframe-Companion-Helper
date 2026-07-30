@@ -6,8 +6,8 @@
   --vl-radius-lg: 14px;
   --vl-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --vl-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --vl-scroll-size: 12px;
-  --vl-scroll-thumb-size: 5px;
+  --vl-scroll-size: 8px;
+  --vl-scroll-thumb-size: 2px;
   --vl-duration-fast: 120ms;
   --vl-duration: 180ms;
   --vl-duration-slow: 320ms;
@@ -148,10 +148,10 @@ code {
   padding: 1px 6px;
 }
 
-/* ---------- Custom scrollbars (polished void chrome) ---------- */
+/* ---------- Scroll indicator: floating light beam (not a chrome bar) ---------- */
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--vl-mist) 40%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, var(--vl-accent) 80%, white) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -161,55 +161,69 @@ code {
 
 *::-webkit-scrollbar-track {
   background: transparent;
-  border-radius: 999px;
-  margin: 6px 2px;
+  margin: 4px 0;
 }
 
 *::-webkit-scrollbar-thumb {
+  /* Soft-tapered beam: bright core, dissolves at ends — no pill/rail look */
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--vl-frost) 22%, transparent),
-      color-mix(in srgb, var(--vl-mist) 38%, transparent) 45%,
-      color-mix(in srgb, var(--vl-accent) 28%, transparent)
+      transparent 0%,
+      color-mix(in srgb, var(--vl-accent) 35%, transparent) 10%,
+      color-mix(in srgb, var(--vl-frost) 95%, white) 38%,
+      #fff 50%,
+      color-mix(in srgb, var(--vl-frost) 95%, white) 62%,
+      color-mix(in srgb, var(--vl-accent) 35%, transparent) 90%,
+      transparent 100%
     );
   border-radius: 999px;
   border: calc((var(--vl-scroll-size) - var(--vl-scroll-thumb-size)) / 2) solid transparent;
   background-clip: padding-box;
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--vl-frost) 12%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--vl-void-950) 35%, transparent);
-  min-height: 36px;
+    0 0 4px 0.5px color-mix(in srgb, var(--vl-accent) 75%, transparent),
+    0 0 10px 1px color-mix(in srgb, var(--vl-accent) 45%, transparent),
+    0 0 18px 2px color-mix(in srgb, var(--vl-accent) 22%, transparent);
+  min-height: 28px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--vl-frost) 35%, transparent),
-      color-mix(in srgb, var(--vl-accent) 55%, transparent) 50%,
-      color-mix(in srgb, var(--vl-teal) 45%, transparent)
+      transparent 0%,
+      color-mix(in srgb, var(--vl-accent) 55%, transparent) 8%,
+      #fff 42%,
+      color-mix(in srgb, var(--vl-accent) 70%, white) 50%,
+      #fff 58%,
+      color-mix(in srgb, var(--vl-accent) 55%, transparent) 92%,
+      transparent 100%
     );
   border: calc((var(--vl-scroll-size) - var(--vl-scroll-thumb-size)) / 2) solid transparent;
   background-clip: padding-box;
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--vl-accent) 35%, transparent),
-    0 0 10px color-mix(in srgb, var(--vl-accent) 22%, transparent);
+    0 0 5px 1px color-mix(in srgb, var(--vl-accent) 90%, transparent),
+    0 0 14px 2px color-mix(in srgb, var(--vl-accent) 55%, transparent),
+    0 0 24px 3px color-mix(in srgb, var(--vl-accent) 30%, transparent);
 }
 
 *::-webkit-scrollbar-thumb:active {
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--vl-accent) 75%, white),
-      var(--vl-accent) 40%,
-      var(--vl-teal)
+      transparent 0%,
+      color-mix(in srgb, var(--vl-accent) 70%, transparent) 6%,
+      #fff 45%,
+      #fff 55%,
+      color-mix(in srgb, var(--vl-accent) 70%, transparent) 94%,
+      transparent 100%
     );
   border: calc((var(--vl-scroll-size) - var(--vl-scroll-thumb-size)) / 2) solid transparent;
   background-clip: padding-box;
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--vl-frost) 28%, transparent),
-    0 0 12px color-mix(in srgb, var(--vl-accent) 35%, transparent);
+    0 0 6px 1px #fff,
+    0 0 16px 2px color-mix(in srgb, var(--vl-accent) 80%, transparent),
+    0 0 28px 4px color-mix(in srgb, var(--vl-accent) 40%, transparent);
 }
 
 *::-webkit-scrollbar-corner {

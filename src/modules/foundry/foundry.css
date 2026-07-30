@@ -115,7 +115,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
 }
 
 .foundry-list li button {
@@ -173,7 +173,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
 }
 
 .foundry-detail__hero {
@@ -519,52 +519,6 @@
   max-height: calc(100vh - 240px);
   align-items: stretch;
   min-width: 0;
-}
-
-/* Match companion panel scroll chrome on Foundry / Relic Planner panes */
-.foundry-list::-webkit-scrollbar-track,
-.foundry-detail::-webkit-scrollbar-track {
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      color-mix(in srgb, var(--vl-mist) 8%, transparent) 35%,
-      color-mix(in srgb, var(--vl-mist) 8%, transparent) 65%,
-      transparent 100%
-    );
-  border-radius: 999px;
-  margin: 8px 1px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vl-mist) 6%, transparent);
-}
-
-.foundry-list::-webkit-scrollbar-thumb,
-.foundry-detail::-webkit-scrollbar-thumb {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--vl-frost) 28%, transparent),
-      color-mix(in srgb, var(--vl-mist) 42%, transparent) 40%,
-      color-mix(in srgb, var(--vl-accent) 40%, transparent)
-    );
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--vl-frost) 22%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, var(--vl-teal) 25%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--vl-void-950) 40%, transparent);
-}
-
-.foundry-list::-webkit-scrollbar-thumb:hover,
-.foundry-detail::-webkit-scrollbar-thumb:hover {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--vl-frost) 45%, transparent),
-      color-mix(in srgb, var(--vl-accent) 65%, transparent) 48%,
-      color-mix(in srgb, var(--vl-teal) 55%, transparent)
-    );
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--vl-frost) 35%, transparent),
-    0 0 12px color-mix(in srgb, var(--vl-accent) 28%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--vl-accent) 30%, transparent);
 }
 
 @media (max-width: 960px) {
