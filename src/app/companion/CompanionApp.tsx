@@ -46,6 +46,7 @@ import { DeepArchimedeaPanel } from '../../modules/deepArchimedea/DeepArchimedea
 import { RivenPanel } from '../../modules/rivens/RivenPanel'
 import { FoundryPage } from '../../modules/foundry/FoundryPage'
 import { MarketPage } from '../../modules/market/MarketPage'
+import { LfgPage } from '../../modules/lfg/LfgPage'
 import { RelicPlannerPage } from '../../modules/relicPlanner/RelicPlannerPage'
 import { MasteryPage } from '../../modules/mastery/MasteryPage'
 import { InventoryPage } from '../../modules/inventory/InventoryPage'
@@ -66,6 +67,7 @@ type Tab =
   | 'mastery'
   | 'inventory'
   | 'market'
+  | 'lfg'
   | 'layout'
   | 'settings'
   | 'help'
@@ -460,6 +462,21 @@ export function CompanionApp() {
                 </svg>
               </span>
               Market
+            </button>
+            <button
+              className={`nav-btn ${tab === 'lfg' ? 'active' : ''}`}
+              title="Looking for group — hosted squad board"
+              onClick={() => goTab('lfg')}
+            >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="5.5" cy="6" r="2" />
+                  <circle cx="10.5" cy="6" r="2" />
+                  <path d="M2.5 12.5c.6-1.8 1.9-2.8 3-2.8s2.4 1 3 2.8" strokeLinecap="round" />
+                  <path d="M7.5 12.5c.6-1.8 1.9-2.8 3-2.8s2.4 1 3 2.8" strokeLinecap="round" />
+                </svg>
+              </span>
+              LFG
             </button>
             <button
               className={`nav-btn ${tab === 'layout' ? 'active' : ''}`}
@@ -889,6 +906,10 @@ export function CompanionApp() {
                   goTab('help')
                 }}
               />
+            ) : null}
+
+            {tab === 'lfg' ? (
+              <LfgPage settings={settings} onUpdate={(partial) => void updateSettings(partial)} />
             ) : null}
 
             {keptTabs.layout || tab === 'layout' ? (

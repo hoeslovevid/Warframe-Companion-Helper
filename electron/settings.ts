@@ -366,6 +366,45 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       Number.isFinite((raw as { marketFlipMinSpread: number }).marketFlipMinSpread)
         ? Math.max(1, Math.floor((raw as { marketFlipMinSpread: number }).marketFlipMinSpread))
         : base.marketFlipMinSpread,
+    lfgApiBaseUrl:
+      typeof (raw as { lfgApiBaseUrl?: string }).lfgApiBaseUrl === 'string'
+        ? String((raw as { lfgApiBaseUrl: string }).lfgApiBaseUrl).trim()
+        : base.lfgApiBaseUrl,
+    lfgIgn:
+      typeof (raw as { lfgIgn?: string }).lfgIgn === 'string'
+        ? String((raw as { lfgIgn: string }).lfgIgn).trim().slice(0, 24)
+        : base.lfgIgn,
+    lfgPlatform: (() => {
+      const p = (raw as { lfgPlatform?: string }).lfgPlatform
+      if (p === 'pc' || p === 'psn' || p === 'xbox' || p === 'switch' || p === 'mobile') return p
+      return base.lfgPlatform
+    })(),
+    lfgRegion: (() => {
+      const r = (raw as { lfgRegion?: string }).lfgRegion
+      if (r === 'na' || r === 'eu' || r === 'asia' || r === 'sa' || r === 'oce') return r
+      return base.lfgRegion
+    })(),
+    lfgLanguage:
+      typeof (raw as { lfgLanguage?: string }).lfgLanguage === 'string' &&
+      (raw as { lfgLanguage: string }).lfgLanguage.trim()
+        ? String((raw as { lfgLanguage: string }).lfgLanguage).trim().slice(0, 8)
+        : base.lfgLanguage,
+    lfgClientId:
+      typeof (raw as { lfgClientId?: string }).lfgClientId === 'string' &&
+      (raw as { lfgClientId: string }).lfgClientId.trim()
+        ? String((raw as { lfgClientId: string }).lfgClientId).trim()
+        : base.lfgClientId,
+    lfgHostTokens:
+      raw &&
+      typeof (raw as { lfgHostTokens?: unknown }).lfgHostTokens === 'object' &&
+      (raw as { lfgHostTokens: object }).lfgHostTokens &&
+      !Array.isArray((raw as { lfgHostTokens: unknown }).lfgHostTokens)
+        ? Object.fromEntries(
+            Object.entries(
+              (raw as { lfgHostTokens: Record<string, unknown> }).lfgHostTokens,
+            ).filter(([, v]) => typeof v === 'string') as Array<[string, string]>,
+          )
+        : base.lfgHostTokens,
     widgetServerEnabled: raw.widgetServerEnabled ?? base.widgetServerEnabled,
     widgetServerPort:
       typeof raw.widgetServerPort === 'number' &&

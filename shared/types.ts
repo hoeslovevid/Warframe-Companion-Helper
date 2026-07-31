@@ -487,6 +487,17 @@ export type AppSettings = {
   }>
   /** Min median−floor spread to flag as a flip opportunity. */
   marketFlipMinSpread: number
+  /** Remote LFG hub base URL. Empty = auto-start local hub (solo/LAN). */
+  lfgApiBaseUrl: string
+  /** Warframe IGN shown on LFG listings. */
+  lfgIgn: string
+  lfgPlatform: 'pc' | 'psn' | 'xbox' | 'switch' | 'mobile'
+  lfgRegion: 'na' | 'eu' | 'asia' | 'sa' | 'oce'
+  lfgLanguage: string
+  /** Stable client id for join/leave (generated once). */
+  lfgClientId: string
+  /** Host tokens for listings you created (id → token). */
+  lfgHostTokens: Record<string, string>
   /** Serve localhost HTML widgets for OBS / external overlays. */
   widgetServerEnabled: boolean
   /** Port for the widget HTTP server (127.0.0.1 only). */
@@ -711,6 +722,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   marketBuyAlertEnabled: true,
   marketRivenStock: [],
   marketFlipMinSpread: 5,
+  lfgApiBaseUrl: '',
+  lfgIgn: '',
+  lfgPlatform: 'pc',
+  lfgRegion: 'na',
+  lfgLanguage: 'en',
+  lfgClientId: '',
+  lfgHostTokens: {},
   widgetServerEnabled: false,
   widgetServerPort: 17862,
   quietMode: false,
@@ -1256,6 +1274,71 @@ export type SetFissurePathResult = {
   error: string | null
 }
 
+export type LfgPlatform = 'pc' | 'psn' | 'xbox' | 'switch' | 'mobile'
+export type LfgRegion = 'na' | 'eu' | 'asia' | 'sa' | 'oce'
+export type LfgActivity = 'relic' | 'fissure' | 'farm' | 'boss' | 'custom'
+export type LfgShareType = 'radshare' | 'intactshare' | 'any'
+
+export type LfgMember = {
+  ign: string
+  clientId: string
+  joinedAt: string
+  isHost: boolean
+}
+
+export type LfgListing = {
+  id: string
+  createdAt: string
+  expiresAt: string
+  hostIgn: string
+  platform: string
+  region: string
+  language: string
+  activity: string
+  title: string
+  notes: string
+  relicKey: string | null
+  refinement: string | null
+  shareType: string | null
+  steelPath: boolean
+  missionHint: string | null
+  slotsTotal: number
+  members: LfgMember[]
+  slotsOpen: number
+  whisper: string
+  inviteHint: string
+}
+
+export type LfgCreateInput = {
+  hostIgn: string
+  clientId: string
+  platform?: string
+  region?: string
+  language?: string
+  activity?: string
+  title: string
+  notes?: string
+  relicKey?: string | null
+  refinement?: string | null
+  shareType?: string | null
+  steelPath?: boolean
+  missionHint?: string | null
+  slotsTotal?: number
+  ttlMs?: number
+}
+
+export type LfgListResult = {
+  listings: LfgListing[]
+  baseUrl: string
+  error: string | null
+}
+
+export type LfgJoinResult = {
+  ok: boolean
+  listing: LfgListing | null
+  error: string | null
+}
+
 /** warframe.market auction contract (riven / lich / sister). */
 export type WfmContract = {
   id: string
@@ -1629,6 +1712,19 @@ export type VoidLensApi = {
   getInventoryDiff: () => Promise<InventoryDiff | null>
   suggestMarketUndercut: (name: string) => Promise<MarketUndercutSuggestion | null>
   getEconomyTrend: () => Promise<EconomyTrendResult>
+  lfgHealth: () => Promise<{ ok: boolean; listings?: number; error?: string; baseUrl: string }>
+  listLfg: (opts?: {
+    region?: string
+    platform?: string
+    activity?: string
+    q?: string
+  }) => Promise<LfgListResult>
+  createLfg: (
+    input: LfgCreateInput,
+  ) => Promise<{ ok: boolean; listing?: LfgListing; hostToken?: string; error?: string }>
+  joinLfg: (input: { id: string; ign: string; clientId: string }) => Promise<LfgJoinResult>
+  leaveLfg: (input: { id: string; clientId: string }) => Promise<{ ok: boolean; error?: string }>
+  deleteLfg: (input: { id: string; hostToken: string }) => Promise<{ ok: boolean; error?: string }>
   getMasteryHelper: (query?: MasteryHelperQuery) => Promise<MasteryHelperResult>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>
   getAppVersion: () => Promise<string>

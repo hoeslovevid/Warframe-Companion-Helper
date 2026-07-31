@@ -1,0 +1,44 @@
+.lfg-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.lfg-side {
+  display: grid;
+  gap: 12px;
+}
+
+.lfg-fissure-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.market-chip--relic {
+  color: #d8c48a;
+  border-color: rgba(216, 196, 138, 0.35);
+  background: rgba(216, 196, 138, 0.1);
+}
+
+.market-chip--fissure {
+  color: var(--vl-teal-bright, #5fd0c5);
+  border-color: color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 35%, transparent);
+  background: color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 12%, transparent);
+}
+
+.market-chip--farm,
+.market-chip--boss,
+.market-chip--custom {
+  color: var(--vl-mist, #9db4c4);
+  border-color: rgba(157, 180, 196, 0.3);
+  background: rgba(157, 180, 196, 0.08);
+}
+
+@media (max-width: 980px) {
+  .lfg-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -237,6 +237,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Dashboard economy snapshots (credits/ducats/plat); Market Deals flip scan + Riven stock',
     'Buy targets quantity; list assistant shows net after −1 undercut',
   ],
+  '0.9.55': [
+    'LFG tab: hosted squad board — post/join queues, whisper copy, local or remote hub',
+    'Deployable lfg-api server for community matchmaking (npm run lfg:serve)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

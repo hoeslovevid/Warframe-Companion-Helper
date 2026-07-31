@@ -1,0 +1,12 @@
+# Deploy this service with Root Directory = lfg-api
+# https://railway.app → New Project → Deploy from GitHub
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "node server.mjs"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

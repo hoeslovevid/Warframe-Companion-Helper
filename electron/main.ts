@@ -1284,6 +1284,30 @@ function registerIpc() {
     const { getEconomyTrend } = await import('./services/economy-snapshots')
     return getEconomyTrend()
   })
+  ipcMain.handle('lfg:health', async () => {
+    const { lfgHealth } = await import('./services/lfg-hub')
+    return lfgHealth()
+  })
+  ipcMain.handle('lfg:list', async (_e, opts) => {
+    const { listLfg } = await import('./services/lfg-hub')
+    return listLfg(opts || {})
+  })
+  ipcMain.handle('lfg:create', async (_e, input) => {
+    const { createLfg } = await import('./services/lfg-hub')
+    return createLfg(input || {})
+  })
+  ipcMain.handle('lfg:join', async (_e, input) => {
+    const { joinLfg } = await import('./services/lfg-hub')
+    return joinLfg(input || {})
+  })
+  ipcMain.handle('lfg:leave', async (_e, input) => {
+    const { leaveLfg } = await import('./services/lfg-hub')
+    return leaveLfg(input || {})
+  })
+  ipcMain.handle('lfg:delete', async (_e, input) => {
+    const { deleteLfg } = await import('./services/lfg-hub')
+    return deleteLfg(input || {})
+  })
   ipcMain.handle(
     'setProgress:list',
     async (_e, opts?: { search?: string; incompleteOnly?: boolean; limit?: number }) => {
@@ -1614,6 +1638,9 @@ app.on('will-quit', () => {
   if (inventorySyncTimer) clearInterval(inventorySyncTimer)
   if (expiryTimer) clearTimeout(expiryTimer)
   void stopWidgetServer()
+  void import('./services/lfg-hub')
+    .then((m) => m.stopLocalLfgHub())
+    .catch(() => {})
   disposePersistentCapture()
   void shutdownOcr()
 })
