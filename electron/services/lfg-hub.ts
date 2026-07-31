@@ -13,6 +13,7 @@ import type {
   LfgListResult,
   LfgJoinResult,
 } from '../../shared/types'
+import { DEFAULT_LFG_API_BASE_URL } from '../../shared/types'
 
 const DEFAULT_PORT = 17864
 let child: ChildProcess | null = null
@@ -28,14 +29,17 @@ function apiScriptPath() {
 
 export function getLfgBaseUrl(): string {
   const settings = loadSettings()
-  const remote = String(settings.lfgApiBaseUrl || '').trim().replace(/\/+$/, '')
-  if (remote) return remote
-  return localBaseUrl
+  const configured = String(settings.lfgApiBaseUrl || '').trim().replace(/\/+$/, '')
+  if (configured.toLowerCase() === 'local') return localBaseUrl
+  if (configured) return configured
+  return DEFAULT_LFG_API_BASE_URL
 }
 
 export async function ensureLocalLfgHub(): Promise<{ ok: boolean; baseUrl: string; error?: string }> {
   const settings = loadSettings()
-  if (String(settings.lfgApiBaseUrl || '').trim()) {
+  const configured = String(settings.lfgApiBaseUrl || '').trim().replace(/\/+$/, '')
+  const useLocal = configured.toLowerCase() === 'local'
+  if (!useLocal) {
     return { ok: true, baseUrl: getLfgBaseUrl() }
   }
   if (child && !child.killed) {
@@ -43,7 +47,8 @@ export async function ensureLocalLfgHub(): Promise<{ ok: boolean; baseUrl: strin
   }
   try {
     const script = apiScriptPath()
-    const dataFile = path.join(app.getPath('userData'), 'lfg-data.json')
+    // Prefer SQLite path; server falls back to JSON if native sqlite isn't available in Electron.
+    const dataFile = path.join(app.getPath('userData'), 'lfg.sqlite')
     child = spawn(process.execPath, [script], {
       env: {
         ...process.env,

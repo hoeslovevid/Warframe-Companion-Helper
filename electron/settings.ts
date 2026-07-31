@@ -366,10 +366,14 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       Number.isFinite((raw as { marketFlipMinSpread: number }).marketFlipMinSpread)
         ? Math.max(1, Math.floor((raw as { marketFlipMinSpread: number }).marketFlipMinSpread))
         : base.marketFlipMinSpread,
-    lfgApiBaseUrl:
-      typeof (raw as { lfgApiBaseUrl?: string }).lfgApiBaseUrl === 'string'
-        ? String((raw as { lfgApiBaseUrl: string }).lfgApiBaseUrl).trim()
-        : base.lfgApiBaseUrl,
+    lfgApiBaseUrl: (() => {
+      const rawUrl = (raw as { lfgApiBaseUrl?: string }).lfgApiBaseUrl
+      if (typeof rawUrl !== 'string') return base.lfgApiBaseUrl
+      const trimmed = rawUrl.trim().replace(/\/+$/, '')
+      if (!trimmed) return base.lfgApiBaseUrl
+      if (trimmed.toLowerCase() === 'local') return 'local'
+      return trimmed
+    })(),
     lfgIgn:
       typeof (raw as { lfgIgn?: string }).lfgIgn === 'string'
         ? String((raw as { lfgIgn: string }).lfgIgn).trim().slice(0, 24)

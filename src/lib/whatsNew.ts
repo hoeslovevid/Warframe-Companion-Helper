@@ -241,6 +241,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'LFG tab: hosted squad board — post/join queues, whisper copy, local or remote hub',
     'Deployable lfg-api server for community matchmaking (npm run lfg:serve)',
   ],
+  '0.9.56': [
+    'LFG: SQLite persistence + Railway volume support so community boards survive redeploys',
+    'LFG Hub URL defaults to the official hosted board (set to local for a private hub)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

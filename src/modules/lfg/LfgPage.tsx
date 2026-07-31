@@ -265,16 +265,16 @@ export function LfgPage({ settings, onUpdate }: Props) {
               </select>
             </label>
             <label className="field">
-              <span>Hub URL (optional)</span>
+              <span>Hub URL</span>
               <input
                 value={settings.lfgApiBaseUrl}
-                placeholder="Empty = local hub · or https://your-lfg.example"
+                placeholder="Official community board (default)"
                 onChange={(e) => saveProfile({ lfgApiBaseUrl: e.target.value })}
               />
             </label>
             <p className="muted" style={{ fontSize: '0.75rem', margin: 0 }}>
-              Leave Hub URL empty to auto-start a local board (solo/LAN). Point everyone at the same
-              deployed <code>npm run lfg:serve</code> URL for community matchmaking.
+              Defaults to the public Everything Warframe board. Set to <code>local</code> for a
+              private hub on this PC, or paste another hosted URL.
             </p>
           </Panel>
 
@@ -442,7 +442,7 @@ export function LfgPage({ settings, onUpdate }: Props) {
             {listings.length === 0 ? (
               <EmptyState
                 title="No open queues"
-                body="Post a squad, or point Hub URL at a shared lfg:serve instance so others can see you."
+                body="Post a squad on the community board — set Hub URL to local for a private PC-only hub."
               />
             ) : (
               <ul className="market-card-list">

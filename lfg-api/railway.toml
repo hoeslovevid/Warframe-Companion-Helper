@@ -1,5 +1,10 @@
 # Deploy this service with Root Directory = lfg-api
 # https://railway.app → New Project → Deploy from GitHub
+#
+# Volume (required for durable boards across redeploys):
+#   Railway → service → Volumes → Add Volume
+#   Mount path: /data
+#   Then set env: LFG_DATA=/data/lfg.sqlite
 
 [build]
 builder = "NIXPACKS"

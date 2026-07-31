@@ -1,6 +1,6 @@
 {
   "name": "everything-warframe",
-  "version": "0.9.55",
+  "version": "0.9.56",
   "description": "Everything Warframe — overlay companion for Windows and Linux (Steam/Proton): worldstate, relics, rivens, foundry, inventory",
   "main": "dist-electron/main.cjs",
   "author": "Everything Warframe <hoeslovevid@users.noreply.github.com>",
@@ -75,7 +75,13 @@
         "from": "lfg-api",
         "to": "lfg-api",
         "filter": [
-          "**/*"
+          "**/*",
+          "!node_modules",
+          "!node_modules/**",
+          "!data/*.sqlite",
+          "!data/*.sqlite-*",
+          "!data/*.json",
+          "!data/*.tmp"
         ]
       }
     ],

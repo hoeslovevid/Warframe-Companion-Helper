@@ -13,3 +13,9 @@ Thumbs.db
 .vscode
 *.local
 lfg-api/lfg-data.json
+lfg-api/lfg-data.json.migrated
+lfg-api/data/*.sqlite
+lfg-api/data/*.sqlite-*
+lfg-api/data/*.json
+lfg-api/data/*.tmp
+lfg-api/node_modules/

@@ -487,7 +487,10 @@ export type AppSettings = {
   }>
   /** Min median−floor spread to flag as a flip opportunity. */
   marketFlipMinSpread: number
-  /** Remote LFG hub base URL. Empty = auto-start local hub (solo/LAN). */
+  /**
+   * LFG hub base URL.
+   * Default = official hosted board. Set to `local` for a private hub on this PC.
+   */
   lfgApiBaseUrl: string
   /** Warframe IGN shown on LFG listings. */
   lfgIgn: string
@@ -613,6 +616,10 @@ export const MODULE_META: Record<
   },
 }
 
+/** Official hosted LFG board (Railway). Override with another URL, or `local` for a private hub. */
+export const DEFAULT_LFG_API_BASE_URL =
+  'https://everything-warframe-production.up.railway.app'
+
 export const DEFAULT_SETTINGS: AppSettings = {
   modules: {
     cycles: true,
@@ -722,7 +729,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   marketBuyAlertEnabled: true,
   marketRivenStock: [],
   marketFlipMinSpread: 5,
-  lfgApiBaseUrl: '',
+  lfgApiBaseUrl: DEFAULT_LFG_API_BASE_URL,
   lfgIgn: '',
   lfgPlatform: 'pc',
   lfgRegion: 'na',

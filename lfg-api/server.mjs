@@ -1,28 +1,24 @@
 /**
- * Everything Warframe — LFG hub API (zero deps).
+ * Everything Warframe — LFG hub API.
  * Run: node lfg-api/server.mjs
- * Env: PORT=17864  LFG_DATA=./lfg-data.json  LFG_ORIGIN=*
+ * Env: PORT=17864  LFG_DATA=/data/lfg.sqlite  LFG_DATA_DIR=/data  LFG_ORIGIN=*
  *
- * Deploy on Railway / Render / Fly and point the app's LFG Hub URL at it
- * so all clients share one matchmaking board.
+ * Persist listings on a Railway volume (SQLite). JSON fallback for local Electron.
  */
 import http from 'node:http'
-import fs from 'node:fs'
-import path from 'node:path'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { fileURLToPath } from 'node:url'
+import { openStore, resolveDataPath } from './store.mjs'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || process.env.LFG_PORT || 17864)
-const DATA_FILE = process.env.LFG_DATA || path.join(__dirname, 'lfg-data.json')
-const MAX_LISTINGS = 200
+const MAX_LISTINGS = 500
 const DEFAULT_TTL_MS = 15 * 60_000
 const MAX_TTL_MS = 120 * 60_000
 const MIN_TTL_MS = 5 * 60_000
 const RATE_WINDOW_MS = 60_000
 const RATE_MAX = 40
 
-/** @typedef {{
+/**
+ * @typedef {{
  *  id: string
  *  createdAt: string
  *  expiresAt: string
@@ -41,46 +37,14 @@ const RATE_MAX = 40
  *  missionHint: string | null
  *  slotsTotal: number
  *  members: Array<{ ign: string, clientId: string, joinedAt: string, isHost: boolean }>
- * }} Listing */
+ * }} Listing
+ */
 
-/** @type {Map<string, Listing>} */
-const listings = new Map()
 /** @type {Map<string, number[]>} */
 const rateHits = new Map()
 
-function load() {
-  try {
-    if (!fs.existsSync(DATA_FILE)) return
-    const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))
-    const arr = Array.isArray(raw?.listings) ? raw.listings : []
-    for (const row of arr) {
-      if (row?.id) listings.set(row.id, row)
-    }
-  } catch {
-    // ignore
-  }
-}
-
-function save() {
-  try {
-    const listingsArr = [...listings.values()]
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ listings: listingsArr }, null, 0), 'utf8')
-  } catch {
-    // ignore
-  }
-}
-
-function purgeExpired() {
-  const now = Date.now()
-  let changed = false
-  for (const [id, row] of listings) {
-    if (Date.parse(row.expiresAt) <= now) {
-      listings.delete(id)
-      changed = true
-    }
-  }
-  if (changed) save()
-}
+/** @type {import('./store.mjs').LfgStore | null} */
+let store = null
 
 function publicListing(row) {
   const { hostToken, ...rest } = row
@@ -152,9 +116,15 @@ function cleanStr(v, max = 80) {
     .slice(0, max)
 }
 
-load()
-purgeExpired()
-setInterval(purgeExpired, 30_000)
+function enforceCap() {
+  while (store.count() >= MAX_LISTINGS) {
+    const oldest = store.list({}).sort(
+      (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
+    )[0]
+    if (!oldest) break
+    store.remove(oldest.id)
+  }
+}
 
 const server = http.createServer(async (req, res) => {
   const ip = req.socket.remoteAddress || 'local'
@@ -172,38 +142,26 @@ const server = http.createServer(async (req, res) => {
     const pathname = url.pathname.replace(/\/+$/, '') || '/'
 
     if (req.method === 'GET' && (pathname === '/' || pathname === '/health')) {
-      purgeExpired()
+      store.purgeExpired()
       send(res, 200, {
         ok: true,
         service: 'everything-warframe-lfg',
-        listings: listings.size,
+        listings: store.count(),
+        store: store.kind,
+        dataPath: store.path,
         now: new Date().toISOString(),
       })
       return
     }
 
     if (req.method === 'GET' && pathname === '/listings') {
-      purgeExpired()
-      const region = (url.searchParams.get('region') || '').toLowerCase()
-      const platform = (url.searchParams.get('platform') || '').toLowerCase()
-      const activity = (url.searchParams.get('activity') || '').toLowerCase()
-      const q = (url.searchParams.get('q') || '').toLowerCase()
-      let rows = [...listings.values()]
-      if (region && region !== 'all') rows = rows.filter((r) => r.region === region)
-      if (platform && platform !== 'all') {
-        rows = rows.filter((r) => r.platform === platform || platform === 'crossplay')
-      }
-      if (activity && activity !== 'all') rows = rows.filter((r) => r.activity === activity)
-      if (q) {
-        rows = rows.filter(
-          (r) =>
-            r.title.toLowerCase().includes(q) ||
-            (r.relicKey || '').toLowerCase().includes(q) ||
-            r.hostIgn.toLowerCase().includes(q) ||
-            (r.notes || '').toLowerCase().includes(q),
-        )
-      }
-      rows.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      store.purgeExpired()
+      const rows = store.list({
+        region: url.searchParams.get('region') || '',
+        platform: url.searchParams.get('platform') || '',
+        activity: url.searchParams.get('activity') || '',
+        q: url.searchParams.get('q') || '',
+      })
       send(res, 200, { listings: rows.map(publicListing) })
       return
     }
@@ -256,22 +214,16 @@ const server = http.createServer(async (req, res) => {
           },
         ],
       }
-      // Drop oldest if over cap
-      if (listings.size >= MAX_LISTINGS) {
-        const oldest = [...listings.values()].sort(
-          (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
-        )[0]
-        if (oldest) listings.delete(oldest.id)
-      }
-      listings.set(id, row)
-      save()
+      store.purgeExpired()
+      enforceCap()
+      store.upsert(row)
       send(res, 201, { listing: publicListing(row), hostToken })
       return
     }
 
     const joinMatch = pathname.match(/^\/listings\/([^/]+)\/join$/)
     if (req.method === 'POST' && joinMatch) {
-      const row = listings.get(joinMatch[1])
+      const row = store.get(joinMatch[1])
       if (!row || Date.parse(row.expiresAt) <= Date.now()) {
         send(res, 404, { error: 'Listing not found or expired' })
         return
@@ -297,14 +249,14 @@ const server = http.createServer(async (req, res) => {
         joinedAt: new Date().toISOString(),
         isHost: false,
       })
-      save()
+      store.upsert(row)
       send(res, 200, { listing: publicListing(row) })
       return
     }
 
     const leaveMatch = pathname.match(/^\/listings\/([^/]+)\/leave$/)
     if (req.method === 'POST' && leaveMatch) {
-      const row = listings.get(leaveMatch[1])
+      const row = store.get(leaveMatch[1])
       if (!row) {
         send(res, 404, { error: 'Listing not found' })
         return
@@ -314,16 +266,17 @@ const server = http.createServer(async (req, res) => {
       const before = row.members.length
       row.members = row.members.filter((m) => m.clientId !== clientId)
       if (!row.members.length || !row.members.some((m) => m.isHost)) {
-        listings.delete(row.id)
+        store.remove(row.id)
+      } else if (row.members.length !== before) {
+        store.upsert(row)
       }
-      if (row.members.length !== before) save()
       send(res, 200, { ok: true })
       return
     }
 
     const delMatch = pathname.match(/^\/listings\/([^/]+)$/)
     if (req.method === 'DELETE' && delMatch) {
-      const row = listings.get(delMatch[1])
+      const row = store.get(delMatch[1])
       if (!row) {
         send(res, 404, { error: 'Listing not found' })
         return
@@ -335,8 +288,7 @@ const server = http.createServer(async (req, res) => {
         send(res, 403, { error: 'Host token required' })
         return
       }
-      listings.delete(row.id)
-      save()
+      store.remove(row.id)
       send(res, 200, { ok: true })
       return
     }
@@ -347,7 +299,19 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.info(`[LFG] Everything Warframe LFG hub on http://0.0.0.0:${PORT}`)
-  console.info(`[LFG] Data file: ${DATA_FILE}`)
+async function main() {
+  const dataPath = resolveDataPath()
+  store = await openStore(dataPath)
+  store.purgeExpired()
+  setInterval(() => store?.purgeExpired(), 30_000)
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.info(`[LFG] Everything Warframe LFG hub on http://0.0.0.0:${PORT}`)
+    console.info(`[LFG] Store: ${store.kind} @ ${store.path}`)
+  })
+}
+
+main().catch((err) => {
+  console.error('[LFG] Failed to start:', err)
+  process.exit(1)
 })
