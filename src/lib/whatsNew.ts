@@ -245,6 +245,9 @@ export const WHATS_NEW: Record<string, string[]> = {
     'LFG: SQLite persistence + Railway volume support so community boards survive redeploys',
     'LFG Hub URL defaults to the official hosted board (set to local for a private hub)',
   ],
+  '0.9.57': [
+    'LFG hub: Railway-friendly SQLite via built-in node:sqlite (no native build deps)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
