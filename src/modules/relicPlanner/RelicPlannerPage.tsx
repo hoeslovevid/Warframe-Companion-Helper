@@ -405,6 +405,12 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
               <div className="foundry-list__meta" style={{ marginBottom: 8 }}>
                 <span className="vl-pill">{detail.tier}</span>
                 <span className="vl-pill">Owned ×{detail.owned}</span>
+                {detail.refinements && detail.owned > 0 ? (
+                  <span className="vl-pill" title="Intact / Exceptional / Flawless / Radiant">
+                    I{detail.refinements.intact} · E{detail.refinements.exceptional} · F
+                    {detail.refinements.flawless} · R{detail.refinements.radiant}
+                  </span>
+                ) : null}
                 {detail.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
                 {detail.bestPlatinum != null ? (
                   <span className="vl-pill is-premium">~{Math.round(detail.bestPlatinum)}p</span>

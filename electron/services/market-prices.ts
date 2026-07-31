@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 
-type PriceHit = { platinum: number; volume: number; fetchedAt: number }
+type PriceHit = { platinum: number; lowest: number; volume: number; fetchedAt: number }
 
 const cache = new Map<string, PriceHit>()
 const TTL_MS = 30 * 60_000
@@ -26,7 +26,14 @@ function loadDiskCache() {
     if (!fs.existsSync(file)) return
     const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, PriceHit>
     for (const [k, v] of Object.entries(raw)) {
-      if (v?.platinum != null) cache.set(k, v)
+      if (v?.platinum != null) {
+        cache.set(k, {
+          platinum: v.platinum,
+          lowest: typeof v.lowest === 'number' ? v.lowest : v.platinum,
+          volume: v.volume || 0,
+          fetchedAt: v.fetchedAt || 0,
+        })
+      }
     }
   } catch {
     // ignore
@@ -69,7 +76,7 @@ async function fetchOne(name: string): Promise<PriceHit | null> {
       .sort((a, b) => a - b)
     if (!sells.length) return null
     const mid = sells[Math.floor(sells.length / 2)]
-    return { platinum: mid, volume: sells.length, fetchedAt: Date.now() }
+    return { platinum: mid, lowest: sells[0], volume: sells.length, fetchedAt: Date.now() }
   } catch {
     return null
   }
@@ -78,20 +85,20 @@ async function fetchOne(name: string): Promise<PriceHit | null> {
 /** Lookup median sell platinum for item display names (rate-limited + cached). */
 export async function lookupMarketPrices(
   names: string[],
-): Promise<Map<string, { platinum: number; volume: number }>> {
+): Promise<Map<string, { platinum: number; volume: number; lowest: number }>> {
   if (!diskLoaded) {
     loadDiskCache()
     diskLoaded = true
   }
 
-  const out = new Map<string, { platinum: number; volume: number }>()
+  const out = new Map<string, { platinum: number; volume: number; lowest: number }>()
   const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))]
   const missing: string[] = []
 
   for (const name of unique) {
     const hit = cache.get(slugifyItemName(name))
     if (hit && Date.now() - hit.fetchedAt < TTL_MS) {
-      out.set(name, { platinum: hit.platinum, volume: hit.volume })
+      out.set(name, { platinum: hit.platinum, volume: hit.volume, lowest: hit.lowest })
     } else {
       missing.push(name)
     }
@@ -108,7 +115,7 @@ export async function lookupMarketPrices(
     for (const { name, hit } of results) {
       if (!hit) continue
       cache.set(slugifyItemName(name), hit)
-      out.set(name, { platinum: hit.platinum, volume: hit.volume })
+      out.set(name, { platinum: hit.platinum, volume: hit.volume, lowest: hit.lowest })
     }
     if (i + MAX_CONCURRENT < missing.length) {
       await new Promise((r) => setTimeout(r, 350))
@@ -117,4 +124,23 @@ export async function lookupMarketPrices(
 
   if (missing.length) saveDiskCache()
   return out
+}
+
+/** Suggest sell platinum: live floor − 1 (min 1). */
+export async function suggestUndercutPrice(
+  name: string,
+): Promise<{ name: string; floor: number; median: number; suggest: number; volume: number } | null> {
+  const trimmed = String(name || '').trim()
+  if (!trimmed) return null
+  const map = await lookupMarketPrices([trimmed])
+  const hit = map.get(trimmed)
+  if (!hit) return null
+  const floor = hit.lowest || hit.platinum
+  return {
+    name: trimmed,
+    floor,
+    median: hit.platinum,
+    suggest: Math.max(1, floor - 1),
+    volume: hit.volume,
+  }
 }

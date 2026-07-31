@@ -40,6 +40,10 @@ export type OverlayLayoutStageProps = {
   fissureSort?: FissureSort
   baroWishlist?: string[]
   nightwaveDoneIds?: string[]
+  /** Inventory currencies for Baro can-afford (overlay + companion). */
+  playerDucats?: number | null
+  playerCredits?: number | null
+  dumpableDucats?: number | null
   editable: boolean
   /** live = fullscreen overlay; preview = scaled mock monitor */
   mode: 'live' | 'preview'
@@ -110,6 +114,9 @@ export function OverlayLayoutStage({
   fissureSort = 'eta',
   baroWishlist = [],
   nightwaveDoneIds = [],
+  playerDucats = null,
+  playerCredits = null,
+  dumpableDucats = null,
   editable,
   mode,
   designWidth = 1920,
@@ -294,6 +301,9 @@ export function OverlayLayoutStage({
             <BaroPanel
               baro={data.baro}
               wishlist={baroWishlist}
+              playerDucats={playerDucats}
+              playerCredits={playerCredits}
+              dumpableDucats={dumpableDucats}
               opacity={op}
               compact
             />

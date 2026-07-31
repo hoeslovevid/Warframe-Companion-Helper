@@ -336,5 +336,7 @@ export function buildPreviewWorldstate(live: WorldstateSnapshot): WorldstateSnap
     invasions: live.invasions?.length ? live.invasions : [],
     archonHunt: live.archonHunt,
     deepArchimedea: live.deepArchimedea,
+    sortie: live.sortie ?? null,
+    alerts: live.alerts?.length ? live.alerts : [],
   }
 }

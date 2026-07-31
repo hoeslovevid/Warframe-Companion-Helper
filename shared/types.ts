@@ -772,6 +772,32 @@ export type InvasionInfo = {
   expiry: string
 }
 
+export type SortieMission = {
+  node: string
+  missionType: string
+  modifier: string
+}
+
+export type SortieInfo = {
+  id: string
+  boss: string
+  faction: string
+  rewardPool: string
+  expiry: string
+  eta: string
+  missions: SortieMission[]
+}
+
+export type AlertInfo = {
+  id: string
+  node: string
+  missionType: string
+  faction: string
+  reward: string
+  expiry: string
+  eta: string
+}
+
 export type ArchonHuntInfo = {
   boss: string
   faction: string
@@ -800,6 +826,8 @@ export type WorldstateSnapshot = {
   invasions: InvasionInfo[]
   archonHunt: ArchonHuntInfo | null
   deepArchimedea: DeepArchimedeaInfo | null
+  sortie: SortieInfo | null
+  alerts: AlertInfo[]
 }
 
 export type InventoryIndex = Record<string, number>
@@ -971,11 +999,20 @@ export type RelicPlannerReward = {
   ducats: number | null
 }
 
+export type RelicRefinementCounts = {
+  intact: number
+  exceptional: number
+  flawless: number
+  radiant: number
+}
+
 export type RelicPlannerRow = {
   key: string
   name: string
   tier: string
   owned: number
+  /** Per-refinement owned stacks when inventory is loaded. */
+  refinements: RelicRefinementCounts
   vaulted: boolean | null
   missingCount: number
   bestPlatinum: number | null
@@ -1160,6 +1197,8 @@ export type InventoryBrowseItem = {
   excess: number
 }
 
+export type InventoryBrowseSort = 'count' | 'name' | 'platinum' | 'ducats' | 'excess'
+
 export type InventoryBrowseQuery = {
   search?: string
   kind?: InventoryBrowseKind | 'all'
@@ -1167,7 +1206,30 @@ export type InventoryBrowseQuery = {
   sellableOnly?: boolean
   /** Attach platinum/ducats (also implied by sellableOnly). Off by default for speed. */
   enrichPrices?: boolean
+  /** Default: platinum for sellable, else count. */
+  sort?: InventoryBrowseSort
   limit?: number
+}
+
+export type InventoryDiffEntry = {
+  uniqueName: string
+  displayName: string
+  before: number
+  after: number
+  delta: number
+}
+
+export type InventoryDiff = {
+  syncedAt: string
+  added: InventoryDiffEntry[]
+  removed: InventoryDiffEntry[]
+  changed: InventoryDiffEntry[]
+  summary: {
+    addedStacks: number
+    removedStacks: number
+    changedStacks: number
+    netUnits: number
+  }
 }
 
 export type InventorySyncResult = {
@@ -1177,6 +1239,42 @@ export type InventorySyncResult = {
   itemCount?: number
   uniqueCount?: number
   error?: string
+  /** Present when a previous inventory was loaded before this sync. */
+  diff?: InventoryDiff | null
+}
+
+export type SetProgressPart = {
+  name: string
+  uniqueName: string
+  owned: number
+  needed: boolean
+}
+
+export type SetProgressRow = {
+  uniqueName: string
+  name: string
+  category: FoundryCategory
+  vaulted: boolean | null
+  ownedParts: number
+  totalParts: number
+  missingParts: number
+  complete: boolean
+  percent: number
+  parts: SetProgressPart[]
+}
+
+export type SetProgressResult = {
+  rows: SetProgressRow[]
+  inventoryLoaded: boolean
+  error: string | null
+}
+
+export type MarketUndercutSuggestion = {
+  name: string
+  floor: number
+  median: number
+  suggest: number
+  volume: number
 }
 
 export type SetPartOwned = {
@@ -1209,6 +1307,13 @@ export type RewardEval = {
   vaulted: boolean | null
 }
 
+export type RelicScanMeta = {
+  theme: string | null
+  slotHint: number | null
+  trimmedTo: number | null
+  formaSlots: number
+}
+
 export type RelicScanState = {
   active: boolean
   scanning: boolean
@@ -1220,6 +1325,29 @@ export type RelicScanState = {
   celebration: boolean
   /** EE.log squad-size hint (1–4) when available. */
   squadSize: number | null
+  /** Last successful (or failed) scan diagnostics for Settings hints. */
+  scanMeta: RelicScanMeta | null
+}
+
+export type RivenHistoryEntry = {
+  id: string
+  scannedAt: string
+  weapon: string
+  side: 'current' | 'reroll'
+  /** True when this side was the recommended pick. */
+  picked: boolean
+  score: number
+  tier: RivenTier
+  platinum: number | null
+  polarity: string | null
+  marketUrl: string | null
+  statsSummary: string
+}
+
+export type RivenHistoryResult = {
+  entries: RivenHistoryEntry[]
+  /** Newest→oldest platinum samples for a simple trend (picked side preferred). */
+  platTrend: Array<{ scannedAt: string; platinum: number; weapon: string }>
 }
 
 export type AppUpdateStatus = {
@@ -1324,6 +1452,8 @@ export type VoidLensApi = {
   getRivenScan: () => Promise<RivenScanState>
   scanRivens: () => Promise<RivenScanState>
   clearRivenScan: () => Promise<RivenScanState>
+  getRivenHistory: () => Promise<RivenHistoryResult>
+  clearRivenHistory: () => Promise<RivenHistoryResult>
   getFoundryItems: (filters?: FoundryListFilters) => Promise<FoundryListItem[]>
   getFoundryTree: (uniqueName: string) => Promise<FoundryTreeResult>
   getRelicPlanner: (query?: RelicPlannerQuery) => Promise<RelicPlannerResult>
@@ -1333,6 +1463,13 @@ export type VoidLensApi = {
     search?: string
     prime?: FoundryPrimeFilter
   }) => Promise<SetFarmResult | null>
+  getSetProgress: (opts?: {
+    search?: string
+    incompleteOnly?: boolean
+    limit?: number
+  }) => Promise<SetProgressResult>
+  getInventoryDiff: () => Promise<InventoryDiff | null>
+  suggestMarketUndercut: (name: string) => Promise<MarketUndercutSuggestion | null>
   getMasteryHelper: (query?: MasteryHelperQuery) => Promise<MasteryHelperResult>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>
   getAppVersion: () => Promise<string>

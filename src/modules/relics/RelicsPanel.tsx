@@ -3,7 +3,7 @@ import { relicStripLayout } from '../../../shared/captureGeometry'
 import { RewardEval } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useRelicScan } from '../../hooks/useRelicScan'
-import { copyText, formatRelicTradeLine } from '../../lib/tradeClipboard'
+import { copyText, formatBestPickTradeLine, formatRelicTradeLine } from '../../lib/tradeClipboard'
 import '../cycles/module.css'
 import '../baro/baro.css'
 import './relics.css'
@@ -124,8 +124,8 @@ export function RelicsPanel({
   const stripW = stripWidthPx(layoutWidth)
   const [copied, setCopied] = useState(false)
 
-  const copyTrade = async () => {
-    const text = formatRelicTradeLine(rewards)
+  const copyTrade = async (bestOnly = false) => {
+    const text = bestOnly ? formatBestPickTradeLine(rewards) : formatRelicTradeLine(rewards)
     if (!(await copyText(text))) return
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1600)
@@ -167,10 +167,18 @@ export function RelicsPanel({
           <button
             className="btn ghost"
             disabled={!rewards.length}
-            onClick={() => void copyTrade()}
+            onClick={() => void copyTrade(false)}
             title="Copy WTS/WTB lines for trade chat"
           >
             {copied ? 'Copied' : 'Copy trade'}
+          </button>
+          <button
+            className="btn ghost"
+            disabled={!rewards.length}
+            onClick={() => void copyTrade(true)}
+            title="Copy Best pick only"
+          >
+            Best pick
           </button>
           <button className="btn ghost" disabled={!rewards.length} onClick={() => void clear()}>
             Clear
@@ -185,6 +193,15 @@ export function RelicsPanel({
           </p>
         ) : null}
         {state.error ? <p className="mod-empty">Error: {state.error}</p> : null}
+        {state.scanMeta && !scanning ? (
+          <p className="mod-empty" style={{ fontSize: '0.75rem', margin: 0 }}>
+            OCR: theme {state.scanMeta.theme || '—'}
+            {state.scanMeta.slotHint != null ? ` · ${state.scanMeta.slotHint} slots` : ''}
+            {state.scanMeta.formaSlots ? ` · ${state.scanMeta.formaSlots} Forma` : ''}
+            {' · '}
+            tweak theme / slots in Settings if names look wrong
+          </p>
+        ) : null}
         {rewards.length === 0 && !scanning ? (
           <div className="mod-stack">
             <p className="mod-empty">

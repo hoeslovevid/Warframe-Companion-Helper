@@ -82,6 +82,8 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
   const [orderItemId, setOrderItemId] = useState('')
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('sell')
   const [orderPlat, setOrderPlat] = useState('10')
+  const [undercutBusy, setUndercutBusy] = useState(false)
+  const [undercutHint, setUndercutHint] = useState<string | null>(null)
   const [orderQty, setOrderQty] = useState('1')
   const [orderVisible, setOrderVisible] = useState(true)
   const [orderBusy, setOrderBusy] = useState(false)
@@ -295,6 +297,24 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
       await refreshOrders()
     } finally {
       setOrderBusy(false)
+    }
+  }
+
+  const applyUndercut = async () => {
+    const name = orderItemQuery.trim()
+    if (!name || !window.voidlens?.suggestMarketUndercut) return
+    setUndercutBusy(true)
+    setUndercutHint(null)
+    try {
+      const tip = await window.voidlens.suggestMarketUndercut(name)
+      if (!tip) {
+        setUndercutHint('No live sell orders found')
+        return
+      }
+      setOrderPlat(String(tip.suggest))
+      setUndercutHint(`Floor ${tip.floor}p · median ~${tip.median}p · suggest ${tip.suggest}p`)
+    } finally {
+      setUndercutBusy(false)
     }
   }
 
@@ -611,6 +631,15 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
                           Visible
                         </label>
                         <button
+                          className="btn ghost"
+                          type="button"
+                          disabled={undercutBusy || !orderItemQuery.trim() || orderType !== 'sell'}
+                          onClick={() => void applyUndercut()}
+                          title="Set platinum to live lowest sell − 1"
+                        >
+                          {undercutBusy ? '…' : 'Undercut'}
+                        </button>
+                        <button
                           className="btn primary"
                           disabled={orderBusy || (!orderItemId && !orderItemQuery.trim())}
                           onClick={() => void submitOrder()}
@@ -618,6 +647,7 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
                           {orderBusy ? 'Listing…' : 'Create'}
                         </button>
                       </div>
+                      {undercutHint ? <p className="muted">{undercutHint}</p> : null}
                       {orderMsg ? (
                         <p className={orderMsg.startsWith('Listed') ? 'muted' : 'market-error'}>
                           {orderMsg}

@@ -17,6 +17,7 @@ import type {
   RelicPlannerResult,
   RelicPlannerRow,
   RelicPlannerSort,
+  RelicRefinementCounts,
 } from '../../shared/types'
 
 export type { RelicPlannerSort, RelicPlannerReward, RelicPlannerRow, RelicPlannerResult } from '../../shared/types'
@@ -37,9 +38,17 @@ function normalizeFavorite(s: string): string {
     .trim()
 }
 
+function emptyRefinements(): RelicRefinementCounts {
+  return { intact: 0, exceptional: 0, flawless: 0, radiant: 0 }
+}
+
 /** Sum owned counts for all refinement variants of each base relic key. */
-function buildOwnedByKey(index: Record<string, number>): Map<string, number> {
-  const map = new Map<string, number>()
+function buildOwnedByKey(index: Record<string, number>): {
+  totals: Map<string, number>
+  refinements: Map<string, RelicRefinementCounts>
+} {
+  const totals = new Map<string, number>()
+  const refinements = new Map<string, RelicRefinementCounts>()
   for (const [unique, count] of Object.entries(index)) {
     if (!count || unique === 'RegularCredits' || unique === 'Ducats' || unique === 'PremiumCredits') {
       continue
@@ -49,9 +58,16 @@ function buildOwnedByKey(index: Record<string, number>): Map<string, number> {
     if (!unique.includes('/')) continue
     const hit = getRelicByUnique(unique)
     if (!hit) continue
-    map.set(hit.key, (map.get(hit.key) || 0) + count)
+    totals.set(hit.key, (totals.get(hit.key) || 0) + count)
+    const ref = refinements.get(hit.key) || emptyRefinements()
+    const r = (hit.refinement || 'Intact').toLowerCase()
+    if (r === 'exceptional') ref.exceptional += count
+    else if (r === 'flawless') ref.flawless += count
+    else if (r === 'radiant') ref.radiant += count
+    else ref.intact += count
+    refinements.set(hit.key, ref)
   }
-  return map
+  return { totals, refinements }
 }
 
 function rewardDucats(name: string): number | null {
@@ -98,6 +114,7 @@ function buildRow(
   entry: RelicCatalogEntry,
   index: Record<string, number>,
   ownedByKey: Map<string, number>,
+  refinementsByKey: Map<string, RelicRefinementCounts>,
   favoriteNorms: Set<string>,
 ): RelicPlannerRow {
   const rewards = entry.rewards.map((r) => {
@@ -132,6 +149,7 @@ function buildRow(
     name: entry.key,
     tier: entry.tier,
     owned: ownedByKey.get(entry.key) || 0,
+    refinements: refinementsByKey.get(entry.key) || emptyRefinements(),
     vaulted: entry.vaulted,
     missingCount,
     bestPlatinum,
@@ -175,7 +193,7 @@ export async function getRelicPlanner(opts?: RelicPlannerQuery): Promise<RelicPl
 
   const index = peekInventoryIndex()
   const inventoryLoaded = Object.keys(index).length > 0
-  const ownedByKey = buildOwnedByKey(index)
+  const { totals: ownedByKey, refinements: refinementsByKey } = buildOwnedByKey(index)
   const ownedRelicTypes = [...ownedByKey.values()].filter((n) => n > 0).length
   const settings = loadSettings()
   const favorites = settings.farmFavorites || []
@@ -198,7 +216,7 @@ export async function getRelicPlanner(opts?: RelicPlannerQuery): Promise<RelicPl
   if (prime === 'normal') entries = entries.filter((e) => !entryHasPrimeReward(e))
   if (search) entries = entries.filter((e) => entryMatchesSearch(e, search, prime))
 
-  let rows = entries.map((e) => buildRow(e, index, ownedByKey, favoriteNorms))
+  let rows = entries.map((e) => buildRow(e, index, ownedByKey, refinementsByKey, favoriteNorms))
 
   const compare = (a: RelicPlannerRow, b: RelicPlannerRow) => {
     if (sort === 'platinum') {

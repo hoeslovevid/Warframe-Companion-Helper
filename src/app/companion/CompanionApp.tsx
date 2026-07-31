@@ -48,6 +48,7 @@ import { MarketPage } from '../../modules/market/MarketPage'
 import { RelicPlannerPage } from '../../modules/relicPlanner/RelicPlannerPage'
 import { MasteryPage } from '../../modules/mastery/MasteryPage'
 import { InventoryPage } from '../../modules/inventory/InventoryPage'
+import { SetsPage } from '../../modules/sets/SetsPage'
 import { LinuxCaptureWizard } from '../../components/LinuxCaptureWizard'
 import { LayoutEditor } from './LayoutEditor'
 import { prettyHotkey } from '../../lib/hotkey'
@@ -59,6 +60,7 @@ type Tab =
   | 'dashboard'
   | 'modules'
   | 'foundry'
+  | 'sets'
   | 'relicPlanner'
   | 'mastery'
   | 'inventory'
@@ -153,17 +155,28 @@ export function CompanionApp() {
   useColorTheme(settings.colorTheme, settings.customPalette)
   const [playerDucats, setPlayerDucats] = useState<number | null>(null)
   const [playerCredits, setPlayerCredits] = useState<number | null>(null)
+  const [dumpableDucats, setDumpableDucats] = useState<number | null>(null)
 
   useEffect(() => {
     if (!window.voidlens?.getInventoryIndex || !inventory.loaded) {
       setPlayerDucats(null)
       setPlayerCredits(null)
+      setDumpableDucats(null)
       return
     }
     void window.voidlens.getInventoryIndex().then((index) => {
       setPlayerCredits(typeof index.RegularCredits === 'number' ? index.RegularCredits : null)
       setPlayerDucats(typeof index.Ducats === 'number' ? index.Ducats : null)
     })
+    void window.voidlens.browseInventory?.({ sellableOnly: true, enrichPrices: true, sort: 'ducats', limit: 200 }).then(
+      (rows) => {
+        let sum = 0
+        for (const r of rows) {
+          if (r.ducats != null && r.excess > 0) sum += r.ducats * r.excess
+        }
+        setDumpableDucats(sum)
+      },
+    )
   }, [inventory.loaded, inventory.revision])
 
   const updateCustomPalette = (partial: Partial<CustomPalette>) => {
@@ -382,6 +395,19 @@ export function CompanionApp() {
                 </svg>
               </span>
               Foundry
+            </button>
+            <button
+              className={`nav-btn ${tab === 'sets' ? 'active' : ''}`}
+              title="Prime set completion hub"
+              onClick={() => goTab('sets')}
+            >
+              <span className="nav-btn__icon" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="5.5" />
+                  <path d="M8 4.5v7M5 8h6" strokeLinecap="round" />
+                </svg>
+              </span>
+              Sets
             </button>
             <button
               className={`nav-btn ${tab === 'relicPlanner' ? 'active' : ''}`}
@@ -657,6 +683,7 @@ export function CompanionApp() {
                       onToggleWish={toggleBaroWish}
                       playerDucats={playerDucats}
                       playerCredits={playerCredits}
+                      dumpableDucats={dumpableDucats}
                     />
                   ) : null}
                   {enabledIds.includes('nightwave') ? (
@@ -811,6 +838,14 @@ export function CompanionApp() {
               <FoundryPage
                 enabled={settings.modules.foundry}
                 onOpenSettings={() => goTab('settings')}
+              />
+            ) : null}
+
+            {tab === 'sets' ? (
+              <SetsPage
+                enabled
+                onOpenSettings={() => goTab('settings')}
+                onOpenFoundry={() => goTab('foundry')}
               />
             ) : null}
 

@@ -1,5 +1,6 @@
 import dns from 'node:dns'
 import {
+  AlertInfo,
   ArbitrationInfo,
   ArchonHuntInfo,
   BaroInfo,
@@ -9,6 +10,7 @@ import {
   InvasionInfo,
   NightwaveChallenge,
   NightwaveInfo,
+  SortieInfo,
   WorldstateSnapshot,
 } from '../../shared/types'
 
@@ -363,6 +365,82 @@ function mapDeepArchimedea(
   }
 }
 
+function mapSortie(payload: {
+  id?: string
+  boss?: string
+  faction?: string
+  rewardPool?: string
+  expiry?: string
+  eta?: string
+  variants?: Array<{
+    node?: string
+    missionType?: string
+    modifier?: string
+  }>
+} | null): SortieInfo | null {
+  if (!payload?.boss && !payload?.variants?.length) return null
+  return {
+    id: payload.id || 'sortie',
+    boss: payload.boss || 'Sortie',
+    faction: payload.faction || '',
+    rewardPool: payload.rewardPool || '',
+    expiry: payload.expiry || '',
+    eta: payload.eta || etaFromExpiry(payload.expiry),
+    missions: (payload.variants || []).map((v) => ({
+      node: v.node || 'Unknown',
+      missionType: v.missionType || 'Mission',
+      modifier: v.modifier || '',
+    })),
+  }
+}
+
+function mapAlerts(
+  list: Array<{
+    id?: string
+    expiry?: string
+    eta?: string
+    mission?: {
+      node?: string
+      type?: string
+      faction?: string
+      reward?: {
+        itemString?: string
+        asString?: string
+        items?: string[]
+        countedItems?: Array<{ count?: number; type?: string }>
+        credits?: number
+      }
+    }
+  }> | null,
+): AlertInfo[] {
+  if (!list?.length) return []
+  return list
+    .map((a) => {
+      const reward = a.mission?.reward
+      const parts: string[] = []
+      if (reward?.itemString) parts.push(reward.itemString)
+      else if (reward?.asString) parts.push(reward.asString)
+      else {
+        for (const it of reward?.items || []) parts.push(it)
+        for (const c of reward?.countedItems || []) {
+          if (c.type) parts.push(`${c.count || 1}× ${c.type}`)
+        }
+        if (reward?.credits) parts.push(`${reward.credits.toLocaleString()} credits`)
+      }
+      return {
+        id: a.id || `${a.mission?.node || 'alert'}-${a.expiry || ''}`,
+        node: a.mission?.node || 'Unknown',
+        missionType: a.mission?.type || 'Mission',
+        faction: a.mission?.faction || '',
+        reward: parts.join(' · ') || 'Reward',
+        expiry: a.expiry || '',
+        eta: a.eta || etaFromExpiry(a.expiry),
+      }
+    })
+    .filter((a) => a.node !== 'Unknown')
+    .slice(0, 8)
+}
+
 export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
   const arbitrationCommunityP = import('./arbitration')
     .then((m) => m.getArbitrationInfo(8))
@@ -383,6 +461,8 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     archonHunt,
     archimedeas,
     arbCommunity,
+    sortieRaw,
+    alertsRaw,
   ] = await Promise.all([
     getJson<CyclePayload>('/cetusCycle').catch(() => ({}) as CyclePayload),
     getJson<CyclePayload>('/vallisCycle').catch(() => ({}) as CyclePayload),
@@ -465,6 +545,38 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
       }>
     >('/archimedeas').catch(() => []),
     arbitrationCommunityP,
+    getJson<{
+      id?: string
+      boss?: string
+      faction?: string
+      rewardPool?: string
+      expiry?: string
+      eta?: string
+      variants?: Array<{
+        node?: string
+        missionType?: string
+        modifier?: string
+      }>
+    } | null>('/sortie').catch(() => null),
+    getJson<
+      Array<{
+        id?: string
+        expiry?: string
+        eta?: string
+        mission?: {
+          node?: string
+          type?: string
+          faction?: string
+          reward?: {
+            itemString?: string
+            asString?: string
+            items?: string[]
+            countedItems?: Array<{ count?: number; type?: string }>
+            credits?: number
+          }
+        }
+      }>
+    >('/alerts').catch(() => []),
   ])
 
   const cycles: CycleInfo[] = [
@@ -512,6 +624,8 @@ export async function fetchWorldstate(): Promise<WorldstateSnapshot> {
     invasions: mapInvasions(invasions),
     archonHunt: mapArchonHunt(archonHunt),
     deepArchimedea: mapDeepArchimedea(archimedeas),
+    sortie: mapSortie(sortieRaw),
+    alerts: mapAlerts(alertsRaw),
   }
 }
 
@@ -531,6 +645,8 @@ export function nextWorldstateExpiryMs(data: WorldstateSnapshot, now = Date.now(
   }
   if (data.archonHunt?.expiry) expiries.push(data.archonHunt.expiry)
   if (data.deepArchimedea?.expiry) expiries.push(data.deepArchimedea.expiry)
+  if (data.sortie?.expiry) expiries.push(data.sortie.expiry)
+  for (const a of data.alerts || []) if (a.expiry) expiries.push(a.expiry)
   for (const inv of data.invasions || []) if (inv.expiry) expiries.push(inv.expiry)
 
   let soonest: number | null = null
@@ -559,6 +675,8 @@ export function hasExpiredWorldstate(data: WorldstateSnapshot, now = Date.now())
   }
   if (data.archonHunt?.expiry) expiries.push(data.archonHunt.expiry)
   if (data.deepArchimedea?.expiry) expiries.push(data.deepArchimedea.expiry)
+  if (data.sortie?.expiry) expiries.push(data.sortie.expiry)
+  for (const a of data.alerts || []) if (a.expiry) expiries.push(a.expiry)
   for (const inv of data.invasions || []) if (inv.expiry) expiries.push(inv.expiry)
 
   return expiries.some((e) => {

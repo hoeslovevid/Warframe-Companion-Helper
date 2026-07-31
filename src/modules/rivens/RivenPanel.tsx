@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { rivenStripLayout } from '../../../shared/captureGeometry'
-import { RivenRoll, RivenScanState } from '../../../shared/types'
+import { RivenHistoryEntry, RivenHistoryResult, RivenRoll, RivenScanState } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useRivenScan } from '../../hooks/useRivenScan'
 import { formatRivenStatValue } from '../../lib/rivenFormat'
@@ -144,6 +144,12 @@ export function RivenPanel({
   const strip = stripSize(layoutWidth, layoutHeight)
   const interactive = !compact && !previewMode
   const [copied, setCopied] = useState(false)
+  const [history, setHistory] = useState<RivenHistoryResult | null>(null)
+
+  useEffect(() => {
+    if (compact || previewMode || !window.voidlens?.getRivenHistory) return
+    void window.voidlens.getRivenHistory().then(setHistory)
+  }, [compact, previewMode, state.scannedAt, state.current?.platinum, state.reroll?.platinum])
 
   const copyTrade = async () => {
     const roll =
@@ -155,6 +161,23 @@ export function RivenPanel({
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1600)
   }
+
+  const clearHistory = async () => {
+    if (!window.voidlens?.clearRivenHistory) return
+    setHistory(await window.voidlens.clearRivenHistory())
+  }
+
+  const platTrendLabel = (() => {
+    const pts = history?.platTrend || []
+    if (pts.length < 2) return null
+    const first = pts[0].platinum
+    const last = pts[pts.length - 1].platinum
+    const delta = last - first
+    const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '→'
+    return `Plat trend ${arrow} ${first}p → ${last}p (${pts.length} picks)`
+  })()
+
+  const historyRows: RivenHistoryEntry[] = (history?.entries || []).filter((e) => e.picked).slice(0, 12)
 
   const body = (
     <div className="mod-stack">
@@ -203,6 +226,47 @@ export function RivenPanel({
               Scan riven compare
             </button>
           ) : null}
+        </div>
+      ) : null}
+
+      {!compact && !previewMode && (historyRows.length > 0 || platTrendLabel) ? (
+        <div className="riven-history">
+          <div className="riven-history__head">
+            <strong>Recent picks</strong>
+            {platTrendLabel ? <span className="muted">{platTrendLabel}</span> : null}
+            <button type="button" className="btn ghost" onClick={() => void clearHistory()}>
+              Clear history
+            </button>
+          </div>
+          <ul className="riven-history__list">
+            {historyRows.map((e) => (
+              <li key={e.id}>
+                <span>
+                  <strong>{e.weapon}</strong>
+                  <span className="muted">
+                    {' '}
+                    · {e.tier} {e.score}
+                    {e.platinum != null ? ` · ~${e.platinum}p` : ''}
+                    {e.polarity ? ` · ${e.polarity}` : ''}
+                  </span>
+                  {e.statsSummary ? (
+                    <span className="muted" style={{ display: 'block', fontSize: '0.72rem' }}>
+                      {e.statsSummary}
+                    </span>
+                  ) : null}
+                </span>
+                {e.marketUrl ? (
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => void window.voidlens.openExternal(e.marketUrl!)}
+                  >
+                    Market
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>

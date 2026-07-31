@@ -145,7 +145,46 @@ export function TodaySummary({ data, settings }: Props) {
                 : 'None matching filters'}
             </div>
           </div>
+
+          <div className="today-cell">
+            <div className="today-cell__label">Sortie</div>
+            {data.sortie ? (
+              <>
+                <div className="today-cell__value">{data.sortie.boss}</div>
+                <div className="today-cell__meta">
+                  {data.sortie.faction}
+                  {data.sortie.expiry
+                    ? ` · ${formatCountdown(data.sortie.expiry, now)}`
+                    : ''}
+                </div>
+              </>
+            ) : (
+              <div className="today-cell__value muted">Unavailable</div>
+            )}
+          </div>
         </div>
+
+        {(data.alerts || []).length > 0 ? (
+          <div className="today-fissures">
+            <div className="today-cell__label">Alerts</div>
+            <ul className="today-fissure-list">
+              {(data.alerts || [])
+                .filter((a) => !a.expiry || !isExpired(a.expiry, now))
+                .slice(0, 3)
+                .map((a) => (
+                  <li key={a.id}>
+                    <span>
+                      {a.node} · {a.missionType}
+                    </span>
+                    <span className="today-fissure-list__eta">
+                      {a.reward}
+                      {a.expiry ? ` · ${formatCountdown(a.expiry, now)}` : ''}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ) : null}
 
         {fissures.length > 0 ? (
           <div className="today-fissures">

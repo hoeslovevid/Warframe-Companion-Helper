@@ -114,6 +114,7 @@ let state: RelicScanState = {
   inventoryLoaded: false,
   celebration: false,
   squadSize: null,
+  scanMeta: null,
 }
 
 /** Optional EE.log squad-size hint supplied by main before a log-triggered scan. */
@@ -164,12 +165,25 @@ function buildSetParts(setName: string | null): {
   return { setParts, setOwnedParts, setTotalParts: setParts.length }
 }
 
+function isFormaReward(r: RewardEval): boolean {
+  return (
+    /^forma(\s+blueprint)?$/i.test(r.name.trim()) ||
+    /^forma(\s+blueprint)?$/i.test(r.ocrText.trim())
+  )
+}
+
 function pickBest(rewards: RewardEval[]): RewardEval[] {
   if (!rewards.length) return rewards
   const mode = loadSettings().relicBestPickMode || 'balanced'
+  const allForma = rewards.every(isFormaReward)
   let bestIdx = 0
   let bestScore = Number.NEGATIVE_INFINITY
   rewards.forEach((r, i) => {
+    // Never highlight Forma as Best unless every slot is Forma.
+    if (isFormaReward(r) && !allForma) {
+      if (i === 0) bestIdx = 0 // keep index valid; score stays -inf unless only Forma
+      return
+    }
     let score = 0
     if (mode === 'needed') {
       if (r.needed) score += 10_000
@@ -194,6 +208,11 @@ function pickBest(rewards: RewardEval[]): RewardEval[] {
       bestIdx = i
     }
   })
+  // If every non-Forma was skipped somehow, fall back to first non-Forma.
+  if (bestScore === Number.NEGATIVE_INFINITY) {
+    const nonForma = rewards.findIndex((r) => !isFormaReward(r))
+    bestIdx = nonForma >= 0 ? nonForma : 0
+  }
   return rewards.map((r, i) => ({ ...r, bestPick: i === bestIdx }))
 }
 
@@ -219,6 +238,7 @@ export function clearRelicScan(): RelicScanState {
     inventoryLoaded: Object.keys(getInventoryIndex()).length > 0,
     celebration: false,
     squadSize: null,
+    scanMeta: null,
   }
   emit()
   return state
@@ -247,6 +267,7 @@ export async function scanRelicRewards(
   cancelAutoHide()
 
   const squadSize = pendingSquadSize
+  let lastMeta: RelicScanState['scanMeta'] = state.scanMeta
   state = {
     ...state,
     scanning: true,
@@ -323,7 +344,15 @@ export async function scanRelicRewards(
       )
 
       let next: RewardEval[] = ocrNames.map((cleaned, slot) => {
-        const matched = matchCatalogItem(cleaned)
+        let matched = matchCatalogItem(cleaned)
+        // OCR often drops "Blueprint" on Forma — force a stable catalog name.
+        if (
+          (!matched || matched.score < 0.5) &&
+          /^forma(\s+blueprint)?$/i.test(cleaned.trim())
+        ) {
+          const formaHit = matchCatalogItem('Forma Blueprint')
+          if (formaHit) matched = { ...formaHit, score: Math.max(formaHit.score, 0.85) }
+        }
         const name = matched?.item.name || cleaned || `Reward ${slot + 1}`
         const uniqueName = matched?.item.uniqueName || null
         const setName = matched?.item.setName || null
@@ -331,25 +360,26 @@ export async function scanRelicRewards(
         const owned = ownedCount(uniqueName, name)
         const { setParts, setOwnedParts, setTotalParts } = buildSetParts(setName)
         const matchScore = matched?.score ?? (cleaned.length > 2 ? 0.2 : 0)
+        const forma = /^forma(\s+blueprint)?$/i.test(name) || /^forma(\s+blueprint)?$/i.test(cleaned)
 
         return {
           slot,
           ocrText: cleaned,
-          name,
+          name: forma ? 'Forma Blueprint' : name,
           uniqueName,
-          setName,
-          partName,
+          setName: forma ? null : setName,
+          partName: forma ? null : partName,
           owned,
-          needed: owned <= 0 && Boolean(setName),
+          needed: !forma && owned <= 0 && Boolean(setName),
           setOwnedParts,
           setTotalParts,
           setParts,
-          matchScore,
+          matchScore: forma ? Math.max(matchScore, 0.9) : matchScore,
           ducats: matched?.item.ducats ?? null,
           platinum: null,
           volume: null,
           bestPick: false,
-          vaulted: matched?.item.vaulted ?? null,
+          vaulted: forma ? null : matched?.item.vaulted ?? null,
         }
       })
 
@@ -359,6 +389,7 @@ export async function scanRelicRewards(
         (r) =>
           r.matchScore >= 0.42 ||
           /^forma(\s+blueprint)?$/i.test(r.ocrText.trim()) ||
+          /^forma(\s+blueprint)?$/i.test(r.name.trim()) ||
           (r.ocrText.trim().length >= 10 &&
             /prime|blueprint|systems|chassis|neuro|barrel|receiver|blade|stock|grip|hilt|link|string/i.test(
               r.ocrText,
@@ -380,6 +411,13 @@ export async function scanRelicRewards(
           .sort((a, b) => a.slot - b.slot)
           .map((r, i) => ({ ...r, slot: i }))
       }
+
+      lastMeta = {
+        theme,
+        slotHint,
+        trimmedTo: trimTo,
+        formaSlots: next.filter((r) => isFormaReward(r)).length,
+      }
       return next
     }
 
@@ -400,8 +438,14 @@ export async function scanRelicRewards(
         process.platform === 'linux'
           ? ' On multi-monitor Linux, set Settings → Game/OCR monitor to the screen Warframe is on, and pick that same screen in the screen-share dialog.'
           : ' If you use multiple monitors, set Settings → Game/OCR monitor to Warframe’s screen.'
+      const themeHint =
+        lastMeta?.theme
+          ? ` Detected UI theme “${lastMeta.theme}” — force Relic UI theme in Settings if names look wrong.`
+          : ' Try forcing Relic UI theme or reward slots (3 vs 4) in Settings.'
       throw new Error(
-        'No reward names detected. Open the fissure pick screen, then scan again.' + multi,
+        'No reward names detected. Open the fissure pick screen, then scan again.' +
+          themeHint +
+          multi,
       )
     }
 
@@ -428,6 +472,7 @@ export async function scanRelicRewards(
       inventoryLoaded: Object.keys(getInventoryIndex()).length > 0,
       celebration: true,
       squadSize,
+      scanMeta: lastMeta,
     }
     emit()
     scheduleAutoHide(AUTO_HIDE_SUCCESS_MS)
@@ -461,6 +506,7 @@ export async function scanRelicRewards(
       active: true,
       celebration: false,
       error: err instanceof Error ? err.message : 'Relic scan failed',
+      scanMeta: lastMeta,
     }
     emit()
     scheduleAutoHide(AUTO_HIDE_ERROR_MS)

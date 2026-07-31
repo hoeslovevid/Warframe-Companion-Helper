@@ -6,6 +6,7 @@ import { recognizeRivenBlocks, warmupOcr } from './ocr'
 import { parseRivenOcr, recommendRolls } from './riven-grader'
 import { enrichRivensWithMarket } from './riven-market'
 import { captureRivenCompare } from './screen-capture'
+import { recordRivenScan, updateRivenHistoryPrices } from './riven-history'
 
 function saveRivenDebugCrops(crops: Buffer[], label: string, fullPng?: Buffer) {
   void (async () => {
@@ -267,6 +268,7 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
     }
     emit()
     scheduleHide(AUTO_HIDE_MS)
+    recordRivenScan(state)
 
     try {
       const priced = await enrichRivensWithMarket(current, reroll)
@@ -280,6 +282,7 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
           recommendationNote: pricedReco.note,
         }
         emit()
+        updateRivenHistoryPrices(state)
       }
     } catch (err) {
       console.warn('[Everything Warframe] Riven market enrich failed', err)

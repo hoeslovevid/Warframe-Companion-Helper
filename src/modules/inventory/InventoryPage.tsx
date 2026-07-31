@@ -1,17 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { InventoryBrowseItem, InventoryBrowseKind } from '../../../shared/types'
+import type {
+  InventoryBrowseItem,
+  InventoryBrowseKind,
+  InventoryBrowseSort,
+  InventoryDiff,
+} from '../../../shared/types'
 import { EmptyState } from '../../components/EmptyState'
 import { Panel } from '../../components/Panel'
 import { useInventory } from '../../hooks/useInventory'
+import { copyText, formatSellablesDump } from '../../lib/tradeClipboard'
 import './inventory.css'
 
 type Props = {
   onOpenSettings: () => void
 }
 
-const KIND_FILTERS: Array<{ id: InventoryBrowseKind | 'all' | 'sellable'; label: string }> = [
+type KindFilter = InventoryBrowseKind | 'all' | 'sellable' | 'ducats'
+
+const KIND_FILTERS: Array<{ id: KindFilter; label: string }> = [
   { id: 'all', label: 'All' },
   { id: 'sellable', label: 'Sellables' },
+  { id: 'ducats', label: 'Ducat dump' },
   { id: 'part', label: 'Parts / BPs' },
   { id: 'gear', label: 'Gear' },
   { id: 'relic', label: 'Relics' },
@@ -53,11 +62,13 @@ export function InventoryPage({ onOpenSettings }: Props) {
   const { status, busy, message, syncFromGame, refresh } = useInventory()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [kind, setKind] = useState<InventoryBrowseKind | 'all' | 'sellable'>('all')
+  const [kind, setKind] = useState<KindFilter>('all')
   const [rows, setRows] = useState<InventoryBrowseItem[]>([])
   const [loading, setLoading] = useState(false)
   const [listBusy, setListBusy] = useState<string | null>(null)
   const [listMsg, setListMsg] = useState<string | null>(null)
+  const [diff, setDiff] = useState<InventoryDiff | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS)
@@ -68,12 +79,15 @@ export function InventoryPage({ onOpenSettings }: Props) {
     if (!window.voidlens?.browseInventory) return
     setLoading(true)
     try {
-      const sellableOnly = kind === 'sellable'
+      const sellableOnly = kind === 'sellable' || kind === 'ducats'
+      const sort: InventoryBrowseSort =
+        kind === 'ducats' ? 'ducats' : kind === 'sellable' ? 'platinum' : 'count'
       const next = await window.voidlens.browseInventory({
         search: debouncedSearch,
         kind: sellableOnly ? 'all' : kind,
         sellableOnly,
         enrichPrices: sellableOnly,
+        sort,
         limit: sellableOnly ? 200 : 400,
       })
       setRows(next)
@@ -85,29 +99,39 @@ export function InventoryPage({ onOpenSettings }: Props) {
   useEffect(() => {
     if (!status.loaded) {
       setRows([])
+      setDiff(null)
       return
     }
     void load()
+    void window.voidlens?.getInventoryDiff?.().then((d) => setDiff(d || null))
   }, [status.loaded, status.revision, load])
 
   const totals = useMemo(() => {
     let stacks = 0
     let units = 0
     let excess = 0
+    let ducats = 0
+    let plat = 0
     for (const r of rows) {
       stacks += 1
       units += r.count
       excess += r.excess || 0
+      if (r.ducats != null) ducats += r.ducats * (r.excess || 0)
+      if (r.platinum != null) plat += r.platinum * (r.excess || 0)
     }
-    return { stacks, units, excess }
+    return { stacks, units, excess, ducats, plat }
   }, [rows])
 
   const listOnWfm = async (row: InventoryBrowseItem) => {
     if (!window.voidlens?.createWfmOrder) return
-    const plat = row.platinum
+    let plat = row.platinum
     if (plat == null || plat < 1) {
       setListMsg('No platinum price for this item')
       return
+    }
+    if (window.voidlens.suggestMarketUndercut) {
+      const tip = await window.voidlens.suggestMarketUndercut(row.displayName)
+      if (tip?.suggest) plat = tip.suggest
     }
     const qty = Math.max(1, row.excess || 1)
     setListBusy(row.uniqueName)
@@ -124,10 +148,17 @@ export function InventoryPage({ onOpenSettings }: Props) {
         setListMsg(res.error || 'List failed — sign in under Market')
         return
       }
-      setListMsg(`Listed ${qty}× ${row.displayName} @ ${Math.round(plat)}p`)
+      setListMsg(`Listed ${qty}× ${row.displayName} @ ${Math.round(plat)}p (undercut)`)
     } finally {
       setListBusy(null)
     }
+  }
+
+  const copyDump = async () => {
+    const text = formatSellablesDump(rows)
+    if (!(await copyText(text))) return
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1600)
   }
 
   if (!status.loaded) {
@@ -171,15 +202,48 @@ export function InventoryPage({ onOpenSettings }: Props) {
         </p>
       ) : null}
 
+      {diff ? (
+        <Panel
+          title="Since last sync"
+          subtitle={`${diff.summary.addedStacks} added · ${diff.summary.removedStacks} removed · ${diff.summary.changedStacks} changed · net ${diff.summary.netUnits >= 0 ? '+' : ''}${diff.summary.netUnits}`}
+        >
+          <ul className="inventory-list">
+            {[...diff.added, ...diff.changed, ...diff.removed].slice(0, 12).map((e) => (
+              <li key={`${e.uniqueName}-${e.delta}`}>
+                <div>
+                  <strong>{e.displayName}</strong>
+                  <div className="muted inventory-tags">
+                    <span className="inventory-tag">
+                      {e.before} → {e.after}
+                    </span>
+                  </div>
+                </div>
+                <span className="inventory-count" style={{ color: e.delta >= 0 ? 'var(--vl-teal)' : 'var(--vl-warn)' }}>
+                  {e.delta >= 0 ? '+' : ''}
+                  {e.delta}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
+
       <Panel
         title="Browser"
         subtitle={
-          kind === 'sellable'
-            ? 'Duplicate parts with prices — one-click warframe.market sell'
-            : 'Names from WFCD / recipe catalogs when available'
+          kind === 'ducats'
+            ? 'Extras ranked by ducat value — keep 1 of each, dump the rest at Baro'
+            : kind === 'sellable'
+              ? 'Duplicate parts with prices — one-click warframe.market sell'
+              : 'Names from WFCD / recipe catalogs when available'
         }
         actions={
           <div className="market-actions">
+            {kind === 'ducats' || kind === 'sellable' ? (
+              <button className="btn ghost" type="button" onClick={() => void copyDump()}>
+                {copied ? 'Copied!' : 'Copy WTS dump'}
+              </button>
+            ) : null}
             <button
               className="btn ghost"
               disabled={busy || !status.consent}
@@ -216,14 +280,16 @@ export function InventoryPage({ onOpenSettings }: Props) {
         {listMsg ? <p className="muted">{listMsg}</p> : null}
         <p className="muted inventory-meta">
           Showing {totals.stacks} stacks ({totals.units} units)
-          {kind === 'sellable' ? ` · ${totals.excess} excess` : ''}
+          {kind === 'sellable' || kind === 'ducats' ? ` · ${totals.excess} excess` : ''}
+          {kind === 'ducats' && totals.ducats > 0 ? ` · ~${totals.ducats.toLocaleString()}d dump` : ''}
+          {kind === 'sellable' && totals.plat > 0 ? ` · ~${Math.round(totals.plat)}p excess` : ''}
           {loading || search.trim() !== debouncedSearch ? ' · loading…' : ''}
         </p>
         <ul className="inventory-list">
           {rows.length === 0 ? (
             <li className="muted">
-              {kind === 'sellable'
-                ? 'No duplicate parts with prices. Sync inventory and ensure WFInfo prices loaded.'
+              {kind === 'sellable' || kind === 'ducats'
+                ? 'No duplicate parts with prices. Sync inventory and ensure catalogs loaded.'
                 : 'No matching items.'}
             </li>
           ) : (
@@ -239,7 +305,10 @@ export function InventoryPage({ onOpenSettings }: Props) {
                       <span className="inventory-tag">~{Math.round(r.platinum)}p</span>
                     ) : null}
                     {r.ducats != null ? (
-                      <span className="inventory-tag">{r.ducats}d</span>
+                      <span className="inventory-tag">
+                        {r.ducats}d
+                        {r.excess > 0 ? ` · ${r.ducats * r.excess}d dump` : ''}
+                      </span>
                     ) : null}
                     {r.excess > 0 ? (
                       <span className="inventory-tag">+{r.excess} excess</span>
@@ -247,13 +316,13 @@ export function InventoryPage({ onOpenSettings }: Props) {
                   </div>
                 </div>
                 <div className="inventory-row-actions">
-                  {kind === 'sellable' && r.platinum != null ? (
+                  {(kind === 'sellable' || kind === 'ducats') && r.platinum != null ? (
                     <button
                       type="button"
                       className="btn ghost"
                       disabled={listBusy === r.uniqueName}
                       onClick={() => void listOnWfm(r)}
-                      title="Create warframe.market sell order (sign in under Market)"
+                      title="Create warframe.market sell order at undercut (floor − 1)"
                     >
                       {listBusy === r.uniqueName ? 'Listing…' : 'List WFM'}
                     </button>

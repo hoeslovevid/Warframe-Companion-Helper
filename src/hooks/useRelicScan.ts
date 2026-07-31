@@ -11,6 +11,7 @@ const empty: RelicScanState = {
   inventoryLoaded: false,
   celebration: false,
   squadSize: null,
+  scanMeta: null,
 }
 
 function api() {

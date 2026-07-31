@@ -18,6 +18,8 @@ const emptyWorldstate: WorldstateSnapshot = {
   invasions: [],
   archonHunt: null,
   deepArchimedea: null,
+  sortie: null,
+  alerts: [],
 }
 
 function api() {

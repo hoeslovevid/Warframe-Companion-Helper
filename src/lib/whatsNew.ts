@@ -206,6 +206,19 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Layout tab: enabled modules by default, lighter preview stubs, deferred OCR guides',
     'Relic Planner + Layout stay mounted after first visit for snappier tab switches',
   ],
+  '0.9.50': [
+    'Sets hub: Prime set % complete, missing parts, farm favorites',
+    'Inventory Ducat dump + WTS dump copy; diff since last sync',
+    'Baro overlay: can-afford with inventory ducats/credits + wishlist hits',
+    'Market undercut suggest (floor − 1); Relic Recommend ↔ open fissures by tier',
+    'Relic Planner refinement counts (I/E/F/R); trade clipboard Best pick / recommend list',
+    'Today: Sortie + Alerts from worldstate',
+  ],
+  '0.9.51': [
+    'Relic OCR: Forma never Best-picked; clearer theme/slot diagnostics on failed scans',
+    'Baro buy plan: wishlist ducat/credit totals, shortfall, dumpable extras to cover the gap',
+    'Riven history: last recommended picks + platinum trend on the companion grader',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

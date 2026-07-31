@@ -43,6 +43,7 @@ import { detectEeLogPath } from './services/log-path'
 import {
   browseInventory,
   clearInventoryData,
+  getInventoryDiff,
   getInventoryIndex,
   getInventoryStatus,
   inferInventorySource,
@@ -93,7 +94,7 @@ import {
   openBugReport,
   pickBugScreenshots,
 } from './services/bug-report'
-import { fetchItemQuotes } from './services/market'
+import { fetchItemQuotes, fetchUndercutSuggestion } from './services/market'
 import {
   clearWfmJwt,
   createWfmContract,
@@ -393,6 +394,8 @@ async function refreshWorldstate(force = false): Promise<WorldstateSnapshot> {
         invasions: [],
         archonHunt: null,
         deepArchimedea: null,
+        sortie: null,
+        alerts: [],
       }
     }
   }
@@ -1189,6 +1192,7 @@ function registerIpc() {
     return status
   })
   ipcMain.handle('inventory:index', () => getInventoryIndex())
+  ipcMain.handle('inventory:diff', () => getInventoryDiff())
   ipcMain.handle('inventory:browse', async (_e, query) => {
     const sellableOnly = Boolean(query?.sellableOnly)
     const enrichPrices = sellableOnly || Boolean(query?.enrichPrices)
@@ -1229,6 +1233,14 @@ function registerIpc() {
   ipcMain.handle('rivens:get', () => getRivenScanState())
   ipcMain.handle('rivens:scan', async () => runRivenScan('manual'))
   ipcMain.handle('rivens:clear', () => dismissRivenPopup())
+  ipcMain.handle('rivens:history', async () => {
+    const { getRivenHistory } = await import('./services/riven-history')
+    return getRivenHistory()
+  })
+  ipcMain.handle('rivens:historyClear', async () => {
+    const { clearRivenHistory } = await import('./services/riven-history')
+    return clearRivenHistory()
+  })
   ipcMain.handle('foundry:list', async (_e, filters?: FoundryListFilters) =>
     listFoundryItems(filters || {}),
   )
@@ -1245,6 +1257,13 @@ function registerIpc() {
     async (_e, opts?: { uniqueName?: string; search?: string }) => {
       const { getSetFarm } = await import('./services/set-farm')
       return getSetFarm(opts || {})
+    },
+  )
+  ipcMain.handle(
+    'setProgress:list',
+    async (_e, opts?: { search?: string; incompleteOnly?: boolean; limit?: number }) => {
+      const { listSetProgress } = await import('./services/set-progress')
+      return listSetProgress(opts || {})
     },
   )
   ipcMain.handle('mastery:list', async (_e, query?: MasteryHelperQuery) =>
@@ -1270,6 +1289,9 @@ function registerIpc() {
     const list = Array.isArray(names) ? names.filter((n) => typeof n === 'string') : []
     return fetchItemQuotes(list)
   })
+  ipcMain.handle('market:undercut', async (_e, name: string) =>
+    fetchUndercutSuggestion(typeof name === 'string' ? name : ''),
+  )
   ipcMain.handle('market:wfmSession', async () => getWfmSession())
   ipcMain.handle('market:wfmSetJwt', async (_e, jwt: string) =>
     setWfmJwt(typeof jwt === 'string' ? jwt : ''),

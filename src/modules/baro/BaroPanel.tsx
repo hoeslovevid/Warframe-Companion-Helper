@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { BaroInfo } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useNow } from '../../hooks/useNow'
@@ -13,6 +14,8 @@ type Props = {
   playerDucats?: number | null
   /** Player credits from inventory (optional). */
   playerCredits?: number | null
+  /** Sum of excess-part ducats available to dump at Baro (from inventory). */
+  dumpableDucats?: number | null
   opacity?: number
   compact?: boolean
 }
@@ -66,6 +69,7 @@ export function BaroPanel({
   onToggleWish,
   playerDucats,
   playerCredits,
+  dumpableDucats,
   opacity,
   compact,
 }: Props) {
@@ -81,6 +85,26 @@ export function BaroPanel({
     afford: affordLabel(i, playerDucats, playerCredits),
   }))
   const canBuyWish = wishAfford.filter((w) => w.afford === 'ok').length
+
+  const plan = useMemo(() => {
+    if (!wishedLive.length) return null
+    const needDucats = wishedLive.reduce((s, i) => s + (i.ducats || 0), 0)
+    const needCredits = wishedLive.reduce((s, i) => s + (i.credits || 0), 0)
+    const haveD = playerDucats ?? 0
+    const haveC = playerCredits ?? 0
+    const shortD = Math.max(0, needDucats - haveD)
+    const shortC = Math.max(0, needCredits - haveC)
+    const dump = dumpableDucats ?? 0
+    return {
+      needDucats,
+      needCredits,
+      shortD,
+      shortC,
+      dump,
+      canCoverDucats: shortD <= 0 || (dump > 0 && dump >= shortD),
+      afterDump: haveD + dump,
+    }
+  }, [wishedLive, playerDucats, playerCredits, dumpableDucats])
 
   return (
     <Panel
@@ -108,6 +132,38 @@ export function BaroPanel({
               {playerDucats != null && playerCredits != null ? ' · ' : null}
               {playerCredits != null ? <strong>{formatCredits(playerCredits)} ₡</strong> : null}
             </p>
+          ) : null}
+          {plan && wishedLive.length ? (
+            <div className="baro-plan">
+              <div className="mod-stat">
+                <span className="mod-stat__label">Wishlist total</span>
+                <span className="mod-stat__value">
+                  {formatCredits(plan.needDucats)} ⓓ
+                  {plan.needCredits > 0 ? ` · ${formatCredits(plan.needCredits)} ₡` : ''}
+                </span>
+              </div>
+              {plan.shortD > 0 || plan.shortC > 0 ? (
+                <div className="mod-stat">
+                  <span className="mod-stat__label">Short</span>
+                  <span className="mod-stat__value is-warn">
+                    {plan.shortD > 0 ? `${formatCredits(plan.shortD)} ⓓ` : ''}
+                    {plan.shortD > 0 && plan.shortC > 0 ? ' · ' : ''}
+                    {plan.shortC > 0 ? `${formatCredits(plan.shortC)} ₡` : ''}
+                  </span>
+                </div>
+              ) : (
+                <p className="mod-empty" style={{ color: 'var(--vl-teal)', margin: 0 }}>
+                  Can afford full wishlist
+                </p>
+              )}
+              {plan.shortD > 0 && dumpableDucats != null ? (
+                <p className="mod-empty" style={{ margin: 0, fontSize: '0.78rem' }}>
+                  {plan.canCoverDucats
+                    ? `Dump ~${formatCredits(plan.shortD)} ⓓ from extras (you have ~${formatCredits(plan.dump)} ⓓ dumpable) to cover the gap.`
+                    : `Extras cover ~${formatCredits(plan.dump)} ⓓ dumpable — still short ~${formatCredits(Math.max(0, plan.shortD - plan.dump))} ⓓ. Open Inventory → Ducat dump.`}
+                </p>
+              ) : null}
+            </div>
           ) : null}
           {wishedLive.length && resolved.active ? (
             <p className="mod-empty" style={{ color: 'var(--vl-gold-soft)' }}>

@@ -88,6 +88,7 @@ let cachedMastery: MasteryIndex = {}
 let cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
 /** Monotonic — Foundry / other UIs refresh when this changes. */
 let inventoryRevision = 0
+let lastInventoryDiff: import('../../shared/types').InventoryDiff | null = null
 const listeners = new Set<(status: InventoryStatus) => void>()
 
 function toolsDir() {
@@ -771,6 +772,58 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
   }
 }
 
+function computeInventoryDiff(
+  before: InventoryIndex,
+  after: InventoryIndex,
+): import('../../shared/types').InventoryDiff | null {
+  const beforeKeys = Object.keys(before)
+  if (!beforeKeys.length) return null
+
+  const added: import('../../shared/types').InventoryDiffEntry[] = []
+  const removed: import('../../shared/types').InventoryDiffEntry[] = []
+  const changed: import('../../shared/types').InventoryDiffEntry[] = []
+  let netUnits = 0
+
+  const keys = new Set([...beforeKeys, ...Object.keys(after)])
+  for (const uniqueName of keys) {
+    if (!uniqueName.includes('/') && !['RegularCredits', 'Ducats', 'PremiumCredits'].includes(uniqueName)) {
+      continue
+    }
+    const a = before[uniqueName] || 0
+    const b = after[uniqueName] || 0
+    if (a === b) continue
+    const delta = b - a
+    netUnits += delta
+    const displayName = resolveBrowseDisplayName(uniqueName)
+    const entry = { uniqueName, displayName, before: a, after: b, delta }
+    if (a <= 0 && b > 0) added.push(entry)
+    else if (a > 0 && b <= 0) removed.push(entry)
+    else changed.push(entry)
+  }
+
+  const byAbs = (x: { delta: number }, y: { delta: number }) => Math.abs(y.delta) - Math.abs(x.delta)
+  added.sort(byAbs)
+  removed.sort(byAbs)
+  changed.sort(byAbs)
+
+  return {
+    syncedAt: new Date().toISOString(),
+    added: added.slice(0, 80),
+    removed: removed.slice(0, 80),
+    changed: changed.slice(0, 80),
+    summary: {
+      addedStacks: added.length,
+      removedStacks: removed.length,
+      changedStacks: changed.length,
+      netUnits,
+    },
+  }
+}
+
+export function getInventoryDiff(): import('../../shared/types').InventoryDiff | null {
+  return lastInventoryDiff
+}
+
 export function useInventoryFile(
   filePath: string,
   source: InventorySource,
@@ -787,7 +840,9 @@ export function useInventoryFile(
       finalSource = 'alecaframe'
     }
 
+    const previous = { ...cachedIndex }
     const loaded = loadInventoryFromPath(finalPath)
+    lastInventoryDiff = computeInventoryDiff(previous, loaded.index)
     cachedIndex = loaded.index
     cachedMastery = loaded.mastery
     cachedMeta = {
@@ -812,6 +867,7 @@ export function useInventoryFile(
       source: finalSource,
       itemCount: loaded.itemCount,
       uniqueCount: loaded.uniqueCount,
+      diff: lastInventoryDiff,
     }
   } catch (err) {
     return {
@@ -848,6 +904,7 @@ export function clearInventoryData(): InventoryStatus {
   cachedIndex = {}
   cachedMastery = {}
   cachedMeta = { path: '', itemCount: 0, uniqueCount: 0 }
+  lastInventoryDiff = null
   inventoryRevision += 1
   updateSettings({
     inventoryPath: '',
@@ -988,6 +1045,9 @@ export function browseInventory(
   const kindFilter = query?.kind || 'all'
   const sellableOnly = Boolean(query?.sellableOnly)
   const enrichPrices = sellableOnly || Boolean(query?.enrichPrices)
+  const sort =
+    query?.sort ||
+    (sellableOnly ? 'platinum' : 'count')
   const limit = Math.min(Math.max(Number(query?.limit) || 500, 1), 5000)
   const rows: import('../../shared/types').InventoryBrowseItem[] = []
 
@@ -1046,11 +1106,20 @@ export function browseInventory(
   }
 
   rows.sort((a, b) => {
-    if (sellableOnly) {
+    if (sort === 'ducats') {
+      const ad = (a.ducats ?? 0) * (a.excess || a.count)
+      const bd = (b.ducats ?? 0) * (b.excess || b.count)
+      if (bd !== ad) return bd - ad
+      if (b.excess !== a.excess) return b.excess - a.excess
+    } else if (sort === 'platinum') {
       const ap = a.platinum ?? -1
       const bp = b.platinum ?? -1
       if (bp !== ap) return bp - ap
       if (b.excess !== a.excess) return b.excess - a.excess
+    } else if (sort === 'excess') {
+      if (b.excess !== a.excess) return b.excess - a.excess
+    } else if (sort === 'name') {
+      return a.displayName.localeCompare(b.displayName)
     } else if (b.count !== a.count) {
       return b.count - a.count
     }

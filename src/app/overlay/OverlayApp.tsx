@@ -3,6 +3,7 @@ import { ModuleId, OcrScanRegions, OVERLAY_MODULE_IDS, PanelAnchor } from '../..
 import { OverlayLayoutStage } from '../../components/OverlayLayoutStage'
 import { NowProvider } from '../../hooks/NowContext'
 import { useColorTheme } from '../../hooks/useColorTheme'
+import { useInventory } from '../../hooks/useInventory'
 import { useRelicScan } from '../../hooks/useRelicScan'
 import { useRivenScan } from '../../hooks/useRivenScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
@@ -13,6 +14,7 @@ import '../../styles/overlay.css'
 export function OverlayApp() {
   const { settings, ready, updateSettings } = useSettings()
   const { data } = useWorldstate()
+  const { status: inventory } = useInventory()
   const { state: relicScan } = useRelicScan()
   const { state: rivenScan } = useRivenScan()
   useColorTheme(settings.colorTheme, settings.customPalette)
@@ -23,6 +25,31 @@ export function OverlayApp() {
   const [toggleCue, setToggleCue] = useState<'on' | 'off' | null>(null)
   /** Skip settings→anchors sync while a panel drag/commit is in flight (OCR saves can race). */
   const anchorsLocalRef = useRef(false)
+  const [playerDucats, setPlayerDucats] = useState<number | null>(null)
+  const [playerCredits, setPlayerCredits] = useState<number | null>(null)
+  const [dumpableDucats, setDumpableDucats] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!window.voidlens?.getInventoryIndex || !inventory.loaded) {
+      setPlayerDucats(null)
+      setPlayerCredits(null)
+      setDumpableDucats(null)
+      return
+    }
+    void window.voidlens.getInventoryIndex().then((index) => {
+      setPlayerCredits(typeof index.RegularCredits === 'number' ? index.RegularCredits : null)
+      setPlayerDucats(typeof index.Ducats === 'number' ? index.Ducats : null)
+    })
+    void window.voidlens
+      .browseInventory?.({ sellableOnly: true, enrichPrices: true, sort: 'ducats', limit: 200 })
+      .then((rows) => {
+        let sum = 0
+        for (const r of rows) {
+          if (r.ducats != null && r.excess > 0) sum += r.ducats * r.excess
+        }
+        setDumpableDucats(sum)
+      })
+  }, [inventory.loaded, inventory.revision])
 
   useEffect(() => {
     if (anchorsLocalRef.current) return
@@ -129,6 +156,9 @@ export function OverlayApp() {
         fissureSort={settings.fissureSort}
         baroWishlist={settings.baroWishlist}
         nightwaveDoneIds={settings.nightwaveDoneIds}
+        playerDucats={playerDucats}
+        playerCredits={playerCredits}
+        dumpableDucats={dumpableDucats}
         dragHint={dragHint}
         hint={
           settings.layoutEditMode

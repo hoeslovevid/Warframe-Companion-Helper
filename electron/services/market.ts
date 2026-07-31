@@ -1,7 +1,8 @@
 /**
  * Unified warframe.market helpers (item orders + re-exports).
  */
-import { lookupMarketPrices } from './market-prices'
+import { lookupMarketPrices, suggestUndercutPrice } from './market-prices'
+import type { MarketUndercutSuggestion } from '../../shared/types'
 
 export type MarketQuote = {
   name: string
@@ -19,4 +20,10 @@ export async function fetchItemQuotes(names: string[]): Promise<MarketQuote[]> {
     .filter((x): x is MarketQuote => !!x)
 }
 
-export { lookupMarketPrices }
+export async function fetchUndercutSuggestion(
+  name: string,
+): Promise<MarketUndercutSuggestion | null> {
+  return suggestUndercutPrice(name)
+}
+
+export { lookupMarketPrices, suggestUndercutPrice }
