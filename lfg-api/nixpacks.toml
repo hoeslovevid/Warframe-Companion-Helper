@@ -1,0 +1,9 @@
+# Nixpacks config for Railway — no native modules; Node 22+ for node:sqlite
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm ci --omit=dev"]
+
+[start]
+cmd = "node boot.mjs"

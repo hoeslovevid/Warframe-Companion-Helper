@@ -1,19 +1,15 @@
 {
   "name": "everything-warframe-lfg",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
-  "description": "Shared LFG hub API for Everything Warframe",
+  "description": "Shared LFG hub API for Everything Warframe (zero npm deps — uses node:sqlite)",
   "main": "server.mjs",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5.0"
   },
   "scripts": {
-    "start": "node server.mjs",
-    "dev": "node server.mjs"
-  },
-  "dependencies": {
-    "better-sqlite3": "^11.10.0",
-    "everything-warframe": "file:.."
+    "start": "node boot.mjs",
+    "dev": "node boot.mjs"
   }
 }

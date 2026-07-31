@@ -20,7 +20,7 @@
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && npm run build:electron && electron .\"",
     "start": "npm run electron:dev",
-    "lfg:serve": "node lfg-api/server.mjs",
+    "lfg:serve": "node lfg-api/boot.mjs",
     "dist": "npm run build && electron-builder --win -c.win.signAndEditExecutable=false",
     "dist:dir": "npm run build && electron-builder --win --dir -c.win.signAndEditExecutable=false",
     "dist:linux": "npm run build && electron-builder --linux",

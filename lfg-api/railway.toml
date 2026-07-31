@@ -10,7 +10,7 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "node server.mjs"
+startCommand = "node boot.mjs"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

@@ -1,7 +1,7 @@
 /**
  * LFG persistence layer.
- * Prefer SQLite (better-sqlite3, then node:sqlite) on a durable volume.
- * Fall back to atomic JSON for Electron local hubs.
+ * Prefer built-in node:sqlite (Node 22.5+) on a durable volume — no native addons.
+ * Fall back to atomic JSON for Electron local hubs (older embedded Node).
  *
  * Env:
  *   LFG_DATA      — full path to .sqlite or .json
@@ -9,11 +9,9 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const require = createRequire(import.meta.url)
 
 /**
  * @typedef {object} LfgStore
@@ -223,104 +221,112 @@ function migrateLegacyJson(store, dataPath) {
   migrateJsonInto(store, path.join(__dirname, 'lfg-data.json'))
 }
 
-function openBetterSqlite(dbPath) {
-  const Database = require('better-sqlite3')
-  const db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
+/**
+ * @param {string} dbPath
+ * @param {typeof import('node:sqlite').DatabaseSync} DatabaseSync
+ * @returns {LfgStore}
+ */
+function openNodeSqlite(dbPath, DatabaseSync) {
+  const db = new DatabaseSync(dbPath)
+  db.exec('PRAGMA journal_mode = WAL;')
+  db.exec('PRAGMA foreign_keys = ON;')
   db.exec(SCHEMA_SQL)
 
-  const stmts = {
-    count: db.prepare(`SELECT COUNT(*) AS n FROM listings`),
-    purge: db.prepare(`DELETE FROM listings WHERE expires_at <= ?`),
-    getListing: db.prepare(`SELECT * FROM listings WHERE id = ?`),
-    getMembers: db.prepare(
-      `SELECT client_id, ign, joined_at, is_host FROM members WHERE listing_id = ? ORDER BY joined_at ASC`,
-    ),
-    deleteListing: db.prepare(`DELETE FROM listings WHERE id = ?`),
-    insertListing: db.prepare(`
-      INSERT INTO listings (
-        id, created_at, expires_at, host_ign, host_token, platform, region, language,
-        activity, title, notes, relic_key, refinement, share_type, steel_path, mission_hint, slots_total
-      ) VALUES (
-        @id, @created_at, @expires_at, @host_ign, @host_token, @platform, @region, @language,
-        @activity, @title, @notes, @relic_key, @refinement, @share_type, @steel_path, @mission_hint, @slots_total
-      )
-    `),
-    insertMember: db.prepare(`
-      INSERT INTO members (listing_id, client_id, ign, joined_at, is_host)
-      VALUES (@listing_id, @client_id, @ign, @joined_at, @is_host)
-    `),
-    listAll: db.prepare(`SELECT * FROM listings ORDER BY created_at DESC`),
-  }
-
-  const upsertTx = db.transaction((row) => {
-    stmts.deleteListing.run(row.id)
-    stmts.insertListing.run({
-      id: row.id,
-      created_at: row.createdAt,
-      expires_at: row.expiresAt,
-      host_ign: row.hostIgn,
-      host_token: row.hostToken,
-      platform: row.platform,
-      region: row.region,
-      language: row.language,
-      activity: row.activity,
-      title: row.title,
-      notes: row.notes || '',
-      relic_key: row.relicKey,
-      refinement: row.refinement,
-      share_type: row.shareType,
-      steel_path: row.steelPath ? 1 : 0,
-      mission_hint: row.missionHint,
-      slots_total: row.slotsTotal,
-    })
-    for (const m of row.members || []) {
-      stmts.insertMember.run({
-        listing_id: row.id,
-        client_id: m.clientId,
-        ign: m.ign,
-        joined_at: m.joinedAt,
-        is_host: m.isHost ? 1 : 0,
-      })
-    }
-  })
+  const run = (sql, params = {}) => db.prepare(sql).run(params)
+  const all = (sql, params = {}) => db.prepare(sql).all(params)
+  const getOne = (sql, params = {}) => db.prepare(sql).get(params)
 
   function hydrate(listingRow) {
     if (!listingRow) return null
-    return rowFromSqlite(listingRow, stmts.getMembers.all(listingRow.id))
+    const members = all(
+      `SELECT client_id, ign, joined_at, is_host FROM members WHERE listing_id = $id ORDER BY joined_at ASC`,
+      { id: listingRow.id },
+    )
+    return rowFromSqlite(listingRow, members)
   }
 
   /** @type {LfgStore} */
-  return {
+  const store = {
     kind: 'sqlite',
     path: dbPath,
     count() {
-      return stmts.count.get().n
+      return getOne(`SELECT COUNT(*) AS n FROM listings`).n
     },
     purgeExpired() {
-      const info = stmts.purge.run(new Date().toISOString())
-      return info.changes || 0
+      const before = store.count()
+      run(`DELETE FROM listings WHERE expires_at <= $now`, {
+        now: new Date().toISOString(),
+      })
+      return Math.max(0, before - store.count())
     },
     list(filters = {}) {
       return applyFilters(
-        stmts.listAll.all().map((r) => hydrate(r)),
+        all(`SELECT * FROM listings ORDER BY created_at DESC`).map((r) => hydrate(r)),
         filters,
       )
     },
     get(id) {
-      return hydrate(stmts.getListing.get(id))
+      return hydrate(getOne(`SELECT * FROM listings WHERE id = $id`, { id }))
     },
     upsert(row) {
-      upsertTx(row)
+      db.exec('BEGIN')
+      try {
+        run(`DELETE FROM listings WHERE id = $id`, { id: row.id })
+        run(
+          `INSERT INTO listings (
+            id, created_at, expires_at, host_ign, host_token, platform, region, language,
+            activity, title, notes, relic_key, refinement, share_type, steel_path, mission_hint, slots_total
+          ) VALUES (
+            $id, $created_at, $expires_at, $host_ign, $host_token, $platform, $region, $language,
+            $activity, $title, $notes, $relic_key, $refinement, $share_type, $steel_path, $mission_hint, $slots_total
+          )`,
+          {
+            id: row.id,
+            created_at: row.createdAt,
+            expires_at: row.expiresAt,
+            host_ign: row.hostIgn,
+            host_token: row.hostToken,
+            platform: row.platform,
+            region: row.region,
+            language: row.language,
+            activity: row.activity,
+            title: row.title,
+            notes: row.notes || '',
+            relic_key: row.relicKey,
+            refinement: row.refinement,
+            share_type: row.shareType,
+            steel_path: row.steelPath ? 1 : 0,
+            mission_hint: row.missionHint,
+            slots_total: row.slotsTotal,
+          },
+        )
+        for (const m of row.members || []) {
+          run(
+            `INSERT INTO members (listing_id, client_id, ign, joined_at, is_host)
+             VALUES ($listing_id, $client_id, $ign, $joined_at, $is_host)`,
+            {
+              listing_id: row.id,
+              client_id: m.clientId,
+              ign: m.ign,
+              joined_at: m.joinedAt,
+              is_host: m.isHost ? 1 : 0,
+            },
+          )
+        }
+        db.exec('COMMIT')
+      } catch (e) {
+        db.exec('ROLLBACK')
+        throw e
+      }
     },
     remove(id) {
-      stmts.deleteListing.run(id)
+      run(`DELETE FROM listings WHERE id = $id`, { id })
     },
     close() {
       db.close()
     },
   }
+  return store
 }
 
 /**
@@ -333,120 +339,10 @@ export async function openStore(dataPath = resolveDataPath()) {
 
   if (!wantJson) {
     try {
-      const store = openBetterSqlite(dataPath)
-      migrateLegacyJson(store, dataPath)
-      return store
-    } catch (err) {
-      console.warn(
-        '[LFG] better-sqlite3 unavailable:',
-        err instanceof Error ? err.message : err,
-      )
-    }
-
-    try {
       const mod = await import('node:sqlite')
       const DatabaseSync = mod.DatabaseSync
       if (!DatabaseSync) throw new Error('DatabaseSync missing')
-      const db = new DatabaseSync(dataPath)
-      db.exec('PRAGMA journal_mode = WAL;')
-      db.exec('PRAGMA foreign_keys = ON;')
-      db.exec(SCHEMA_SQL)
-
-      const run = (sql, params = {}) => db.prepare(sql).run(params)
-      const all = (sql, params = {}) => db.prepare(sql).all(params)
-      const getOne = (sql, params = {}) => db.prepare(sql).get(params)
-
-      function hydrate(listingRow) {
-        if (!listingRow) return null
-        const members = all(
-          `SELECT client_id, ign, joined_at, is_host FROM members WHERE listing_id = $id ORDER BY joined_at ASC`,
-          { id: listingRow.id },
-        )
-        return rowFromSqlite(listingRow, members)
-      }
-
-      /** @type {LfgStore} */
-      const store = {
-        kind: 'sqlite',
-        path: dataPath,
-        count() {
-          return getOne(`SELECT COUNT(*) AS n FROM listings`).n
-        },
-        purgeExpired() {
-          const before = store.count()
-          run(`DELETE FROM listings WHERE expires_at <= $now`, {
-            now: new Date().toISOString(),
-          })
-          return Math.max(0, before - store.count())
-        },
-        list(filters = {}) {
-          return applyFilters(
-            all(`SELECT * FROM listings ORDER BY created_at DESC`).map((r) => hydrate(r)),
-            filters,
-          )
-        },
-        get(id) {
-          return hydrate(getOne(`SELECT * FROM listings WHERE id = $id`, { id }))
-        },
-        upsert(row) {
-          db.exec('BEGIN')
-          try {
-            run(`DELETE FROM listings WHERE id = $id`, { id: row.id })
-            run(
-              `INSERT INTO listings (
-                id, created_at, expires_at, host_ign, host_token, platform, region, language,
-                activity, title, notes, relic_key, refinement, share_type, steel_path, mission_hint, slots_total
-              ) VALUES (
-                $id, $created_at, $expires_at, $host_ign, $host_token, $platform, $region, $language,
-                $activity, $title, $notes, $relic_key, $refinement, $share_type, $steel_path, $mission_hint, $slots_total
-              )`,
-              {
-                id: row.id,
-                created_at: row.createdAt,
-                expires_at: row.expiresAt,
-                host_ign: row.hostIgn,
-                host_token: row.hostToken,
-                platform: row.platform,
-                region: row.region,
-                language: row.language,
-                activity: row.activity,
-                title: row.title,
-                notes: row.notes || '',
-                relic_key: row.relicKey,
-                refinement: row.refinement,
-                share_type: row.shareType,
-                steel_path: row.steelPath ? 1 : 0,
-                mission_hint: row.missionHint,
-                slots_total: row.slotsTotal,
-              },
-            )
-            for (const m of row.members || []) {
-              run(
-                `INSERT INTO members (listing_id, client_id, ign, joined_at, is_host)
-                 VALUES ($listing_id, $client_id, $ign, $joined_at, $is_host)`,
-                {
-                  listing_id: row.id,
-                  client_id: m.clientId,
-                  ign: m.ign,
-                  joined_at: m.joinedAt,
-                  is_host: m.isHost ? 1 : 0,
-                },
-              )
-            }
-            db.exec('COMMIT')
-          } catch (e) {
-            db.exec('ROLLBACK')
-            throw e
-          }
-        },
-        remove(id) {
-          run(`DELETE FROM listings WHERE id = $id`, { id })
-        },
-        close() {
-          db.close()
-        },
-      }
-
+      const store = openNodeSqlite(dataPath, DatabaseSync)
       migrateLegacyJson(store, dataPath)
       return store
     } catch (err) {

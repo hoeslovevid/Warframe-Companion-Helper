@@ -2,8 +2,9 @@
 
 Shared squad matchmaking API for the companion **LFG** tab.
 
-Listings are stored in **SQLite** (`better-sqlite3`, or `node:sqlite` when available).  
-If SQLite can’t load (e.g. Electron’s embedded Node), the hub falls back to an atomic JSON file with the same API.
+Listings are stored in **SQLite** via Node’s built-in `node:sqlite` (Node 22.5+).  
+No native npm addons — Railway/Nixpacks installs stay simple.  
+If SQLite can’t load (e.g. Electron’s older embedded Node), the hub falls back to an atomic JSON file with the same API.
 
 ## Local / LAN
 
@@ -16,9 +17,10 @@ npm run lfg:serve
 Or from this folder:
 
 ```bash
-npm install
 npm start
 ```
+
+(`npm install` is optional — this package has **zero** runtime dependencies.)
 
 Listens on `http://0.0.0.0:17864` (or `PORT`). Leave **Hub URL** empty in the app to auto-start a local hub, or set Hub URL to `http://YOUR_LAN_IP:17864` on friends’ PCs.
 
@@ -74,8 +76,7 @@ Swapping to Postgres later only requires a new store backend behind `openStore()
 ## Other hosts (Render / Fly / VPS)
 
 ```bash
-npm install
-LFG_DATA=/var/lib/ew-lfg/lfg.sqlite node server.mjs
+LFG_DATA=/var/lib/ew-lfg/lfg.sqlite node boot.mjs
 ```
 
 Mount durable storage at that path, then set **Hub URL** in the app to `https://your-host.example`.
