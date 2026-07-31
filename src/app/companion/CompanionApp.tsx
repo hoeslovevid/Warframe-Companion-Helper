@@ -37,6 +37,7 @@ import { FissuresPanel } from '../../modules/fissures/FissuresPanel'
 import { BaroPanel } from '../../modules/baro/BaroPanel'
 import { NightwavePanel } from '../../modules/nightwave/NightwavePanel'
 import { RelicsPanel } from '../../modules/relics/RelicsPanel'
+import { RelicRecommendPanel } from '../../modules/relicRecommend/RelicRecommendPanel'
 import { ArbitrationPanel } from '../../modules/arbitration/ArbitrationPanel'
 import { InvasionsPanel } from '../../modules/invasions/InvasionsPanel'
 import { ArchonPanel } from '../../modules/archon/ArchonPanel'
@@ -684,6 +685,7 @@ export function CompanionApp() {
                   {enabledIds.includes('deepArchimedea') ? (
                     <DeepArchimedeaPanel deepArchimedea={data.deepArchimedea} />
                   ) : null}
+                  {enabledIds.includes('relicRecommend') ? <RelicRecommendPanel /> : null}
                 </div>
               </>
             ) : null}
@@ -694,9 +696,11 @@ export function CompanionApp() {
                   <h2 className="page-title">Modules</h2>
                   <div className="page-title-rule" />
                   <p className="page-desc">
-                    Choose what appears in the overlay and dashboard. Foundry Planner is companion-only
-                    (no overlay panel). Relic / riven scanning and inventory tags are live. Assign
-                    per-panel hide hotkeys under Settings → Hotkeys, or use{' '}
+                    Choose what appears in the overlay and dashboard. Foundry, Relic Planner, and
+                    Mastery are companion-only. Enable Relic Recommend for the pre-mission overlay
+                    list (push filters from Relic Planner → Send to overlay). Relic / riven scanning
+                    and inventory tags are live. Assign per-panel hide hotkeys under Settings →
+                    Hotkeys, or use{' '}
                     <strong>{prettyHotkey(settings.hotkeys.toggleWorldstatePanels)}</strong> to
                     clear/restore all worldstate panels.
                   </p>
@@ -1174,6 +1178,30 @@ export function CompanionApp() {
                     </select>
                     <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.78rem' }}>
                       Use 3 when running with a squad of three so OCR crops line up.
+                    </p>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="relic-best-pick">Relic “Best” pick mode</label>
+                    <select
+                      id="relic-best-pick"
+                      value={settings.relicBestPickMode || 'balanced'}
+                      onChange={(e) => {
+                        void updateSettings({
+                          relicBestPickMode: e.target.value as
+                            | 'balanced'
+                            | 'needed'
+                            | 'platinum'
+                            | 'ducats',
+                        })
+                      }}
+                    >
+                      <option value="balanced">Balanced (needed + plat)</option>
+                      <option value="needed">Needed parts first</option>
+                      <option value="platinum">Highest platinum</option>
+                      <option value="ducats">Highest ducats</option>
+                    </select>
+                    <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.78rem' }}>
+                      Controls which reward card gets the Best tag after a fissure OCR scan.
                     </p>
                   </div>
                   {typeof navigator !== 'undefined' && /linux/i.test(navigator.userAgent) ? (

@@ -3,9 +3,9 @@ import {
   DEFAULT_OCR_SCAN_REGIONS,
   FissurePathMode,
   FissureSort,
-  MODULE_META,
   ModuleId,
   OcrScanRegions,
+  OVERLAY_MODULE_IDS,
   PanelAnchor,
   PrimaryDisplayInfo,
   WorldstateSnapshot,
@@ -31,8 +31,8 @@ const FALLBACK_DISPLAY: PrimaryDisplayInfo = {
   scaleFactor: 1,
 }
 
-/** Companion-only modules are excluded from overlay layout placement. */
-const ALL_MODULES = (Object.keys(MODULE_META) as ModuleId[]).filter((id) => id !== 'foundry')
+/** Overlay modules that can be placed in the layout editor. */
+const ALL_MODULES = OVERLAY_MODULE_IDS
 
 type Props = {
   settingsModules: Record<ModuleId, boolean>

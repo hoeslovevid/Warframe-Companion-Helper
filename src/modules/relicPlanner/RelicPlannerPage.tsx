@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/EmptyState'
 import { Panel } from '../../components/Panel'
 import { SetFarmPanel } from '../../components/SetFarmPanel'
 import { useInventory } from '../../hooks/useInventory'
+import { useSettings } from '../../hooks/useVoidLens'
 import '../foundry/foundry.css'
 
 type Props = {
@@ -20,8 +21,18 @@ type Props = {
 
 const TIERS = ['all', 'Lith', 'Meso', 'Neo', 'Axi', 'Requiem'] as const
 
+function normalizeFavorite(s: string): string {
+  return s
+    .toUpperCase()
+    .replace(/['’]/g, '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
   const { status: inventory } = useInventory()
+  const { settings, updateSettings } = useSettings()
   const [ownedOnly, setOwnedOnly] = useState(true)
   const [sort, setSort] = useState<RelicPlannerSort>('missing')
   const [tier, setTier] = useState<string>('all')
@@ -33,9 +44,17 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [setFarm, setSetFarm] = useState<SetFarmResult | null>(null)
+  const [sentMsg, setSentMsg] = useState<string | null>(null)
+
+  const favorites = settings.farmFavorites || []
+  const favoritesKey = favorites.join('\0')
+  const favoriteNorms = useMemo(
+    () => new Set((settings.farmFavorites || []).map(normalizeFavorite).filter(Boolean)),
+    [favoritesKey, settings.farmFavorites],
+  )
 
   const query = useMemo<RelicPlannerQuery>(
-    () => ({ ownedOnly, sort, tier, search, prime }),
+    () => ({ ownedOnly, sort, tier, search, prime, favoritesFirst: true }),
     [ownedOnly, sort, tier, search, prime],
   )
 
@@ -63,7 +82,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
     if (!enabled) return
     const t = window.setTimeout(() => void refresh(), 120)
     return () => window.clearTimeout(t)
-  }, [enabled, refresh, inventory.revision, inventory.loaded])
+  }, [enabled, refresh, inventory.revision, inventory.loaded, favoritesKey])
 
   useEffect(() => {
     if (!enabled || !window.voidlens?.getSetFarm) {
@@ -87,12 +106,55 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
     }
   }, [enabled, search, prime, inventory.revision, inventory.loaded])
 
+  const isFavoriteName = useCallback(
+    (name: string) => {
+      const n = normalizeFavorite(name)
+      if (!n || !favoriteNorms.size) return false
+      if (favoriteNorms.has(n)) return true
+      for (const fav of favoriteNorms) {
+        if (n.includes(fav) || fav.includes(n)) return true
+      }
+      return false
+    },
+    [favoriteNorms],
+  )
+
+  const toggleFavorite = useCallback(
+    (name: string) => {
+      const n = normalizeFavorite(name)
+      if (!n) return
+      const existing = favorites.find((f) => normalizeFavorite(f) === n)
+      const next = existing
+        ? favorites.filter((f) => f !== existing)
+        : [...favorites, name]
+      void updateSettings({ farmFavorites: next })
+    },
+    [favorites, updateSettings],
+  )
+
+  const sendToOverlay = useCallback(() => {
+    void updateSettings({
+      modules: { ...settings.modules, relicRecommend: true },
+      relicRecommend: {
+        sort,
+        ownedOnly,
+        tier,
+        prime,
+        favoritesFirst: true,
+        limit: 8,
+      },
+    }).then(() => {
+      setSentMsg('Filters sent to Relic Recommend overlay')
+      window.setTimeout(() => setSentMsg(null), 2500)
+    })
+  }, [updateSettings, settings.modules, sort, ownedOnly, tier, prime])
+
   if (!enabled) {
     return (
       <Panel title="Relic Planner" subtitle="Module disabled">
         <EmptyState
           title="Module off"
-          body="Enable Relic Planner under Modules to rank owned relics by missing parts and platinum."
+          body="Enable Relic Planner under Modules to rank owned relics by missing parts, platinum, or ducats."
         />
       </Panel>
     )
@@ -109,7 +171,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
         <div className="page-title-rule" />
         <p className="page-desc">
           Search a set like Ember Prime for a parts checklist and which owned relics drop gaps — or
-          browse relics ranked by missing parts and platinum.
+          browse relics ranked by missing parts, platinum, or ducats. Star rewards as farm favorites.
         </p>
       </header>
 
@@ -138,7 +200,10 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
       {inventoryReady && hero && !setFarm ? (
         <section className="planner-hero">
           <p className="planner-hero__eyebrow">Next best relic</p>
-          <h3 className="planner-hero__title">{hero.key}</h3>
+          <h3 className="planner-hero__title">
+            {hero.key}
+            {hero.hasFavorite ? ' ★' : ''}
+          </h3>
           <div className="planner-hero__meta">
             {hero.missingCount > 0 ? (
               <span className="vl-pill is-warn">{hero.missingCount} needed</span>
@@ -147,6 +212,9 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
             )}
             {hero.bestPlatinum != null ? (
               <span className="vl-pill is-premium">~{Math.round(hero.bestPlatinum)}p</span>
+            ) : null}
+            {hero.bestDucats != null ? (
+              <span className="vl-pill">{hero.bestDucats}d</span>
             ) : null}
             {hero.owned > 0 ? <span className="vl-pill">Owned ×{hero.owned}</span> : null}
             {hero.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
@@ -159,11 +227,16 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
             >
               Open details
             </button>
+            <button type="button" className="btn ghost" onClick={sendToOverlay}>
+              Send to overlay
+            </button>
             <p className="planner-hero__hint">
-              {loading
-                ? 'Updating ranks…'
-                : `${rows.length} relics · ${ownedTypes} owned types`}
-              {error ? ` · ${error}` : ''}
+              {sentMsg
+                ? sentMsg
+                : loading
+                  ? 'Updating ranks…'
+                  : `${rows.length} relics · ${ownedTypes} owned types`}
+              {error && !sentMsg ? ` · ${error}` : ''}
             </p>
           </div>
         </section>
@@ -222,6 +295,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
                 [
                   ['missing', 'Missing'],
                   ['platinum', 'Plat'],
+                  ['ducats', 'Ducats'],
                   ['owned', 'Owned'],
                   ['name', 'Name'],
                 ] as const
@@ -256,11 +330,20 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
                 ))}
               </select>
             </label>
+            {favorites.length ? (
+              <p className="muted" style={{ margin: 0, fontSize: '0.75rem' }}>
+                {favorites.length} farm favorite{favorites.length === 1 ? '' : 's'} · starred rewards
+                float to the top
+              </p>
+            ) : null}
             {setFarm ? (
               <p className="muted" style={{ margin: 0, fontSize: '0.75rem' }}>
                 Set match: {setFarm.name} · relic list still filters below
               </p>
             ) : null}
+            <button type="button" className="btn ghost" onClick={sendToOverlay}>
+              Send filters to Relic Recommend overlay
+            </button>
           </div>
           <ul className="foundry-list vl-stagger">
             {rows.map((row) => (
@@ -271,6 +354,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
                   onClick={() => setSelected(row.key)}
                 >
                   <span className="foundry-list__name">
+                    {row.hasFavorite ? '★ ' : ''}
                     {row.key}
                     {row.owned > 0 ? ` ×${row.owned}` : ''}
                   </span>
@@ -282,6 +366,9 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
                     )}
                     {row.bestPlatinum != null ? (
                       <span className="vl-pill">~{Math.round(row.bestPlatinum)}p</span>
+                    ) : null}
+                    {row.bestDucats != null ? (
+                      <span className="vl-pill">{row.bestDucats}d</span>
                     ) : null}
                   </span>
                 </button>
@@ -315,24 +402,43 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
                 {detail.bestPlatinum != null ? (
                   <span className="vl-pill is-premium">~{Math.round(detail.bestPlatinum)}p</span>
                 ) : null}
+                {detail.bestDucats != null ? (
+                  <span className="vl-pill">{detail.bestDucats}d</span>
+                ) : null}
               </div>
               <div className="foundry-section-title">Rewards</div>
               <ul className="foundry-tree">
-                {detail.rewards.map((r) => (
-                  <li key={r.name}>
-                    <div style={{ flex: 1 }}>
-                      <span>{r.name}</span>
-                      <div className="muted" style={{ fontSize: '0.75rem' }}>
-                        {r.rarity}
-                        {r.chance != null ? ` · ${r.chance}%` : ''}
-                        {r.platinum != null ? ` · ~${Math.round(r.platinum)}p` : ''}
+                {detail.rewards.map((r) => {
+                  const fav = isFavoriteName(r.name)
+                  return (
+                    <li key={r.name}>
+                      <div style={{ flex: 1 }}>
+                        <span>
+                          {r.name}
+                          {fav ? ' ★' : ''}
+                        </span>
+                        <div className="muted" style={{ fontSize: '0.75rem' }}>
+                          {r.rarity}
+                          {r.chance != null ? ` · ${r.chance}%` : ''}
+                          {r.platinum != null ? ` · ~${Math.round(r.platinum)}p` : ''}
+                          {r.ducats != null ? ` · ${r.ducats}d` : ''}
+                        </div>
                       </div>
-                    </div>
-                    <span className={r.needed ? 'is-missing' : 'is-ok'}>
-                      {r.needed ? 'Needed' : `Owned ×${r.owned}`}
-                    </span>
-                  </li>
-                ))}
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                        title={fav ? 'Remove farm favorite' : 'Star as farm favorite'}
+                        onClick={() => toggleFavorite(r.name)}
+                      >
+                        {fav ? '★' : '☆'}
+                      </button>
+                      <span className={r.needed ? 'is-missing' : 'is-ok'}>
+                        {r.needed ? 'Needed' : `Owned ×${r.owned}`}
+                      </span>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}

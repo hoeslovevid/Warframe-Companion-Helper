@@ -12,6 +12,7 @@ export type ModuleId =
   | 'foundry'
   | 'market'
   | 'relicPlanner'
+  | 'relicRecommend'
   | 'mastery'
 
 /** Soft UI chime style for relic / riven scan alerts. */
@@ -329,6 +330,7 @@ export const OVERLAY_MODULE_IDS: ModuleId[] = [
   'archon',
   'deepArchimedea',
   'rivens',
+  'relicRecommend',
 ]
 
 /** Persistent worldstate panels (excludes transient relic/riven popups). */
@@ -341,6 +343,7 @@ export const WORLDSTATE_MODULE_IDS: ModuleId[] = [
   'invasions',
   'archon',
   'deepArchimedea',
+  'relicRecommend',
 ]
 
 /** HotkeyConfig keys that toggle a single worldstate module. */
@@ -426,6 +429,19 @@ export type AppSettings = {
   overlayDragHintDismissed: boolean
   /** Starred Baro item names (case-insensitive match). */
   baroWishlist: string[]
+  /** Farm favorites — set/part names floated in Relic Planner + recommend overlay. */
+  farmFavorites: string[]
+  /** Query pushed from Relic Planner → recommend overlay. */
+  relicRecommend: {
+    sort: RelicPlannerSort
+    ownedOnly: boolean
+    tier: string
+    prime: FoundryPrimeFilter
+    favoritesFirst: boolean
+    limit: number
+  }
+  /** How “Best” is chosen on fissure reward cards. */
+  relicBestPickMode: RelicBestPickMode
   /** Locally completed Nightwave challenge ids. */
   nightwaveDoneIds: string[]
   /** Soft chime when relic OCR finishes. */
@@ -536,7 +552,13 @@ export const MODULE_META: Record<
   relicPlanner: {
     label: 'Relic Planner',
     description:
-      'Rank owned relics by missing parts and platinum — companion-only',
+      'Rank owned relics by missing parts, platinum, or ducats — companion-only',
+    phase: 2,
+  },
+  relicRecommend: {
+    label: 'Relic Recommend',
+    description:
+      'Overlay: best owned relics to run next (from Relic Planner filters)',
     phase: 2,
   },
   mastery: {
@@ -562,6 +584,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     foundry: true,
     market: true,
     relicPlanner: true,
+    relicRecommend: true,
     mastery: true,
   },
   panelAnchors: {
@@ -576,6 +599,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     deepArchimedea: { x: 720, y: 560 },
     /** Above Kuva Cycle compare cards on 1920×1080; Layout reset scales per display. */
     rivens: { x: 720, y: 8 },
+    relicRecommend: { x: 24, y: 420 },
   },
   opacity: 0.92,
   moduleOpacity: {
@@ -589,6 +613,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     archon: 0.92,
     deepArchimedea: 0.92,
     rivens: 0.92,
+    relicRecommend: 0.92,
   },
   overlayScale: 1,
   colorTheme: 'void',
@@ -630,6 +655,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
   layoutEditMode: false,
   overlayDragHintDismissed: false,
   baroWishlist: [],
+  farmFavorites: [],
+  relicRecommend: {
+    sort: 'missing',
+    ownedOnly: true,
+    tier: 'all',
+    prime: 'any',
+    favoritesFirst: true,
+    limit: 8,
+  },
+  relicBestPickMode: 'balanced',
   nightwaveDoneIds: [],
   relicSoundEnabled: true,
   rivenSoundEnabled: true,
@@ -921,7 +956,9 @@ export type SetFarmResult = {
   error: string | null
 }
 
-export type RelicPlannerSort = 'missing' | 'platinum' | 'owned' | 'name'
+export type RelicBestPickMode = 'balanced' | 'needed' | 'platinum' | 'ducats'
+
+export type RelicPlannerSort = 'missing' | 'platinum' | 'ducats' | 'owned' | 'name'
 
 export type RelicPlannerReward = {
   name: string
@@ -931,6 +968,7 @@ export type RelicPlannerReward = {
   owned: number
   needed: boolean
   platinum: number | null
+  ducats: number | null
 }
 
 export type RelicPlannerRow = {
@@ -941,6 +979,8 @@ export type RelicPlannerRow = {
   vaulted: boolean | null
   missingCount: number
   bestPlatinum: number | null
+  bestDucats: number | null
+  hasFavorite: boolean
   rewards: RelicPlannerReward[]
 }
 
@@ -958,6 +998,10 @@ export type RelicPlannerQuery = {
   tier?: string
   /** Filter relics by whether rewards include Prime parts. */
   prime?: FoundryPrimeFilter
+  /** Float farm-favorite rewards to the top. */
+  favoritesFirst?: boolean
+  /** Cap rows (recommend overlay). */
+  limit?: number
 }
 
 export type MasteryHelperItem = {
@@ -1109,11 +1153,18 @@ export type InventoryBrowseItem = {
   kind: InventoryBrowseKind
   isBlueprint: boolean
   isComponent: boolean
+  /** Median sell platinum when known (WFInfo / market). */
+  platinum: number | null
+  ducats: number | null
+  /** Units beyond one kept copy (parts) — useful for sell / ducat dump. */
+  excess: number
 }
 
 export type InventoryBrowseQuery = {
   search?: string
   kind?: InventoryBrowseKind | 'all'
+  /** Only parts/BPs with excess + a known platinum (or ducats) price. */
+  sellableOnly?: boolean
   limit?: number
 }
 

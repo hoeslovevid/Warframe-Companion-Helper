@@ -213,6 +213,67 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
     customPalette: mergeCustomPalette(raw.customPalette, base.customPalette),
     overlayDragHintDismissed: raw.overlayDragHintDismissed ?? base.overlayDragHintDismissed,
     baroWishlist: Array.isArray(raw.baroWishlist) ? raw.baroWishlist : base.baroWishlist,
+    farmFavorites: Array.isArray(raw.farmFavorites)
+      ? raw.farmFavorites.filter((x): x is string => typeof x === 'string')
+      : base.farmFavorites,
+    relicRecommend: {
+      ...base.relicRecommend,
+      ...(raw.relicRecommend && typeof raw.relicRecommend === 'object'
+        ? raw.relicRecommend
+        : {}),
+      sort: (() => {
+        const sort = (raw.relicRecommend as { sort?: string } | undefined)?.sort
+        if (
+          sort === 'missing' ||
+          sort === 'platinum' ||
+          sort === 'ducats' ||
+          sort === 'owned' ||
+          sort === 'name'
+        ) {
+          return sort
+        }
+        return base.relicRecommend.sort
+      })(),
+      prime: (() => {
+        const prime = (raw.relicRecommend as { prime?: string } | undefined)?.prime
+        if (prime === 'any' || prime === 'prime' || prime === 'normal') return prime
+        return base.relicRecommend.prime
+      })(),
+      limit: (() => {
+        const limit = (raw.relicRecommend as { limit?: number } | undefined)?.limit
+        if (typeof limit === 'number' && Number.isFinite(limit) && limit > 0) {
+          return Math.min(50, Math.floor(limit))
+        }
+        return base.relicRecommend.limit
+      })(),
+      ownedOnly:
+        typeof (raw.relicRecommend as { ownedOnly?: boolean } | undefined)?.ownedOnly ===
+        'boolean'
+          ? (raw.relicRecommend as { ownedOnly: boolean }).ownedOnly
+          : base.relicRecommend.ownedOnly,
+      favoritesFirst:
+        typeof (raw.relicRecommend as { favoritesFirst?: boolean } | undefined)
+          ?.favoritesFirst === 'boolean'
+          ? (raw.relicRecommend as { favoritesFirst: boolean }).favoritesFirst
+          : base.relicRecommend.favoritesFirst,
+      tier:
+        typeof (raw.relicRecommend as { tier?: string } | undefined)?.tier === 'string' &&
+        (raw.relicRecommend as { tier: string }).tier.trim()
+          ? (raw.relicRecommend as { tier: string }).tier
+          : base.relicRecommend.tier,
+    },
+    relicBestPickMode: (() => {
+      const mode = (raw as { relicBestPickMode?: string }).relicBestPickMode
+      if (
+        mode === 'balanced' ||
+        mode === 'needed' ||
+        mode === 'platinum' ||
+        mode === 'ducats'
+      ) {
+        return mode
+      }
+      return base.relicBestPickMode
+    })(),
     nightwaveDoneIds: Array.isArray(raw.nightwaveDoneIds)
       ? raw.nightwaveDoneIds
       : base.nightwaveDoneIds,
@@ -302,6 +363,10 @@ export function updateSettings(partial: Partial<AppSettings>): AppSettings {
     modules: { ...current.modules, ...(partial.modules ?? {}) },
     panelAnchors: { ...current.panelAnchors, ...(partial.panelAnchors ?? {}) },
     moduleOpacity: { ...current.moduleOpacity, ...(partial.moduleOpacity ?? {}) },
+    relicRecommend: {
+      ...current.relicRecommend,
+      ...(partial.relicRecommend ?? {}),
+    },
     ocrScanRegions: mergeOcrScanRegions(
       {
         ...current.ocrScanRegions,

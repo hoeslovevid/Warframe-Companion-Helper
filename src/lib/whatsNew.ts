@@ -193,6 +193,12 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Foundry: “Has blueprint” when you own the main recipe BP but not the finished item',
     'Inventory browser: hide raw /Lotus path under item names',
   ],
+  '0.9.48': [
+    'Relic Planner: sort by ducats, star farm favorites, Send filters to Relic Recommend overlay',
+    'Relic Recommend overlay: top owned relics to run next (from planner filters)',
+    'Relic reward OCR: Best pick modes — balanced / needed / platinum / ducats (Settings)',
+    'Inventory Sellables: duplicate parts with prices + one-click warframe.market sell list',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

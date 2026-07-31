@@ -14,6 +14,7 @@ import { FissuresPanel } from '../modules/fissures/FissuresPanel'
 import { BaroPanel } from '../modules/baro/BaroPanel'
 import { NightwavePanel } from '../modules/nightwave/NightwavePanel'
 import { RelicsPanel } from '../modules/relics/RelicsPanel'
+import { RelicRecommendPanel } from '../modules/relicRecommend/RelicRecommendPanel'
 import { ArbitrationPanel } from '../modules/arbitration/ArbitrationPanel'
 import { InvasionsPanel } from '../modules/invasions/InvasionsPanel'
 import { ArchonPanel } from '../modules/archon/ArchonPanel'
@@ -340,6 +341,8 @@ export function OverlayLayoutStage({
               layoutHeight={mode === 'preview' ? designHeight : undefined}
             />
           )
+        case 'relicRecommend':
+          return <RelicRecommendPanel opacity={op} compact />
         default:
           return null
       }

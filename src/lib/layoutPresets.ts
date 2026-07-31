@@ -30,6 +30,7 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       invasions: { x: 320, y: 24 },
       archon: { x: 320, y: 280 },
       deepArchimedea: { x: 320, y: 520 },
+      relicRecommend: { x: 24, y: 420 },
     },
   },
   corners: {
@@ -46,6 +47,7 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       invasions: { x: 700, y: 24 },
       archon: { x: 700, y: 280 },
       deepArchimedea: { x: 700, y: 520 },
+      relicRecommend: { x: 24, y: 480 },
     },
   },
   'right-rail': {
@@ -62,6 +64,7 @@ const PRESET_DEFS: Record<LayoutPresetId, PresetDef> = {
       invasions: { x: 24, y: 24 },
       archon: { x: 24, y: 320 },
       deepArchimedea: { x: 24, y: 560 },
+      relicRecommend: { x: 1260, y: 420 },
     },
   },
 }

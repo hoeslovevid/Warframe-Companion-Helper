@@ -165,20 +165,36 @@ function buildSetParts(setName: string | null): {
 }
 
 function pickBest(rewards: RewardEval[]): RewardEval[] {
-  let bestIdx = -1
-  let bestScore = -1
+  if (!rewards.length) return rewards
+  const mode = loadSettings().relicBestPickMode || 'balanced'
+  let bestIdx = 0
+  let bestScore = Number.NEGATIVE_INFINITY
   rewards.forEach((r, i) => {
     let score = 0
-    if (r.needed) score += 1000
-    if (r.platinum != null) score += r.platinum * 2
-    if (r.ducats != null) score += r.ducats * 0.1
+    if (mode === 'needed') {
+      if (r.needed) score += 10_000
+      if (r.platinum != null) score += r.platinum
+      if (r.ducats != null) score += r.ducats * 0.05
+    } else if (mode === 'platinum') {
+      if (r.platinum != null) score += r.platinum * 10
+      if (r.needed) score += 50
+    } else if (mode === 'ducats') {
+      if (r.ducats != null) score += r.ducats * 10
+      if (r.needed) score += 50
+    } else {
+      // balanced — needed first, then plat, then ducats
+      if (r.needed) score += 1000
+      if (r.platinum != null) score += r.platinum * 2
+      if (r.ducats != null) score += r.ducats * 0.1
+    }
     if (r.matchScore >= 0.7) score += 20
-    if (score > bestScore) {
+    // Stable tie-break: prefer earlier slot when scores match
+    if (score > bestScore || (score === bestScore && i < bestIdx)) {
       bestScore = score
       bestIdx = i
     }
   })
-  return rewards.map((r, i) => ({ ...r, bestPick: i === bestIdx && bestScore > 0 }))
+  return rewards.map((r, i) => ({ ...r, bestPick: i === bestIdx }))
 }
 
 export function getRelicScanState(): RelicScanState {

@@ -1164,6 +1164,7 @@ function registerIpc() {
       import('./services/item-catalog')
         .then((m) => m.ensureItemCatalog())
         .catch(() => {}),
+      ensureWfinfoPrices().catch(() => {}),
     ])
     return browseInventory(query)
   })

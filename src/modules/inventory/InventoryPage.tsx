@@ -9,8 +9,9 @@ type Props = {
   onOpenSettings: () => void
 }
 
-const KIND_FILTERS: Array<{ id: InventoryBrowseKind | 'all'; label: string }> = [
+const KIND_FILTERS: Array<{ id: InventoryBrowseKind | 'all' | 'sellable'; label: string }> = [
   { id: 'all', label: 'All' },
+  { id: 'sellable', label: 'Sellables' },
   { id: 'part', label: 'Parts / BPs' },
   { id: 'gear', label: 'Gear' },
   { id: 'relic', label: 'Relics' },
@@ -49,18 +50,22 @@ function kindLabel(kind: InventoryBrowseKind): string {
 export function InventoryPage({ onOpenSettings }: Props) {
   const { status, busy, message, syncFromGame, refresh } = useInventory()
   const [search, setSearch] = useState('')
-  const [kind, setKind] = useState<InventoryBrowseKind | 'all'>('all')
+  const [kind, setKind] = useState<InventoryBrowseKind | 'all' | 'sellable'>('all')
   const [rows, setRows] = useState<InventoryBrowseItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [listBusy, setListBusy] = useState<string | null>(null)
+  const [listMsg, setListMsg] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!window.voidlens?.browseInventory) return
     setLoading(true)
     try {
+      const sellableOnly = kind === 'sellable'
       const next = await window.voidlens.browseInventory({
         search,
-        kind,
-        limit: 800,
+        kind: sellableOnly ? 'all' : kind,
+        sellableOnly,
+        limit: sellableOnly ? 200 : 800,
       })
       setRows(next)
     } finally {
@@ -79,12 +84,42 @@ export function InventoryPage({ onOpenSettings }: Props) {
   const totals = useMemo(() => {
     let stacks = 0
     let units = 0
+    let excess = 0
     for (const r of rows) {
       stacks += 1
       units += r.count
+      excess += r.excess || 0
     }
-    return { stacks, units }
+    return { stacks, units, excess }
   }, [rows])
+
+  const listOnWfm = async (row: InventoryBrowseItem) => {
+    if (!window.voidlens?.createWfmOrder) return
+    const plat = row.platinum
+    if (plat == null || plat < 1) {
+      setListMsg('No platinum price for this item')
+      return
+    }
+    const qty = Math.max(1, row.excess || 1)
+    setListBusy(row.uniqueName)
+    setListMsg(null)
+    try {
+      const res = await window.voidlens.createWfmOrder({
+        itemSlugOrName: row.displayName,
+        orderType: 'sell',
+        platinum: Math.round(plat),
+        quantity: qty,
+        visible: true,
+      })
+      if (!res.ok) {
+        setListMsg(res.error || 'List failed — sign in under Market')
+        return
+      }
+      setListMsg(`Listed ${qty}× ${row.displayName} @ ${Math.round(plat)}p`)
+    } finally {
+      setListBusy(null)
+    }
+  }
 
   if (!status.loaded) {
     return (
@@ -129,7 +164,11 @@ export function InventoryPage({ onOpenSettings }: Props) {
 
       <Panel
         title="Browser"
-        subtitle="Names from WFCD / recipe catalogs when available"
+        subtitle={
+          kind === 'sellable'
+            ? 'Duplicate parts with prices — one-click warframe.market sell'
+            : 'Names from WFCD / recipe catalogs when available'
+        }
         actions={
           <div className="market-actions">
             <button
@@ -165,13 +204,19 @@ export function InventoryPage({ onOpenSettings }: Props) {
           </div>
         </div>
         {message ? <p className="muted">{message}</p> : null}
+        {listMsg ? <p className="muted">{listMsg}</p> : null}
         <p className="muted inventory-meta">
           Showing {totals.stacks} stacks ({totals.units} units)
+          {kind === 'sellable' ? ` · ${totals.excess} excess` : ''}
           {loading ? ' · loading…' : ''}
         </p>
         <ul className="inventory-list">
           {rows.length === 0 ? (
-            <li className="muted">No matching items.</li>
+            <li className="muted">
+              {kind === 'sellable'
+                ? 'No duplicate parts with prices. Sync inventory and ensure WFInfo prices loaded.'
+                : 'No matching items.'}
+            </li>
           ) : (
             rows.map((r) => (
               <li key={r.uniqueName}>
@@ -181,9 +226,32 @@ export function InventoryPage({ onOpenSettings }: Props) {
                     <span className={`inventory-kind kind-${r.kind}`}>{kindLabel(r.kind)}</span>
                     {r.isBlueprint ? <span className="inventory-tag">Blueprint</span> : null}
                     {r.isComponent ? <span className="inventory-tag">Component</span> : null}
+                    {r.platinum != null ? (
+                      <span className="inventory-tag">~{Math.round(r.platinum)}p</span>
+                    ) : null}
+                    {r.ducats != null ? (
+                      <span className="inventory-tag">{r.ducats}d</span>
+                    ) : null}
+                    {r.excess > 0 ? (
+                      <span className="inventory-tag">+{r.excess} excess</span>
+                    ) : null}
                   </div>
                 </div>
-                <span className="inventory-count">×{r.count}</span>
+                <div className="inventory-row-actions">
+                  {(kind === 'sellable' || (r.excess > 0 && r.platinum != null)) &&
+                  r.platinum != null ? (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      disabled={listBusy === r.uniqueName}
+                      onClick={() => void listOnWfm(r)}
+                      title="Create warframe.market sell order (sign in under Market)"
+                    >
+                      {listBusy === r.uniqueName ? 'Listing…' : 'List WFM'}
+                    </button>
+                  ) : null}
+                  <span className="inventory-count">×{r.count}</span>
+                </div>
               </li>
             ))
           )}

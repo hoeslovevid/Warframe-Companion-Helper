@@ -24,7 +24,8 @@ import {
 import { isWarframeRunning as isWarframeProcessRunning, isWarframeGameRunningSync, invalidateWarframeProcessCache } from './warframe-process'
 import { buildWineHelperEnv, scrubWineHelperOutput } from '../linux-child-env'
 import { getRecipeByUnique } from './recipe-catalog'
-import { findCatalogItemByUnique } from './item-catalog'
+import { findCatalogItemByName, findCatalogItemByUnique } from './item-catalog'
+import { lookupWfinfoPlatinum } from './wfinfo-prices'
 
 const HELPER_URL =
   'https://github.com/Sainan/warframe-api-helper/releases/download/1.1.2/warframe-api-helper.exe'
@@ -985,6 +986,7 @@ export function browseInventory(
     .trim()
     .toLowerCase()
   const kindFilter = query?.kind || 'all'
+  const sellableOnly = Boolean(query?.sellableOnly)
   const limit = Math.min(Math.max(Number(query?.limit) || 500, 1), 5000)
   const rows: import('../../shared/types').InventoryBrowseItem[] = []
 
@@ -1001,11 +1003,51 @@ export function browseInventory(
       const hay = `${displayName} ${uniqueName} ${leafDisplayName(uniqueName)}`.toLowerCase()
       if (!hay.includes(search)) continue
     }
-    rows.push({ uniqueName, displayName, count, kind, isBlueprint, isComponent })
+
+    const catalog =
+      findCatalogItemByUnique(uniqueName) || findCatalogItemByName(displayName)
+    const platDirect = lookupWfinfoPlatinum(displayName)
+    const platAlt =
+      catalog?.name && catalog.name !== displayName
+        ? lookupWfinfoPlatinum(catalog.name)
+        : null
+    const platinum = platDirect ?? platAlt
+    const ducats = catalog?.ducats ?? null
+    // Keep one of each prime part/BP; extras are sell/ducat candidates.
+    const keepOne = kind === 'part' || isBlueprint || isComponent
+    const excess = keepOne ? Math.max(0, count - 1) : 0
+
+    if (sellableOnly) {
+      if (kind === 'relic' || kind === 'currency' || kind === 'resource' || kind === 'gear') {
+        continue
+      }
+      if (excess <= 0) continue
+      // WFM listing needs plat; ducat-only extras still useful for Baro dump sorting.
+      if (platinum == null && ducats == null) continue
+    }
+
+    rows.push({
+      uniqueName,
+      displayName,
+      count,
+      kind,
+      isBlueprint,
+      isComponent,
+      platinum,
+      ducats,
+      excess,
+    })
   }
 
   rows.sort((a, b) => {
-    if (b.count !== a.count) return b.count - a.count
+    if (sellableOnly) {
+      const ap = a.platinum ?? -1
+      const bp = b.platinum ?? -1
+      if (bp !== ap) return bp - ap
+      if (b.excess !== a.excess) return b.excess - a.excess
+    } else if (b.count !== a.count) {
+      return b.count - a.count
+    }
     return a.displayName.localeCompare(b.displayName)
   })
   return rows.slice(0, limit)
