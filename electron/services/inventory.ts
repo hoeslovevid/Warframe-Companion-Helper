@@ -762,10 +762,14 @@ function helperFailureMessage(cleaned: string): string {
     return 'Inventory helper could not see Warframe.x64.exe in the Proton prefix. Stay logged into Warframe via Steam, then sync again. If this keeps failing, import inventory.json manually.'
   }
   if (/Failed to gruzzle the crumbs/i.test(cleaned)) {
-    return 'Inventory helper found Warframe but could not read account credentials from memory (gruzzle failed). Stay on the orbiter / logged in, then retry. If it keeps failing after an update, import inventory.json manually.'
+    return process.platform === 'linux'
+      ? 'Inventory helper found Warframe but could not read session memory (gruzzle). Stay logged in on the Orbiter, then in Settings → Linux health check Memory access — if ptrace is restricted, run: sudo sysctl -w kernel.yama.ptrace_scope=0 — and Sync again. Do not run the AppImage as root.'
+      : 'Inventory helper found Warframe but could not read account credentials from memory (gruzzle failed). Stay on the orbiter / logged in, then retry. If it keeps failing after an update, import inventory.json manually.'
   }
   if (/Failed to open process/i.test(cleaned)) {
-    return 'Inventory helper found Warframe but could not open the process. Try syncing again while logged in; avoid running the helper under a different Proton than the game.'
+    return process.platform === 'linux'
+      ? 'Inventory helper found Warframe but could not open the process. Check Linux health → Memory access (ptrace_scope), use the same Proton as the game, and sync while logged in.'
+      : 'Inventory helper found Warframe but could not open the process. Try syncing again while logged in; avoid running the helper under a different Proton than the game.'
   }
   if (/Request failed/i.test(cleaned)) {
     return 'Inventory download failed after reading account credentials (HTTPS under Wine). Stay logged into Warframe, check network access to mobile.warframe.com, then try again.'

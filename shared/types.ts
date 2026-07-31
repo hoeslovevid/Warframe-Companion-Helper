@@ -1806,6 +1806,18 @@ export type VoidLensApi = {
   ) => Promise<{ ok: boolean; error?: string; contract?: WfmContract }>
   openExternal: (url: string) => Promise<boolean>
   testScreenCapture: () => Promise<{ ok: boolean; message: string }>
+  /** Linux: YAMA ptrace_scope + inventory-sync tips. */
+  getLinuxHealth: () => Promise<{
+    platform: string
+    ptrace: {
+      scope: number | null
+      permissive: boolean
+      label: string
+      detail: string
+      fixCommand: string
+      tip: string
+    }
+  }>
   getWidgetServerStatus: () => Promise<{ running: boolean; port: number; baseUrl: string }>
   onSettingsChanged: (cb: (settings: AppSettings) => void) => () => void
   onWorldstateUpdated: (cb: (data: WorldstateSnapshot) => void) => () => void

@@ -110,7 +110,7 @@ export function InventorySettings() {
         {status.platform === 'linux' ? (
           <p className="muted">
             {status.protonPlay
-              ? 'Steam/Proton Warframe prefix detected. Sync uses Proton wine while you are logged in.'
+              ? 'Steam/Proton Warframe prefix detected. Sync uses Proton wine while you are logged in. If sync says gruzzle failed, check Linux health → Memory access (ptrace) above.'
               : 'Launch Warframe once via Steam so the Proton prefix is created, or import inventory.json manually.'}
           </p>
         ) : null}

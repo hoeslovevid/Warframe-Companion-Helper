@@ -104,6 +104,7 @@ const api: VoidLensApi = {
   createWfmContract: (input) => ipcRenderer.invoke('market:wfmCreateContract', input),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   testScreenCapture: () => ipcRenderer.invoke('capture:test'),
+  getLinuxHealth: () => ipcRenderer.invoke('linux:health'),
   getWidgetServerStatus: () => ipcRenderer.invoke('widgets:status'),
   onSettingsChanged: (cb) => {
     const listener = (_: Electron.IpcRendererEvent, settings: AppSettings) => cb(settings)

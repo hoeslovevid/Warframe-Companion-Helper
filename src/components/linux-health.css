@@ -13,6 +13,12 @@
   margin-bottom: 10px;
 }
 
+.linux-health__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .linux-health__title {
   margin: 0;
   font-size: 0.95rem;
@@ -29,7 +35,7 @@
 
 .linux-health__row {
   display: grid;
-  grid-template-columns: 12px 110px 1fr auto;
+  grid-template-columns: 12px 120px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   font-size: 0.82rem;
@@ -58,9 +64,79 @@
 
 .linux-health__detail {
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .linux-health__fix {
   padding: 2px 8px !important;
   font-size: 0.75rem !important;
+}
+
+.linux-health__tip {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #e0a23a 40%, transparent);
+  background: color-mix(in srgb, #e0a23a 10%, transparent);
+  display: grid;
+  gap: 8px;
+}
+
+.linux-health__tip-text {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.linux-health__tip-text strong {
+  color: inherit;
+  font-weight: 700;
+}
+
+.linux-health__cmd {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 0.74rem;
+  word-break: break-all;
+  color: var(--vl-frost, #e8eef2);
+}
+
+.linux-health__tip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.linux-health__hint {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+  .linux-health__row {
+    grid-template-columns: 12px 1fr auto;
+    grid-template-areas:
+      'dot label fix'
+      '. detail detail';
+  }
+
+  .linux-health__dot {
+    grid-area: dot;
+  }
+  .linux-health__label {
+    grid-area: label;
+  }
+  .linux-health__detail {
+    grid-area: detail;
+    white-space: normal;
+  }
+  .linux-health__fix {
+    grid-area: fix;
+  }
 }

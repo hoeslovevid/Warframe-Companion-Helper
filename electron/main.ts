@@ -1466,6 +1466,10 @@ function registerIpc() {
       }
     }
   })
+  ipcMain.handle('linux:health', async () => {
+    const { getLinuxHealthSnapshot } = await import('./services/linux-health')
+    return getLinuxHealthSnapshot()
+  })
   ipcMain.handle('widgets:status', () => getWidgetServerStatus())
 }
 

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { AppSettings, InventoryStatus } from '../../shared/types'
+import { copyText } from '../lib/tradeClipboard'
 import { pushToast } from '../lib/toast'
 import './linux-health.css'
 
@@ -11,7 +12,22 @@ type Props = {
   onOpenCaptureWizard?: () => void
 }
 
-type Row = { label: string; state: 'ok' | 'warn' | 'off'; detail: string; fix?: () => void; fixLabel?: string }
+type PtraceInfo = {
+  scope: number | null
+  permissive: boolean
+  label: string
+  detail: string
+  fixCommand: string
+  tip: string
+}
+
+type Row = {
+  label: string
+  state: 'ok' | 'warn' | 'off'
+  detail: string
+  fix?: () => void
+  fixLabel?: string
+}
 
 export function LinuxHealthCard({
   settings,
@@ -21,9 +37,36 @@ export function LinuxHealthCard({
   onOpenCaptureWizard,
 }: Props) {
   const [captureMsg, setCaptureMsg] = useState<string | null>(null)
+  const [ptrace, setPtrace] = useState<PtraceInfo | null>(null)
   const isLinux =
     inventory?.platform === 'linux' ||
     (typeof navigator !== 'undefined' && /linux/i.test(navigator.userAgent))
+
+  const refreshPtrace = useCallback(async () => {
+    if (!window.voidlens?.getLinuxHealth) return
+    try {
+      const snap = await window.voidlens.getLinuxHealth()
+      if (snap.platform !== 'linux') {
+        setPtrace(null)
+        return
+      }
+      setPtrace(snap.ptrace)
+    } catch {
+      setPtrace(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isLinux) return
+    void refreshPtrace()
+  }, [isLinux, refreshPtrace, inventory?.revision, inventory?.error])
+
+  const copyFix = useCallback(async () => {
+    const cmd = ptrace?.fixCommand || 'sudo sysctl -w kernel.yama.ptrace_scope=0'
+    const ok = await copyText(cmd)
+    if (ok) pushToast('ptrace fix command copied', 'ok')
+    else pushToast('Could not copy — select the command manually', 'warn')
+  }, [ptrace?.fixCommand])
 
   const rows = useMemo((): Row[] => {
     if (!isLinux) return []
@@ -31,7 +74,7 @@ export function LinuxHealthCard({
       {
         label: 'EE.log',
         state: settings.eeLogPath ? 'ok' : 'warn',
-        detail: settings.eeLogPath ? 'Bound' : 'not found',
+        detail: settings.eeLogPath ? 'bound' : 'not found',
         fix: onDetectEeLog,
         fixLabel: 'Detect',
       },
@@ -41,6 +84,17 @@ export function LinuxHealthCard({
         detail: inventory?.protonPlay ? 'Warframe compatdata found' : 'launch Warframe via Steam once',
       },
       {
+        label: 'Memory access',
+        state: !ptrace
+          ? 'off'
+          : ptrace.permissive
+            ? 'ok'
+            : 'warn',
+        detail: ptrace?.detail || 'checking ptrace_scope…',
+        fix: ptrace && !ptrace.permissive ? () => void copyFix() : () => void refreshPtrace(),
+        fixLabel: ptrace && !ptrace.permissive ? 'Copy fix' : 'Recheck',
+      },
+      {
         label: 'Inventory',
         state: inventory?.loaded ? (inventory.stale ? 'warn' : 'ok') : 'off',
         detail: inventory?.loaded
@@ -48,7 +102,9 @@ export function LinuxHealthCard({
             ? 'stale — sync while logged in'
             : 'synced'
           : inventory?.consent
-            ? 'not synced'
+            ? inventory?.error
+              ? inventory.error.slice(0, 80)
+              : 'not synced'
             : 'consent needed',
         fix: inventory?.consent ? onSyncInventory : undefined,
         fixLabel: 'Sync',
@@ -70,9 +126,12 @@ export function LinuxHealthCard({
     settings.onboarding.linuxCaptureAck,
     inventory,
     captureMsg,
+    ptrace,
     onDetectEeLog,
     onSyncInventory,
     onOpenCaptureWizard,
+    copyFix,
+    refreshPtrace,
   ])
 
   if (!isLinux || !rows.length) return null
@@ -84,20 +143,29 @@ export function LinuxHealthCard({
     pushToast(msg, res?.ok ? 'ok' : 'warn')
   }
 
+  const showPtraceTip = ptrace && !ptrace.permissive
+
   return (
     <section className="linux-health" aria-label="Linux health">
       <div className="linux-health__head">
         <h3 className="linux-health__title">Linux health</h3>
-        <button type="button" className="btn ghost" onClick={() => void testCapture()}>
-          Test capture
-        </button>
+        <div className="linux-health__head-actions">
+          <button type="button" className="btn ghost" onClick={() => void refreshPtrace()}>
+            Refresh
+          </button>
+          <button type="button" className="btn ghost" onClick={() => void testCapture()}>
+            Test capture
+          </button>
+        </div>
       </div>
       <ul className="linux-health__list">
         {rows.map((r) => (
           <li key={r.label} className={`linux-health__row is-${r.state}`}>
             <span className="linux-health__dot" data-state={r.state} />
             <span className="linux-health__label">{r.label}</span>
-            <span className="linux-health__detail">{r.detail}</span>
+            <span className="linux-health__detail" title={r.detail}>
+              {r.detail}
+            </span>
             {r.fix ? (
               <button type="button" className="btn ghost linux-health__fix" onClick={r.fix}>
                 {r.fixLabel || 'Fix'}
@@ -106,6 +174,37 @@ export function LinuxHealthCard({
           </li>
         ))}
       </ul>
+      {showPtraceTip ? (
+        <div className="linux-health__tip" role="note">
+          <p className="linux-health__tip-text">
+            Restricted ptrace often causes <strong>gruzzle failed</strong> during inventory sync.
+            In a terminal run the command below (resets on reboot unless you make it permanent in{' '}
+            <code>/etc/sysctl.d/</code>), stay on the Orbiter, then Sync. Do not run the AppImage as
+            root.
+          </p>
+          <code className="linux-health__cmd">{ptrace.fixCommand}</code>
+          <div className="linux-health__tip-actions">
+            <button type="button" className="btn ghost" onClick={() => void copyFix()}>
+              Copy command
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!inventory?.consent}
+              onClick={() => {
+                void refreshPtrace().then(() => onSyncInventory())
+              }}
+            >
+              Sync after fix
+            </button>
+          </div>
+        </div>
+      ) : ptrace?.permissive ? (
+        <p className="linux-health__hint muted">
+          Memory access looks open. Sync while fully logged into Warframe (Orbiter), not the
+          launcher.
+        </p>
+      ) : null}
     </section>
   )
 }

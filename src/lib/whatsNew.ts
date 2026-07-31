@@ -281,6 +281,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Overlay mission strip shows open LFG seat count for your region/platform',
     'Sets: scrollable list with pinned filters; Incomplete / Complete / All completion filter',
   ],
+  '0.9.66': [
+    'Linux health: detect YAMA ptrace_scope, copy fix command for gruzzle failures, clearer inventory sync tips',
+    'Gruzzle / open-process errors on Linux point at Memory access instead of running the AppImage as root',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
