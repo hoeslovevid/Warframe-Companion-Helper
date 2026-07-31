@@ -61,19 +61,10 @@ export function LfgPage({ settings, onUpdate }: Props) {
       .slice(0, 8)
   }, [data.fissures, steelPath])
 
-  const refresh = useCallback(async () => {
-    if (!window.voidlens?.listLfg) return
+  const refresh = useCallback(async (): Promise<boolean> => {
+    if (!window.voidlens?.listLfg) return false
     setLoading(true)
-    setError(null)
     try {
-      const health = await window.voidlens.lfgHealth()
-      setHubOk(health.ok)
-      setBaseUrl(health.baseUrl)
-      if (!health.ok) {
-        setError(health.error || 'LFG hub unreachable')
-        setListings([])
-        return
-      }
       const res = await window.voidlens.listLfg({
         region: filterRegion,
         activity: filterActivity,
@@ -82,18 +73,40 @@ export function LfgPage({ settings, onUpdate }: Props) {
       })
       setListings(res.listings)
       setBaseUrl(res.baseUrl)
-      if (res.error) setError(res.error)
+      setHubOk(!res.error)
+      if (res.error) {
+        setError(res.error)
+        return /rate|429/i.test(res.error)
+      }
+      setError(null)
+      return false
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'LFG failed')
+      setHubOk(false)
+      const msg = err instanceof Error ? err.message : 'LFG failed'
+      setError(msg)
+      return /rate|429/i.test(msg)
     } finally {
       setLoading(false)
     }
   }, [filterActivity, filterRegion, q, settings.lfgPlatform])
 
   useEffect(() => {
-    void refresh()
-    const t = window.setInterval(() => void refresh(), 12_000)
-    return () => window.clearInterval(t)
+    let cancelled = false
+    let timer: number | undefined
+    let delay = 20_000
+
+    const tick = async () => {
+      if (cancelled) return
+      const rateLimited = await refresh()
+      delay = rateLimited ? Math.min(90_000, Math.round(delay * 1.6)) : 20_000
+      if (!cancelled) timer = window.setTimeout(() => void tick(), delay)
+    }
+
+    void tick()
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+    }
   }, [refresh])
 
   const saveProfile = (partial: Partial<AppSettings>) => onUpdate(partial)

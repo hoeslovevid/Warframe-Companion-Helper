@@ -15,7 +15,10 @@ const DEFAULT_TTL_MS = 15 * 60_000
 const MAX_TTL_MS = 120 * 60_000
 const MIN_TTL_MS = 5 * 60_000
 const RATE_WINDOW_MS = 60_000
-const RATE_MAX = 40
+/** Per-client read budget (health/list). Higher — boards poll often. */
+const RATE_MAX_READ = 180
+/** Per-client write budget (create/join/leave/delete). */
+const RATE_MAX_WRITE = 60
 
 /**
  * @typedef {{
@@ -41,10 +44,36 @@ const RATE_MAX = 40
  */
 
 /** @type {Map<string, number[]>} */
-const rateHits = new Map()
+const rateHitsRead = new Map()
+/** @type {Map<string, number[]>} */
+const rateHitsWrite = new Map()
 
 /** @type {import('./store.mjs').LfgStore | null} */
 let store = null
+
+function clientIp(req) {
+  // Railway / reverse proxies put the real client in X-Forwarded-For.
+  // Without this, every user shares socket.remoteAddress (= proxy) and trips 429 together.
+  const xff = req.headers['x-forwarded-for']
+  if (typeof xff === 'string' && xff.trim()) {
+    return xff.split(',')[0].trim()
+  }
+  const real = req.headers['x-real-ip']
+  if (typeof real === 'string' && real.trim()) return real.trim()
+  return req.socket.remoteAddress || 'local'
+}
+
+function rateOk(bucket, ip, max) {
+  const now = Date.now()
+  const prev = (bucket.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS)
+  if (prev.length >= max) {
+    bucket.set(ip, prev)
+    return false
+  }
+  prev.push(now)
+  bucket.set(ip, prev)
+  return true
+}
 
 function publicListing(row) {
   const { hostToken, ...rest } = row
@@ -66,18 +95,6 @@ function buildWhisper(row) {
   bits.push(row.platform.toUpperCase())
   bits.push(row.region.toUpperCase())
   return `/w ${row.hostIgn} ${bits.join(' · ')}`.replace(/\s+/g, ' ').trim()
-}
-
-function rateOk(ip) {
-  const now = Date.now()
-  const prev = (rateHits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS)
-  if (prev.length >= RATE_MAX) {
-    rateHits.set(ip, prev)
-    return false
-  }
-  prev.push(now)
-  rateHits.set(ip, prev)
-  return true
 }
 
 function readBody(req) {
@@ -127,21 +144,32 @@ function enforceCap() {
 }
 
 const server = http.createServer(async (req, res) => {
-  const ip = req.socket.remoteAddress || 'local'
+  const ip = clientIp(req)
   if (req.method === 'OPTIONS') {
     send(res, 204, {})
-    return
-  }
-  if (!rateOk(ip)) {
-    send(res, 429, { error: 'Too many requests' })
     return
   }
 
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
     const pathname = url.pathname.replace(/\/+$/, '') || '/'
+    const isHealth = req.method === 'GET' && (pathname === '/' || pathname === '/health')
+    const isWrite = req.method === 'POST' || req.method === 'DELETE'
 
-    if (req.method === 'GET' && (pathname === '/' || pathname === '/health')) {
+    // Do not rate-limit platform healthchecks; key reads/writes per real client IP.
+    if (!isHealth) {
+      if (isWrite) {
+        if (!rateOk(rateHitsWrite, ip, RATE_MAX_WRITE)) {
+          send(res, 429, { error: 'Too many requests — slow down a moment' })
+          return
+        }
+      } else if (!rateOk(rateHitsRead, ip, RATE_MAX_READ)) {
+        send(res, 429, { error: 'Too many requests — slow down a moment' })
+        return
+      }
+    }
+
+    if (isHealth) {
       store.purgeExpired()
       send(res, 200, {
         ok: true,

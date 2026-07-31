@@ -108,8 +108,14 @@ async function fetchJson(url: string, init?: RequestInit): Promise<any> {
     json = null
   }
   if (!res.ok) {
-    const err = new Error(json?.error || `LFG HTTP ${res.status}`)
-    ;(err as any).status = res.status
+    const status = res.status
+    const msg =
+      json?.error ||
+      (status === 429
+        ? 'LFG hub rate limited — retrying shortly'
+        : `LFG HTTP ${status}`)
+    const err = new Error(msg)
+    ;(err as any).status = status
     throw err
   }
   return json
