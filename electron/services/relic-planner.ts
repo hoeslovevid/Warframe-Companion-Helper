@@ -144,19 +144,43 @@ function buildRow(
   const bestDucats = (ducatVals.length ? Math.max(...ducatVals) : null) ??
     (allDucats.length ? Math.max(...allDucats) : null)
 
+  const refinements = refinementsByKey.get(entry.key) || emptyRefinements()
+  const tracesToRadiant = tracesToUpgradeOne(refinements)
+  const upgradePlatScore =
+    tracesToRadiant != null && bestPlatinum != null && bestPlatinum > 0
+      ? Math.round((bestPlatinum / tracesToRadiant) * 1000) / 1000
+      : null
+  const upgradeDucatsScore =
+    tracesToRadiant != null && bestDucats != null && bestDucats > 0
+      ? Math.round((bestDucats / tracesToRadiant) * 1000) / 1000
+      : null
+
   return {
     key: entry.key,
     name: entry.key,
     tier: entry.tier,
     owned: ownedByKey.get(entry.key) || 0,
-    refinements: refinementsByKey.get(entry.key) || emptyRefinements(),
+    refinements,
     vaulted: entry.vaulted,
     missingCount,
     bestPlatinum,
     bestDucats,
+    upgradePlatScore,
+    upgradeDucatsScore,
+    tracesToRadiant,
     hasFavorite: rowTouchesFavorite(rewards, favoriteNorms),
     rewards,
   }
+}
+
+/** Void traces to push one copy to Radiant (prefer cheapest remaining step). */
+function tracesToUpgradeOne(ref: RelicRefinementCounts): number | null {
+  if (ref.flawless > 0) return 100
+  if (ref.exceptional > 0) return 150
+  if (ref.intact > 0) return 175
+  // Own radiant-only or unknown: no upgrade ROI
+  if (ref.radiant > 0) return null
+  return null
 }
 
 function cacheKey(
@@ -224,6 +248,20 @@ export async function getRelicPlanner(opts?: RelicPlannerQuery): Promise<RelicPl
     }
     if (sort === 'ducats') {
       return (b.bestDucats ?? -1) - (a.bestDucats ?? -1) || a.key.localeCompare(b.key)
+    }
+    if (sort === 'upgradePlat') {
+      return (
+        (b.upgradePlatScore ?? -1) - (a.upgradePlatScore ?? -1) ||
+        (b.bestPlatinum ?? -1) - (a.bestPlatinum ?? -1) ||
+        a.key.localeCompare(b.key)
+      )
+    }
+    if (sort === 'upgradeDucats') {
+      return (
+        (b.upgradeDucatsScore ?? -1) - (a.upgradeDucatsScore ?? -1) ||
+        (b.bestDucats ?? -1) - (a.bestDucats ?? -1) ||
+        a.key.localeCompare(b.key)
+      )
     }
     if (sort === 'owned') {
       return b.owned - a.owned || a.key.localeCompare(b.key)

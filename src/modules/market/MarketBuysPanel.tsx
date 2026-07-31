@@ -13,6 +13,7 @@ export function MarketBuysPanel({ settings, onUpdate }: Props) {
   const targets = settings.marketBuyTargets || []
   const [nameDraft, setNameDraft] = useState('')
   const [maxDraft, setMaxDraft] = useState('20')
+  const [qtyDraft, setQtyDraft] = useState('1')
   const [quotes, setQuotes] = useState<MarketQuote[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -45,12 +46,13 @@ export function MarketBuysPanel({ settings, onUpdate }: Props) {
   const add = () => {
     const name = nameDraft.trim()
     const maxPlatinum = Math.max(1, Math.floor(Number(maxDraft) || 1))
+    const quantity = Math.max(1, Math.floor(Number(qtyDraft) || 1))
     if (!name) return
     if (targets.some((t) => t.name.toLowerCase() === name.toLowerCase())) {
       setNameDraft('')
       return
     }
-    onUpdate({ marketBuyTargets: [...targets, { name, maxPlatinum }] })
+    onUpdate({ marketBuyTargets: [...targets, { name, maxPlatinum, quantity }] })
     setNameDraft('')
   }
 
@@ -62,6 +64,14 @@ export function MarketBuysPanel({ settings, onUpdate }: Props) {
     onUpdate({
       marketBuyTargets: targets.map((t) =>
         t.name === name ? { ...t, maxPlatinum: Math.max(1, maxPlatinum) } : t,
+      ),
+    })
+  }
+
+  const setQty = (name: string, quantity: number) => {
+    onUpdate({
+      marketBuyTargets: targets.map((t) =>
+        t.name === name ? { ...t, quantity: Math.max(1, Math.floor(quantity) || 1) } : t,
       ),
     })
   }
@@ -115,6 +125,15 @@ export function MarketBuysPanel({ settings, onUpdate }: Props) {
           aria-label="Max platinum"
           style={{ maxWidth: 88 }}
         />
+        <input
+          type="number"
+          min={1}
+          value={qtyDraft}
+          onChange={(e) => setQtyDraft(e.target.value)}
+          placeholder="Qty"
+          aria-label="Quantity wanted"
+          style={{ maxWidth: 64 }}
+        />
         <button className="btn primary" type="button" onClick={add}>
           Add
         </button>
@@ -129,6 +148,7 @@ export function MarketBuysPanel({ settings, onUpdate }: Props) {
           <div className="market-table__head" role="row">
             <span role="columnheader">Item</span>
             <span role="columnheader">Max</span>
+            <span role="columnheader">Qty</span>
             <span role="columnheader">Floor</span>
             <span role="columnheader">Med</span>
             <span role="columnheader" className="market-table__actions-col">
@@ -157,6 +177,16 @@ export function MarketBuysPanel({ settings, onUpdate }: Props) {
                     onChange={(e) => setMax(t.name, Number(e.target.value))}
                     aria-label={`Max platinum for ${t.name}`}
                     style={{ width: 64 }}
+                  />
+                </span>
+                <span role="cell">
+                  <input
+                    type="number"
+                    min={1}
+                    value={t.quantity ?? 1}
+                    onChange={(e) => setQty(t.name, Number(e.target.value))}
+                    aria-label={`Quantity for ${t.name}`}
+                    style={{ width: 52 }}
                   />
                 </span>
                 <span className="market-plat" role="cell">

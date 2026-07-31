@@ -57,6 +57,18 @@ function RollCard({
         {roll.tier}
         <span>{roll.score}/100</span>
       </div>
+      {roll.verdict ? (
+        <div className={`riven-card__verdict is-${roll.verdict}`} title={roll.verdictNote || undefined}>
+          {roll.verdict}
+          {roll.avgQuality != null ? <span> · {roll.avgQuality}% avg</span> : null}
+        </div>
+      ) : null}
+      {(roll.disposition != null || roll.masteryRank != null) && (
+        <div className="riven-card__meta muted">
+          {roll.disposition != null ? <span>Dispo {roll.disposition}</span> : null}
+          {roll.masteryRank != null ? <span>MR {roll.masteryRank}</span> : null}
+        </div>
+      )}
       {roll.platinum != null ? (
         <div
           className="riven-card__plat"

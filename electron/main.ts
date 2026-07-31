@@ -1275,6 +1275,15 @@ function registerIpc() {
       return getSetFarm(opts || {})
     },
   )
+  ipcMain.handle('setFarm:fissurePath', async (_e, uniqueName: string) => {
+    const { getSetFissurePath } = await import('./services/set-farm')
+    const ws = await refreshWorldstate(false)
+    return getSetFissurePath(typeof uniqueName === 'string' ? uniqueName : '', ws.fissures || [])
+  })
+  ipcMain.handle('economy:trend', async () => {
+    const { getEconomyTrend } = await import('./services/economy-snapshots')
+    return getEconomyTrend()
+  })
   ipcMain.handle(
     'setProgress:list',
     async (_e, opts?: { search?: string; incompleteOnly?: boolean; limit?: number }) => {

@@ -61,8 +61,15 @@ export function suggestSellPrice(floor: number, minPlatinum: number | null | und
   return under
 }
 
+/** Listing price after a 1p undercut cost (simple “net” for flip math). */
+export function netAfterUndercut(platinum: number): number {
+  return Math.max(1, Math.floor(platinum) - 1)
+}
+
 export type FlipSpread = {
   spread: number
+  /** Room after paying floor and listing at median−1-ish: median − floor − 1 */
+  edge: number
   label: string
 }
 
@@ -72,8 +79,9 @@ export function flipSpread(quote: MarketQuote | undefined): FlipSpread | null {
   const floor = quote.floor || quote.platinum
   const med = quote.platinum
   const spread = Math.max(0, med - floor)
-  if (spread === 0) return { spread: 0, label: 'Tight' }
-  return { spread, label: `+${spread}p` }
+  const edge = Math.max(0, med - floor - 1)
+  if (spread === 0) return { spread: 0, edge: 0, label: 'Tight' }
+  return { spread, edge, label: edge > 0 ? `+${edge}p edge` : `+${spread}p` }
 }
 
 export type OrderHealth = {

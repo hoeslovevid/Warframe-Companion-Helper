@@ -544,6 +544,45 @@ function guessPolarity(text: string): string | null {
   return p.charAt(0).toUpperCase() + p.slice(1)
 }
 
+function guessDisposition(text: string): number | null {
+  const labeled = text.match(/dispo(?:sition)?\s*[:=]?\s*([0-1]\.\d{1,2})/i)
+  if (labeled) {
+    const n = Number(labeled[1])
+    if (n >= 0.5 && n <= 1.55) return Math.round(n * 100) / 100
+  }
+  // Bare "0.90" near end of card text is often disposition
+  const bare = text.match(/\b(0\.\d{2}|1\.[0-4]\d)\b/)
+  if (bare) {
+    const n = Number(bare[1])
+    if (n >= 0.5 && n <= 1.55) return Math.round(n * 100) / 100
+  }
+  return null
+}
+
+function guessMasteryRank(text: string): number | null {
+  const m = text.match(/\b(?:mr|mastery(?:\s*rank)?)\s*[:=]?\s*(\d{1,2})\b/i)
+  if (!m) return null
+  const n = Number(m[1])
+  if (!Number.isFinite(n) || n < 0 || n > 16) return null
+  return n
+}
+
+function avgDesirableQuality(stats: RivenStatLine[]): number | null {
+  const good = stats.filter((s) => s.desirable)
+  if (!good.length) return null
+  return Math.round(good.reduce((a, s) => a + s.quality, 0) / good.length)
+}
+
+function verdictForScore(score: number): {
+  verdict: NonNullable<RivenRoll['verdict']>
+  verdictNote: string
+} {
+  if (score >= 88) return { verdict: 'godroll', verdictNote: 'God roll — strong keep' }
+  if (score >= 70) return { verdict: 'keeper', verdictNote: 'Keeper — worth holding / listing' }
+  if (score >= 45) return { verdict: 'reroll', verdictNote: 'Mediocre — reroll if kuva allows' }
+  return { verdict: 'trash', verdictNote: 'Weak roll — reroll' }
+}
+
 /** Parse OCR block from one full riven card into structured stats + weapon guess. */
 export function parseRivenOcr(ocrText: string, side: 'current' | 'reroll'): RivenRoll {
   loadRivenPreferences()
@@ -551,6 +590,8 @@ export function parseRivenOcr(ocrText: string, side: 'current' | 'reroll'): Rive
   const stats = extractStatsFromBlob(scrubbed)
   const weapon = guessWeapon(scrubbed)
   const graded = gradeRoll(stats, weapon)
+  const avgQuality = avgDesirableQuality(stats)
+  const { verdict, verdictNote } = verdictForScore(graded.score)
   return {
     side,
     weapon,
@@ -561,6 +602,11 @@ export function parseRivenOcr(ocrText: string, side: 'current' | 'reroll'): Rive
     prefsMatched: graded.prefsMatched,
     prefsNotes: graded.prefsNotes,
     polarity: guessPolarity(scrubbed),
+    disposition: guessDisposition(scrubbed),
+    masteryRank: guessMasteryRank(scrubbed),
+    avgQuality,
+    verdict,
+    verdictNote,
   }
 }
 
@@ -648,9 +694,17 @@ export function recommendRolls(
   if (!current || !reroll) return { recommendation: 'none', note: null }
   const delta = reroll.score - current.score
   if (Math.abs(delta) >= 4) {
+    const better = delta > 0 ? reroll : current
+    const worse = delta > 0 ? current : reroll
+    const bits = [
+      delta > 0 ? 'Take the new roll' : 'Keep the current roll',
+      `(${better.tier} ${better.score} vs ${worse.tier} ${worse.score})`,
+    ]
+    if (better.verdict) bits.push(`· ${better.verdict}`)
+    if (better.avgQuality != null) bits.push(`· avg roll ${better.avgQuality}%`)
     return {
       recommendation: delta > 0 ? 'take' : 'keep',
-      note: null,
+      note: bits.join(' '),
     }
   }
 
@@ -676,6 +730,18 @@ export function recommendRolls(
     return {
       recommendation: 'keep',
       note: 'Similar grade — current matches sheet prefs',
+    }
+  }
+
+  const curV = current.verdict
+  const newV = reroll.verdict
+  if (curV && newV && curV !== newV) {
+    const rank = { godroll: 4, keeper: 3, reroll: 2, trash: 1 }
+    if (rank[newV] > rank[curV]) {
+      return { recommendation: 'take', note: `Edge to new — ${newV} vs ${curV}` }
+    }
+    if (rank[curV] > rank[newV]) {
+      return { recommendation: 'keep', note: `Edge to current — ${curV} vs ${newV}` }
     }
   }
 

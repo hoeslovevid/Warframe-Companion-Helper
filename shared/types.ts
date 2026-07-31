@@ -140,6 +140,15 @@ export type RivenRoll = {
   marketMatch?: 'exact' | 'stats' | 'loose' | null
   /** Madurai / Vazarin / Naramon / Zenurik when OCR sees polarity. */
   polarity?: string | null
+  /** Weapon disposition when OCR / text exposes it (0.5–1.55 typical). */
+  disposition?: number | null
+  /** Mastery rank requirement when OCR sees MR. */
+  masteryRank?: number | null
+  /** Average quality % of desirable stats (0–100). */
+  avgQuality?: number | null
+  /** Plain-language keep / reroll verdict for the card alone. */
+  verdict?: 'godroll' | 'keeper' | 'reroll' | 'trash' | null
+  verdictNote?: string | null
   /** Deep-link into warframe.market riven auction search. */
   marketUrl?: string | null
 }
@@ -458,7 +467,7 @@ export type AppSettings = {
    * Buy targets — alert when live sell floor ≤ maxPlatinum.
    * Names match watchlist-style display names.
    */
-  marketBuyTargets: Array<{ name: string; maxPlatinum: number }>
+  marketBuyTargets: Array<{ name: string; maxPlatinum: number; quantity?: number }>
   /** Display names never auto-listed from Stock / Sellables assistant. */
   marketListBlacklist: string[]
   /** Sell is “stale” when your price is this many plat above live floor. */
@@ -467,6 +476,17 @@ export type AppSettings = {
   marketMinPrices: Array<{ name: string; minPlatinum: number }>
   /** Desktop notify when a buy-target floor drops to max. */
   marketBuyAlertEnabled: boolean
+  /** Owned rivens queued to sell (manual stock shelf). */
+  marketRivenStock: Array<{
+    id: string
+    weapon: string
+    minPlatinum: number
+    polarity?: string
+    note?: string
+    addedAt: string
+  }>
+  /** Min median−floor spread to flag as a flip opportunity. */
+  marketFlipMinSpread: number
   /** Serve localhost HTML widgets for OBS / external overlays. */
   widgetServerEnabled: boolean
   /** Port for the widget HTTP server (127.0.0.1 only). */
@@ -689,6 +709,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   marketStaleMargin: 3,
   marketMinPrices: [],
   marketBuyAlertEnabled: true,
+  marketRivenStock: [],
+  marketFlipMinSpread: 5,
   widgetServerEnabled: false,
   widgetServerPort: 17862,
   quietMode: false,
@@ -1004,7 +1026,14 @@ export type SetFarmResult = {
 
 export type RelicBestPickMode = 'balanced' | 'needed' | 'platinum' | 'ducats'
 
-export type RelicPlannerSort = 'missing' | 'platinum' | 'ducats' | 'owned' | 'name'
+export type RelicPlannerSort =
+  | 'missing'
+  | 'platinum'
+  | 'ducats'
+  | 'owned'
+  | 'name'
+  | 'upgradePlat'
+  | 'upgradeDucats'
 
 export type RelicPlannerReward = {
   name: string
@@ -1035,6 +1064,12 @@ export type RelicPlannerRow = {
   missingCount: number
   bestPlatinum: number | null
   bestDucats: number | null
+  /** Plat per void-trace to push one relic to Radiant (higher = better upgrade ROI). */
+  upgradePlatScore: number | null
+  /** Ducats per void-trace to Radiant. */
+  upgradeDucatsScore: number | null
+  /** Traces needed to upgrade one cheapest non-radiant copy to Radiant. */
+  tracesToRadiant: number | null
   hasFavorite: boolean
   rewards: RelicPlannerReward[]
 }
@@ -1136,11 +1171,22 @@ export type MarketQuote = {
 export type MarketBuyTarget = {
   name: string
   maxPlatinum: number
+  /** How many you still want (optional). */
+  quantity?: number
 }
 
 export type MarketMinPrice = {
   name: string
   minPlatinum: number
+}
+
+export type MarketRivenStockItem = {
+  id: string
+  weapon: string
+  minPlatinum: number
+  polarity?: string
+  note?: string
+  addedAt: string
 }
 
 /** Local trade / sold log (manual mark-sold + optional buys). */
@@ -1167,6 +1213,47 @@ export type MarketTradeInput = {
   platinum: number
   quantity?: number
   note?: string
+}
+
+export type EconomySnapshot = {
+  at: string
+  credits: number
+  ducats: number
+  platinum: number
+}
+
+export type EconomyTrendResult = {
+  snapshots: EconomySnapshot[]
+  latest: EconomySnapshot | null
+  delta: {
+    credits: number
+    ducats: number
+    platinum: number
+  } | null
+}
+
+export type SetFissureMatch = {
+  fissureId: string
+  node: string
+  missionType: string
+  tier: string
+  eta: string
+  isHard: boolean
+  isStorm: boolean
+  /** Relic keys from this set that drop on this tier. */
+  relicKeys: string[]
+  /** Missing part names this fissure can help. */
+  missingParts: string[]
+  score: number
+}
+
+export type SetFissurePathResult = {
+  setName: string
+  uniqueName: string
+  matches: SetFissureMatch[]
+  missingParts: string[]
+  inventoryLoaded: boolean
+  error: string | null
 }
 
 /** warframe.market auction contract (riven / lich / sister). */
@@ -1533,6 +1620,7 @@ export type VoidLensApi = {
     search?: string
     prime?: FoundryPrimeFilter
   }) => Promise<SetFarmResult | null>
+  getSetFissurePath: (uniqueName: string) => Promise<SetFissurePathResult>
   getSetProgress: (opts?: {
     search?: string
     incompleteOnly?: boolean
@@ -1540,6 +1628,7 @@ export type VoidLensApi = {
   }) => Promise<SetProgressResult>
   getInventoryDiff: () => Promise<InventoryDiff | null>
   suggestMarketUndercut: (name: string) => Promise<MarketUndercutSuggestion | null>
+  getEconomyTrend: () => Promise<EconomyTrendResult>
   getMasteryHelper: (query?: MasteryHelperQuery) => Promise<MasteryHelperResult>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>
   getAppVersion: () => Promise<string>

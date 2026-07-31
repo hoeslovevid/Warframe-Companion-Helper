@@ -303,6 +303,8 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
                   ['missing', 'Missing'],
                   ['platinum', 'Plat'],
                   ['ducats', 'Ducats'],
+                  ['upgradePlat', '↑ Plat'],
+                  ['upgradeDucats', '↑ Ducats'],
                   ['owned', 'Owned'],
                   ['name', 'Name'],
                 ] as const
@@ -376,6 +378,11 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
                     ) : null}
                     {row.bestDucats != null ? (
                       <span className="vl-pill">{row.bestDucats}d</span>
+                    ) : null}
+                    {row.upgradePlatScore != null ? (
+                      <span className="vl-pill" title={`Traces to Radiant: ${row.tracesToRadiant ?? '—'}`}>
+                        ↑{row.upgradePlatScore}p/t
+                      </span>
                     ) : null}
                   </span>
                 </button>

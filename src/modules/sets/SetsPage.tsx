@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { SetProgressRow } from '../../../shared/types'
+import type { SetFissureMatch, SetProgressRow } from '../../../shared/types'
 import { EmptyState } from '../../components/EmptyState'
+import { InventoryStaleBanner } from '../../components/InventoryStaleBanner'
 import { Panel } from '../../components/Panel'
 import { useInventory } from '../../hooks/useInventory'
 import { useSettings } from '../../hooks/useVoidLens'
@@ -33,6 +34,8 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
+  const [fissureMatches, setFissureMatches] = useState<SetFissureMatch[]>([])
+  const [fissureLoading, setFissureLoading] = useState(false)
 
   const favorites = settings.farmFavorites || []
   const favoriteNorms = useMemo(
@@ -74,6 +77,23 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
     const t = window.setTimeout(() => void refresh(), 100)
     return () => window.clearTimeout(t)
   }, [enabled, refresh, inventory.revision, inventory.loaded])
+
+  useEffect(() => {
+    if (!selected || !window.voidlens?.getSetFissurePath) {
+      setFissureMatches([])
+      return
+    }
+    let cancelled = false
+    setFissureLoading(true)
+    void window.voidlens.getSetFissurePath(selected).then((res) => {
+      if (cancelled) return
+      setFissureMatches(res.matches || [])
+      setFissureLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selected, inventory.revision])
 
   const detail = rows.find((r) => r.uniqueName === selected) || null
   const completeCount = useMemo(() => rows.filter((r) => r.complete).length, [rows])
@@ -119,6 +139,12 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
           {error ? ` · ${error}` : ''}
         </p>
       </header>
+
+      <InventoryStaleBanner
+        inventory={inventory}
+        fissureMode
+        onOpenInventory={onOpenSettings}
+      />
 
       <div className="planner-layout">
         <aside className="foundry-sidebar">
@@ -219,6 +245,40 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
                     Open in Foundry
                   </button>
                 </div>
+              ) : null}
+              {!detail.complete ? (
+                <>
+                  <div className="foundry-section-title" style={{ marginTop: 16 }}>
+                    Live fissures for missing parts
+                  </div>
+                  {fissureLoading ? (
+                    <p className="muted">Matching open fissures…</p>
+                  ) : fissureMatches.length === 0 ? (
+                    <p className="muted">No open fissures match drop tiers for missing parts.</p>
+                  ) : (
+                    <ul className="foundry-tree">
+                      {fissureMatches.map((m) => (
+                        <li key={m.fissureId}>
+                          <div style={{ flex: 1 }}>
+                            <strong>
+                              {m.tier} · {m.node}
+                            </strong>
+                            <div className="muted" style={{ fontSize: '0.78rem' }}>
+                              {m.missionType}
+                              {m.isHard ? ' · Steel Path' : ''}
+                              {m.isStorm ? ' · Storm' : ''} · {m.eta}
+                            </div>
+                            <div className="muted" style={{ fontSize: '0.75rem' }}>
+                              Helps: {m.missingParts.slice(0, 3).join(', ')}
+                              {m.missingParts.length > 3 ? '…' : ''}
+                            </div>
+                          </div>
+                          <span className="vl-pill">{m.relicKeys[0] || m.tier}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               ) : null}
             </div>
           )}

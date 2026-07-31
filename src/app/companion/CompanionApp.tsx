@@ -19,6 +19,7 @@ import { Panel } from '../../components/Panel'
 import { ToggleRow } from '../../components/ToggleRow'
 import { InventorySettings } from '../../components/InventorySettings'
 import { UpdateSettings } from '../../components/UpdateSettings'
+import { EconomyTrendPanel } from '../../components/EconomyTrendPanel'
 import { GettingStarted } from '../../components/GettingStarted'
 import { AppTour, TourStep } from '../../components/AppTour'
 import { StatusStrip } from '../../components/StatusStrip'
@@ -595,6 +596,10 @@ export function CompanionApp() {
                   onRefreshWorldstate={() => void refresh()}
                   onGoSettings={() => goTab('settings')}
                 />
+
+                <div style={{ marginBottom: 16 }}>
+                  <EconomyTrendPanel />
+                </div>
 
                 <TodaySummary data={data} settings={settings} />
 

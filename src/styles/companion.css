@@ -751,3 +751,25 @@
 .section-gap {
   height: 18px;
 }
+
+.economy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.economy-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 36px;
+  margin-top: 4px;
+}
+
+.economy-spark span {
+  flex: 1;
+  min-width: 3px;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 55%, transparent);
+}

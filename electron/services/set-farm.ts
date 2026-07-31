@@ -243,3 +243,84 @@ export async function getSetFarm(opts: {
   if (!item) return null
   return buildSetFarmForRecipe(item)
 }
+
+/**
+ * Match open void fissures to relics that drop missing parts of a set.
+ */
+export async function getSetFissurePath(
+  uniqueName: string,
+  fissures: import('../../shared/types').FissureInfo[],
+): Promise<import('../../shared/types').SetFissurePathResult> {
+  const farm = await getSetFarm({ uniqueName })
+  if (!farm || farm.error) {
+    return {
+      setName: farm?.name || '',
+      uniqueName: uniqueName || '',
+      matches: [],
+      missingParts: [],
+      inventoryLoaded: farm?.inventoryLoaded ?? false,
+      error: farm?.error || 'Set not found',
+    }
+  }
+
+  const missingParts = farm.parts.filter((p) => !p.have)
+  const missingNames = missingParts.map((p) => p.name)
+
+  /** tier → { relicKeys, missingParts } */
+  const byTier = new Map<string, { relicKeys: Set<string>; parts: Set<string> }>()
+  for (const part of missingParts) {
+    const sources = [...part.sourcesOwned, ...part.sourcesOther]
+    for (const src of sources) {
+      const tier = String(src.tier || '').trim()
+      if (!tier) continue
+      const key = tier.toLowerCase()
+      let bucket = byTier.get(key)
+      if (!bucket) {
+        bucket = { relicKeys: new Set(), parts: new Set() }
+        byTier.set(key, bucket)
+      }
+      bucket.relicKeys.add(src.key)
+      bucket.parts.add(part.name)
+    }
+  }
+
+  const matches: import('../../shared/types').SetFissureMatch[] = []
+  for (const f of fissures || []) {
+    const tierKey = String(f.tier || '').toLowerCase()
+    const bucket = byTier.get(tierKey)
+    if (!bucket) continue
+    const relicKeys = [...bucket.relicKeys]
+    const parts = [...bucket.parts]
+    const ownedBonus = relicKeys.filter((k) =>
+      missingParts.some((p) => p.sourcesOwned.some((s) => s.key === k)),
+    ).length
+    const score =
+      parts.length * 10 +
+      ownedBonus * 5 +
+      (f.isHard ? 1 : 0) -
+      (f.isStorm ? 2 : 0)
+    matches.push({
+      fissureId: f.id,
+      node: f.node,
+      missionType: f.missionType,
+      tier: f.tier,
+      eta: f.eta,
+      isHard: f.isHard,
+      isStorm: f.isStorm,
+      relicKeys: relicKeys.slice(0, 8),
+      missingParts: parts,
+      score,
+    })
+  }
+
+  matches.sort((a, b) => b.score - a.score || a.eta.localeCompare(b.eta))
+
+  return {
+    setName: farm.name,
+    uniqueName: farm.uniqueName,
+    matches: matches.slice(0, 12),
+    missingParts: missingNames,
+    inventoryLoaded: farm.inventoryLoaded,
+    error: null,
+  }
+}

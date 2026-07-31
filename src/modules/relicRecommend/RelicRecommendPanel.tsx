@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FissureInfo, RelicPlannerQuery, RelicPlannerRow } from '../../../shared/types'
+import { InventoryStaleBanner } from '../../components/InventoryStaleBanner'
 import { Panel } from '../../components/Panel'
 import { useInventory } from '../../hooks/useInventory'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
@@ -96,11 +97,15 @@ export function RelicRecommendPanel({ opacity, compact }: Props) {
       ? 'plat'
       : q?.sort === 'ducats'
         ? 'ducats'
-        : q?.sort === 'owned'
-          ? 'owned'
-          : q?.sort === 'name'
-            ? 'name'
-            : 'missing'
+        : q?.sort === 'upgradePlat'
+          ? '↑plat'
+          : q?.sort === 'upgradeDucats'
+            ? '↑ducats'
+            : q?.sort === 'owned'
+              ? 'owned'
+              : q?.sort === 'name'
+                ? 'name'
+                : 'missing'
 
   const fissureByTier = useMemo(() => {
     const map = new Map<string, FissureInfo[]>()
@@ -145,6 +150,9 @@ export function RelicRecommendPanel({ opacity, compact }: Props) {
           ) : undefined
         }
       >
+        {visible && inventory.loaded ? (
+          <InventoryStaleBanner inventory={inventory} fissureMode />
+        ) : null}
         {!visible ? (
           <p className="mod-empty muted" style={{ opacity: 0.6 }}>
             —

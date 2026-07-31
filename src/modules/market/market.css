@@ -108,7 +108,7 @@
 
 .market-table--buys .market-table__head,
 .market-table--buys .market-table__row {
-  grid-template-columns: minmax(0, 1.6fr) 72px 64px 64px auto;
+  grid-template-columns: minmax(0, 1.6fr) 64px 52px 64px 64px auto;
 }
 
 .market-table__head {

@@ -230,6 +230,13 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Market: Sold/Bought → local trade log with plat P&L; watchlist spread (median − floor)',
     'Buy-target desktop notifications (~5 min poll) when floor hits your max',
   ],
+  '0.9.54': [
+    'Riven grader: disposition, MR, avg roll %, keep/reroll/godroll verdicts',
+    'Relic Planner: upgrade ROI sorts (plat/ducats per void trace to Radiant)',
+    'Sets: live fissure path for missing parts; stale inventory banners on farm loops',
+    'Dashboard economy snapshots (credits/ducats/plat); Market Deals flip scan + Riven stock',
+    'Buy targets quantity; list assistant shows net after −1 undercut',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

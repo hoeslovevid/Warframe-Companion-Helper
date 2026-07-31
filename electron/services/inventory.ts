@@ -861,6 +861,14 @@ export function useInventoryFile(
     const status = getInventoryStatus()
     for (const cb of listeners) cb(status)
 
+    try {
+      void import('./economy-snapshots').then((m) => {
+        m.recordEconomySnapshotFromIndex(cachedIndex)
+      })
+    } catch {
+      // ignore
+    }
+
     return {
       ok: true,
       path: finalPath,

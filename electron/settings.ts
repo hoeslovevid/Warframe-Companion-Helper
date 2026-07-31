@@ -228,7 +228,9 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
           sort === 'platinum' ||
           sort === 'ducats' ||
           sort === 'owned' ||
-          sort === 'name'
+          sort === 'name' ||
+          sort === 'upgradePlat' ||
+          sort === 'upgradeDucats'
         ) {
           return sort
         }
@@ -297,13 +299,18 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       : base.marketWatchlist,
     marketBuyTargets: Array.isArray((raw as { marketBuyTargets?: unknown }).marketBuyTargets)
       ? (
-          (raw as { marketBuyTargets: Array<{ name?: string; maxPlatinum?: number }> })
-            .marketBuyTargets || []
+          (raw as {
+            marketBuyTargets: Array<{ name?: string; maxPlatinum?: number; quantity?: number }>
+          }).marketBuyTargets || []
         )
           .filter((t) => t && typeof t.name === 'string' && t.name.trim())
           .map((t) => ({
             name: String(t.name).trim(),
             maxPlatinum: Math.max(1, Math.floor(Number(t.maxPlatinum) || 1)),
+            quantity:
+              typeof t.quantity === 'number' && Number.isFinite(t.quantity) && t.quantity > 0
+                ? Math.floor(t.quantity)
+                : undefined,
           }))
       : base.marketBuyTargets,
     marketListBlacklist: Array.isArray((raw as { marketListBlacklist?: unknown }).marketListBlacklist)
@@ -331,6 +338,34 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
       typeof (raw as { marketBuyAlertEnabled?: boolean }).marketBuyAlertEnabled === 'boolean'
         ? (raw as { marketBuyAlertEnabled: boolean }).marketBuyAlertEnabled
         : base.marketBuyAlertEnabled,
+    marketRivenStock: Array.isArray((raw as { marketRivenStock?: unknown }).marketRivenStock)
+      ? (
+          (raw as {
+            marketRivenStock: Array<{
+              id?: string
+              weapon?: string
+              minPlatinum?: number
+              polarity?: string
+              note?: string
+              addedAt?: string
+            }>
+          }).marketRivenStock || []
+        )
+          .filter((t) => t && typeof t.weapon === 'string' && t.weapon.trim())
+          .map((t) => ({
+            id: String(t.id || `${t.weapon}-${t.addedAt || Date.now()}`),
+            weapon: String(t.weapon).trim(),
+            minPlatinum: Math.max(1, Math.floor(Number(t.minPlatinum) || 1)),
+            polarity: typeof t.polarity === 'string' ? t.polarity : undefined,
+            note: typeof t.note === 'string' ? t.note : undefined,
+            addedAt: typeof t.addedAt === 'string' ? t.addedAt : new Date().toISOString(),
+          }))
+      : base.marketRivenStock,
+    marketFlipMinSpread:
+      typeof (raw as { marketFlipMinSpread?: number }).marketFlipMinSpread === 'number' &&
+      Number.isFinite((raw as { marketFlipMinSpread: number }).marketFlipMinSpread)
+        ? Math.max(1, Math.floor((raw as { marketFlipMinSpread: number }).marketFlipMinSpread))
+        : base.marketFlipMinSpread,
     widgetServerEnabled: raw.widgetServerEnabled ?? base.widgetServerEnabled,
     widgetServerPort:
       typeof raw.widgetServerPort === 'number' &&

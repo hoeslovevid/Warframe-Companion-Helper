@@ -6,6 +6,8 @@ import { useRelicScan } from '../../hooks/useRelicScan'
 import { useRivenScan } from '../../hooks/useRivenScan'
 import { copyText } from '../../lib/tradeClipboard'
 import { MarketBuysPanel } from './MarketBuysPanel'
+import { MarketDealsPanel } from './MarketDealsPanel'
+import { MarketRivenStockPanel } from './MarketRivenStockPanel'
 import { MarketStockPanel } from './MarketStockPanel'
 import { MarketTradeLogPanel } from './MarketTradeLogPanel'
 import {
@@ -13,6 +15,7 @@ import {
   formatTradeWhisper,
   itemMarketUrl,
   minSellFor,
+  netAfterUndercut,
   orderHealth,
   suggestSellPrice,
 } from './marketHelpers'
@@ -25,7 +28,16 @@ type Props = {
   onOpenHelp?: () => void
 }
 
-type MarketTab = 'watchlist' | 'buys' | 'stock' | 'orders' | 'log' | 'contracts' | 'account'
+type MarketTab =
+  | 'watchlist'
+  | 'buys'
+  | 'deals'
+  | 'stock'
+  | 'rivens'
+  | 'orders'
+  | 'log'
+  | 'contracts'
+  | 'account'
 
 const emptySession: WfmSession = {
   linked: false,
@@ -39,7 +51,9 @@ const emptySession: WfmSession = {
 const TABS: Array<{ id: MarketTab; label: string }> = [
   { id: 'watchlist', label: 'Watchlist' },
   { id: 'buys', label: 'Buys' },
+  { id: 'deals', label: 'Deals' },
   { id: 'stock', label: 'Stock' },
+  { id: 'rivens', label: 'Rivens' },
   { id: 'orders', label: 'Orders' },
   { id: 'log', label: 'Log' },
   { id: 'contracts', label: 'Contracts' },
@@ -440,12 +454,14 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
         setUndercutHint('No live sell orders found')
         return
       }
-      setOrderPlat(String(suggestSellPrice(tip.floor, minSellFor(name, mins))))
       const min = minSellFor(name, mins)
       const suggest = suggestSellPrice(tip.floor, min)
+      setOrderPlat(String(suggest))
+      const net = netAfterUndercut(suggest)
       setUndercutHint(
-        `Listing assistant: floor ${tip.floor}p · median ~${tip.median}p · suggest ${suggest}p` +
-          (min != null ? ` (min ${min}p)` : ' (floor − 1)'),
+        `Listing assistant: floor ${tip.floor}p · median ~${tip.median}p · list ${suggest}p` +
+          (min != null ? ` (min ${min}p)` : '') +
+          ` · net after −1 undercut ~${net}p`,
       )
     } finally {
       setUndercutBusy(false)
@@ -683,6 +699,10 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
             <MarketBuysPanel settings={settings} onUpdate={onUpdate} />
           ) : null}
 
+          {tab === 'deals' ? (
+            <MarketDealsPanel settings={settings} onUpdate={onUpdate} />
+          ) : null}
+
           {tab === 'stock' ? (
             <MarketStockPanel
               settings={settings}
@@ -692,6 +712,10 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
               onUpdate={onUpdate}
               onOrdersChanged={() => void refreshOrders()}
             />
+          ) : null}
+
+          {tab === 'rivens' ? (
+            <MarketRivenStockPanel settings={settings} onUpdate={onUpdate} />
           ) : null}
 
           {tab === 'log' ? <MarketTradeLogPanel /> : null}
