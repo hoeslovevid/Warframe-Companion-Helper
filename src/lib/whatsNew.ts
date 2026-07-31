@@ -254,6 +254,10 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.59': [
     'LFG: auto-fall back to local hub when Railway edge blocks the public domain (429)',
   ],
+  '0.9.60': [
+    'LFG polish: searchable relic/mission pickers, presets, whisper preview, and smarter board UX',
+    'LFG: My squads pin, slot dots, invite copy, hub status pill, and toast feedback',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

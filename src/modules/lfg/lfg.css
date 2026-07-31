@@ -10,11 +10,203 @@
   gap: 12px;
 }
 
+.lfg-page-desc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lfg-hub-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(157, 180, 196, 0.35);
+  background: rgba(157, 180, 196, 0.1);
+  color: var(--vl-mist, #9db4c4);
+}
+
+.lfg-hub-pill.is-ok {
+  border-color: color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 40%, transparent);
+  background: color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 14%, transparent);
+  color: var(--vl-teal-bright, #5fd0c5);
+}
+
+.lfg-hub-pill.is-bad {
+  border-color: rgba(220, 120, 100, 0.45);
+  background: rgba(220, 120, 100, 0.12);
+  color: #e8a090;
+}
+
+.lfg-toast {
+  position: sticky;
+  top: 8px;
+  z-index: 50;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  border: 1px solid color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 35%, transparent);
+  background: color-mix(in srgb, var(--vl-panel, #121820) 88%, #000);
+  color: var(--vl-teal-bright, #5fd0c5);
+}
+
+.lfg-advanced-toggle {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 0.78rem;
+}
+
+.lfg-advanced {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--vl-border, #3a4a58) 70%, transparent);
+}
+
+.lfg-presets,
 .lfg-fissure-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin: 0 0 8px;
+}
+
+.lfg-whisper-preview {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px dashed color-mix(in srgb, var(--vl-border, #3a4a58) 80%, transparent);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.lfg-whisper-preview__label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.lfg-whisper-preview code {
+  display: block;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  word-break: break-word;
+  white-space: pre-wrap;
+  color: var(--vl-mist, #9db4c4);
+}
+
+.lfg-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lfg-filters input {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.lfg-you-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #1a2228;
+  background: var(--vl-teal-bright, #5fd0c5);
+}
+
+.lfg-card--mine {
+  outline: 1px solid color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 28%, transparent);
+}
+
+.lfg-slots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.lfg-slots__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--vl-mist, #9db4c4) 55%, transparent);
+  background: transparent;
+}
+
+.lfg-slots__dot.is-filled {
+  background: var(--vl-teal-bright, #5fd0c5);
+  border-color: var(--vl-teal-bright, #5fd0c5);
+}
+
+.lfg-search-select__wrap {
+  position: relative;
+}
+
+.lfg-search-select__list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 220px;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--vl-border, #3a4a58) 80%, transparent);
+  background: color-mix(in srgb, var(--vl-panel, #121820) 92%, #000);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.lfg-search-select__option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.lfg-search-select__option:hover,
+.lfg-search-select__option.is-active {
+  background: color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 16%, transparent);
+}
+
+.lfg-search-select__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.lfg-search-select__detail {
+  font-size: 0.7rem;
+  opacity: 0.72;
+}
+
+.lfg-search-select__empty {
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  opacity: 0.65;
 }
 
 .market-chip--relic {
