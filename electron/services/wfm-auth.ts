@@ -453,6 +453,74 @@ export async function deleteWfmOrder(orderId: string): Promise<{ ok: boolean; er
   }
 }
 
+export async function updateWfmOrder(
+  input: import('../../shared/types').WfmUpdateOrderInput,
+): Promise<{ ok: boolean; error?: string; order?: WfmOrder }> {
+  const token = readToken()
+  if (!token) return { ok: false, error: 'Not signed in' }
+  const id = String(input.orderId || '').trim()
+  if (!id) return { ok: false, error: 'Missing order id' }
+
+  const payload: Record<string, unknown> = {}
+  if (input.platinum != null) {
+    const platinum = Math.floor(Number(input.platinum))
+    if (!Number.isFinite(platinum) || platinum < 1) {
+      return { ok: false, error: 'Platinum must be at least 1' }
+    }
+    payload.platinum = platinum
+  }
+  if (input.quantity != null) {
+    const quantity = Math.floor(Number(input.quantity))
+    if (!Number.isFinite(quantity) || quantity < 1) {
+      return { ok: false, error: 'Quantity must be at least 1' }
+    }
+    payload.quantity = quantity
+  }
+  if (typeof input.visible === 'boolean') payload.visible = input.visible
+  if (!Object.keys(payload).length) return { ok: false, error: 'Nothing to update' }
+
+  try {
+    const res = await fetch(`${API_V2}/order/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: authHeaders(token),
+      body: JSON.stringify(payload),
+    })
+    const text = await res.text()
+    if (res.status === 401 || res.status === 403) {
+      clearWfmJwt()
+      return { ok: false, error: apiErrorMessage(res.status, text) }
+    }
+    if (!res.ok) return { ok: false, error: apiErrorMessage(res.status, text) }
+
+    let order: WfmOrder | undefined
+    try {
+      const json = JSON.parse(text) as { data?: Record<string, unknown> }
+      const d = json.data || {}
+      if (d.id) {
+        const itemId = String(d.itemId || d.item_id || '')
+        const meta = itemId
+          ? await resolveItemMeta(itemId)
+          : { name: 'Unknown item', slug: '' }
+        order = {
+          id: String(d.id),
+          orderType: String(d.type || '').toLowerCase() === 'buy' ? 'buy' : 'sell',
+          platinum: Number(d.platinum) || Number(payload.platinum) || 0,
+          quantity: Number(d.quantity) || Number(payload.quantity) || 1,
+          visible: d.visible !== false,
+          itemName: meta.name,
+          itemUrlName: meta.slug || null,
+          lastUpdate: typeof d.updatedAt === 'string' ? d.updatedAt : null,
+        }
+      }
+    } catch {
+      // ok without parsed body
+    }
+    return { ok: true, order }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Update failed' }
+  }
+}
+
 function titleCaseSlug(slug: string): string {
   return slug
     .replace(/_/g, ' ')

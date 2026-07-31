@@ -454,6 +454,19 @@ export type AppSettings = {
   activePlayProfile: string | null
   /** Item names to track on the Market tab (warframe.market). */
   marketWatchlist: string[]
+  /**
+   * Buy targets — alert when live sell floor ≤ maxPlatinum.
+   * Names match watchlist-style display names.
+   */
+  marketBuyTargets: Array<{ name: string; maxPlatinum: number }>
+  /** Display names never auto-listed from Stock / Sellables assistant. */
+  marketListBlacklist: string[]
+  /** Sell is “stale” when your price is this many plat above live floor. */
+  marketStaleMargin: number
+  /** Per-item minimum sell platinum (listing assistant / reprice never go below). */
+  marketMinPrices: Array<{ name: string; minPlatinum: number }>
+  /** Desktop notify when a buy-target floor drops to max. */
+  marketBuyAlertEnabled: boolean
   /** Serve localhost HTML widgets for OBS / external overlays. */
   widgetServerEnabled: boolean
   /** Port for the widget HTTP server (127.0.0.1 only). */
@@ -671,6 +684,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   soundPack: 'soft',
   activePlayProfile: null,
   marketWatchlist: [],
+  marketBuyTargets: [],
+  marketListBlacklist: [],
+  marketStaleMargin: 3,
+  marketMinPrices: [],
+  marketBuyAlertEnabled: true,
   widgetServerEnabled: false,
   widgetServerPort: 17862,
   quietMode: false,
@@ -1099,6 +1117,58 @@ export type WfmOrder = {
   lastUpdate: string | null
 }
 
+export type WfmUpdateOrderInput = {
+  orderId: string
+  platinum?: number
+  quantity?: number
+  visible?: boolean
+}
+
+export type MarketQuote = {
+  name: string
+  /** Median sell platinum. */
+  platinum: number
+  /** Lowest visible sell order. */
+  floor: number
+  volume: number
+}
+
+export type MarketBuyTarget = {
+  name: string
+  maxPlatinum: number
+}
+
+export type MarketMinPrice = {
+  name: string
+  minPlatinum: number
+}
+
+/** Local trade / sold log (manual mark-sold + optional buys). */
+export type MarketTradeEntry = {
+  id: string
+  at: string
+  side: 'sell' | 'buy'
+  itemName: string
+  platinum: number
+  quantity: number
+  note?: string
+}
+
+export type MarketTradeLogResult = {
+  entries: MarketTradeEntry[]
+  soldPlat: number
+  boughtPlat: number
+  netPlat: number
+}
+
+export type MarketTradeInput = {
+  side: 'sell' | 'buy'
+  itemName: string
+  platinum: number
+  quantity?: number
+  note?: string
+}
+
 /** warframe.market auction contract (riven / lich / sister). */
 export type WfmContract = {
   id: string
@@ -1487,12 +1557,19 @@ export type VoidLensApi = {
   clearUserDataAndQuit: () => Promise<{ ok: boolean; error?: string }>
   lookupMarketPrices: (
     names: string[],
-  ) => Promise<Array<{ name: string; platinum: number; volume: number }>>
+  ) => Promise<Array<{ name: string; platinum: number; floor: number; volume: number }>>
   getWfmSession: () => Promise<WfmSession>
   setWfmJwt: (jwt: string) => Promise<WfmSession>
   clearWfmJwt: () => Promise<WfmSession>
   getWfmOrders: () => Promise<{ orders: WfmOrder[]; error: string | null }>
   deleteWfmOrder: (orderId: string) => Promise<{ ok: boolean; error?: string }>
+  updateWfmOrder: (
+    input: WfmUpdateOrderInput,
+  ) => Promise<{ ok: boolean; error?: string; order?: WfmOrder }>
+  getMarketTradeLog: () => Promise<MarketTradeLogResult>
+  addMarketTrade: (input: MarketTradeInput) => Promise<MarketTradeLogResult>
+  removeMarketTrade: (id: string) => Promise<MarketTradeLogResult>
+  clearMarketTradeLog: () => Promise<MarketTradeLogResult>
   getWfmContracts: () => Promise<{ contracts: WfmContract[]; error: string | null }>
   deleteWfmContract: (contractId: string) => Promise<{ ok: boolean; error?: string }>
   searchWfmItems: (query: string) => Promise<WfmItemHint[]>

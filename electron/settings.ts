@@ -295,6 +295,42 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
     marketWatchlist: Array.isArray(raw.marketWatchlist)
       ? raw.marketWatchlist.filter((x): x is string => typeof x === 'string')
       : base.marketWatchlist,
+    marketBuyTargets: Array.isArray((raw as { marketBuyTargets?: unknown }).marketBuyTargets)
+      ? (
+          (raw as { marketBuyTargets: Array<{ name?: string; maxPlatinum?: number }> })
+            .marketBuyTargets || []
+        )
+          .filter((t) => t && typeof t.name === 'string' && t.name.trim())
+          .map((t) => ({
+            name: String(t.name).trim(),
+            maxPlatinum: Math.max(1, Math.floor(Number(t.maxPlatinum) || 1)),
+          }))
+      : base.marketBuyTargets,
+    marketListBlacklist: Array.isArray((raw as { marketListBlacklist?: unknown }).marketListBlacklist)
+      ? ((raw as { marketListBlacklist: unknown[] }).marketListBlacklist || []).filter(
+          (x): x is string => typeof x === 'string',
+        )
+      : base.marketListBlacklist,
+    marketStaleMargin:
+      typeof (raw as { marketStaleMargin?: number }).marketStaleMargin === 'number' &&
+      Number.isFinite((raw as { marketStaleMargin: number }).marketStaleMargin)
+        ? Math.max(0, Math.floor((raw as { marketStaleMargin: number }).marketStaleMargin))
+        : base.marketStaleMargin,
+    marketMinPrices: Array.isArray((raw as { marketMinPrices?: unknown }).marketMinPrices)
+      ? (
+          (raw as { marketMinPrices: Array<{ name?: string; minPlatinum?: number }> })
+            .marketMinPrices || []
+        )
+          .filter((t) => t && typeof t.name === 'string' && t.name.trim())
+          .map((t) => ({
+            name: String(t.name).trim(),
+            minPlatinum: Math.max(1, Math.floor(Number(t.minPlatinum) || 1)),
+          }))
+      : base.marketMinPrices,
+    marketBuyAlertEnabled:
+      typeof (raw as { marketBuyAlertEnabled?: boolean }).marketBuyAlertEnabled === 'boolean'
+        ? (raw as { marketBuyAlertEnabled: boolean }).marketBuyAlertEnabled
+        : base.marketBuyAlertEnabled,
     widgetServerEnabled: raw.widgetServerEnabled ?? base.widgetServerEnabled,
     widgetServerPort:
       typeof raw.widgetServerPort === 'number' &&

@@ -95,6 +95,13 @@ import {
   pickBugScreenshots,
 } from './services/bug-report'
 import { fetchItemQuotes, fetchUndercutSuggestion } from './services/market'
+import { syncMarketBuyAlertsFromSettings } from './services/market-buy-alerts'
+import {
+  addMarketTrade,
+  clearMarketTradeLog,
+  getMarketTradeLog,
+  removeMarketTrade,
+} from './services/market-trade-log'
 import {
   clearWfmJwt,
   createWfmContract,
@@ -106,6 +113,7 @@ import {
   getWfmSession,
   searchWfmItems,
   setWfmJwt,
+  updateWfmOrder,
 } from './services/wfm-auth'
 import {
   setWidgetWorldstateProvider,
@@ -1088,6 +1096,13 @@ function registerIpc() {
     ) {
       void syncWidgetServerFromSettings()
     }
+    if (
+      partial.marketBuyAlertEnabled !== undefined ||
+      partial.marketBuyTargets !== undefined ||
+      partial.modules !== undefined
+    ) {
+      syncMarketBuyAlertsFromSettings()
+    }
     // Caller already applied the returned settings — skip echoing to that window.
     broadcastSettings(next, e.sender)
     return next
@@ -1095,6 +1110,7 @@ function registerIpc() {
   ipcMain.handle('settings:setModule', (e, id: ModuleId, enabled: boolean) => {
     const next = setModuleEnabled(id, enabled)
     broadcastSettings(next, e.sender)
+    if (id === 'market') syncMarketBuyAlertsFromSettings()
     if (
       enabled &&
       process.platform === 'linux' &&
@@ -1301,6 +1317,13 @@ function registerIpc() {
   ipcMain.handle('market:wfmDeleteOrder', async (_e, orderId: string) =>
     deleteWfmOrder(typeof orderId === 'string' ? orderId : ''),
   )
+  ipcMain.handle('market:wfmUpdateOrder', async (_e, input) => updateWfmOrder(input || {}))
+  ipcMain.handle('market:tradeLog', async () => getMarketTradeLog())
+  ipcMain.handle('market:tradeLogAdd', async (_e, input) => addMarketTrade(input || {}))
+  ipcMain.handle('market:tradeLogRemove', async (_e, id: string) =>
+    removeMarketTrade(typeof id === 'string' ? id : ''),
+  )
+  ipcMain.handle('market:tradeLogClear', async () => clearMarketTradeLog())
   ipcMain.handle('market:wfmContracts', async () => fetchWfmMyContracts())
   ipcMain.handle('market:wfmDeleteContract', async (_e, contractId: string) =>
     deleteWfmContract(typeof contractId === 'string' ? contractId : ''),
@@ -1356,6 +1379,7 @@ app.whenReady().then(async () => {
   createCompanionWindow()
   overlayWindow = createOverlayWindow(isDev ? DEV_URL : null)
   void syncWidgetServerFromSettings()
+  syncMarketBuyAlertsFromSettings()
   setCaptureOverlayPause(() => {
     const win = overlayWindow
     if (!win || win.isDestroyed()) return () => {}

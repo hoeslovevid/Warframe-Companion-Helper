@@ -219,6 +219,17 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Baro buy plan: wishlist ducat/credit totals, shortfall, dumpable extras to cover the gap',
     'Riven history: last recommended picks + platinum trend on the companion grader',
   ],
+  '0.9.52': [
+    'Market: live floor on watchlist; order health (undercut/stale) + one-click reprice',
+    'Market Stock: inventory extras vs open listings, listing assistant (floor − 1), blacklist',
+    'Market Buys: target max plat alerts when live floor drops',
+    'Trade whisper copy from orders/stock; edit order via WFM PATCH',
+  ],
+  '0.9.53': [
+    'Market: per-item min sell floors; Stock bulk list top 10; Orders soft reprice pass',
+    'Market: Sold/Bought → local trade log with plat P&L; watchlist spread (median − floor)',
+    'Buy-target desktop notifications (~5 min poll) when floor hits your max',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

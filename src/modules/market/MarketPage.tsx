@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AppSettings, WfmContract, WfmOrder, WfmSession } from '../../../shared/types'
+import { AppSettings, MarketQuote, WfmContract, WfmOrder, WfmSession } from '../../../shared/types'
 import { EmptyState } from '../../components/EmptyState'
 import { Panel } from '../../components/Panel'
 import { useRelicScan } from '../../hooks/useRelicScan'
 import { useRivenScan } from '../../hooks/useRivenScan'
+import { copyText } from '../../lib/tradeClipboard'
+import { MarketBuysPanel } from './MarketBuysPanel'
+import { MarketStockPanel } from './MarketStockPanel'
+import { MarketTradeLogPanel } from './MarketTradeLogPanel'
+import {
+  flipSpread,
+  formatTradeWhisper,
+  itemMarketUrl,
+  minSellFor,
+  orderHealth,
+  suggestSellPrice,
+} from './marketHelpers'
 import './market.css'
 
 type Props = {
@@ -13,8 +25,7 @@ type Props = {
   onOpenHelp?: () => void
 }
 
-type QuoteRow = { name: string; platinum: number; volume: number }
-type MarketTab = 'watchlist' | 'orders' | 'contracts' | 'account'
+type MarketTab = 'watchlist' | 'buys' | 'stock' | 'orders' | 'log' | 'contracts' | 'account'
 
 const emptySession: WfmSession = {
   linked: false,
@@ -27,19 +38,13 @@ const emptySession: WfmSession = {
 
 const TABS: Array<{ id: MarketTab; label: string }> = [
   { id: 'watchlist', label: 'Watchlist' },
+  { id: 'buys', label: 'Buys' },
+  { id: 'stock', label: 'Stock' },
   { id: 'orders', label: 'Orders' },
+  { id: 'log', label: 'Log' },
   { id: 'contracts', label: 'Contracts' },
   { id: 'account', label: 'Account' },
 ]
-
-function itemMarketUrl(name: string) {
-  const slug = name
-    .toLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '')
-  return `https://warframe.market/items/${slug}`
-}
 
 function contractPriceLabel(c: WfmContract) {
   if (c.isDirectSell) {
@@ -61,7 +66,7 @@ function contractKindLabel(kind: WfmContract['kind']) {
 export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
   const [tab, setTab] = useState<MarketTab>('watchlist')
   const [draft, setDraft] = useState('')
-  const [quotes, setQuotes] = useState<QuoteRow[]>([])
+  const [quotes, setQuotes] = useState<MarketQuote[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<WfmSession>(emptySession)
@@ -71,6 +76,12 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
   const [ordersError, setOrdersError] = useState<string | null>(null)
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [cancelBusyId, setCancelBusyId] = useState<string | null>(null)
+  const [repriceBusyId, setRepriceBusyId] = useState<string | null>(null)
+  const [repricePassBusy, setRepricePassBusy] = useState(false)
+  const [soldBusyId, setSoldBusyId] = useState<string | null>(null)
+  const [orderQuotes, setOrderQuotes] = useState<MarketQuote[]>([])
+  const [whisperCopiedId, setWhisperCopiedId] = useState<string | null>(null)
+  const [blacklistDraft, setBlacklistDraft] = useState('')
   const [contracts, setContracts] = useState<WfmContract[]>([])
   const [contractsError, setContractsError] = useState<string | null>(null)
   const [contractsLoading, setContractsLoading] = useState(false)
@@ -134,13 +145,131 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
       const res = await window.voidlens.getWfmOrders()
       setOrders(res.orders)
       setOrdersError(res.error)
+      const names = [...new Set(res.orders.map((o) => o.itemName).filter(Boolean))]
+      if (names.length && window.voidlens.lookupMarketPrices) {
+        try {
+          const qs = await window.voidlens.lookupMarketPrices(names)
+          setOrderQuotes(qs as MarketQuote[])
+        } catch {
+          setOrderQuotes([])
+        }
+      } else {
+        setOrderQuotes([])
+      }
     } catch (err) {
       setOrders([])
       setOrdersError(err instanceof Error ? err.message : 'Failed to load orders')
+      setOrderQuotes([])
     } finally {
       setOrdersLoading(false)
     }
   }, [])
+
+  const orderQuoteBy = useMemo(() => {
+    const m = new Map<string, MarketQuote>()
+    for (const q of orderQuotes) m.set(q.name.toLowerCase(), q)
+    return m
+  }, [orderQuotes])
+
+  const staleMargin = settings.marketStaleMargin ?? 3
+  const mins = settings.marketMinPrices || []
+
+  const repriceOrder = async (o: WfmOrder) => {
+    if (!window.voidlens?.updateWfmOrder) return
+    const q = orderQuoteBy.get(o.itemName.toLowerCase())
+    const health = orderHealth(o, q, staleMargin, minSellFor(o.itemName, mins))
+    const plat = health.suggest
+    if (plat == null) {
+      setOrdersError('No live floor for this item')
+      return
+    }
+    setRepriceBusyId(o.id)
+    setOrdersError(null)
+    try {
+      const res = await window.voidlens.updateWfmOrder({
+        orderId: o.id,
+        platinum: plat,
+        quantity: o.quantity,
+        visible: o.visible,
+      })
+      if (!res.ok) {
+        setOrdersError(res.error || 'Reprice failed')
+        return
+      }
+      await refreshOrders()
+    } finally {
+      setRepriceBusyId(null)
+    }
+  }
+
+  const repricePass = async () => {
+    if (!window.voidlens?.updateWfmOrder) return
+    const targets = orders.filter((o) => {
+      if (o.orderType !== 'sell') return false
+      const q = orderQuoteBy.get(o.itemName.toLowerCase())
+      const health = orderHealth(o, q, staleMargin, minSellFor(o.itemName, mins))
+      return health.suggest != null && health.suggest !== o.platinum && (health.undercut || health.stale)
+    })
+    if (!targets.length) {
+      setOrdersError(null)
+      return
+    }
+    setRepricePassBusy(true)
+    setOrdersError(null)
+    let ok = 0
+    let fail = 0
+    try {
+      for (const o of targets) {
+        const q = orderQuoteBy.get(o.itemName.toLowerCase())
+        const health = orderHealth(o, q, staleMargin, minSellFor(o.itemName, mins))
+        if (health.suggest == null) continue
+        const res = await window.voidlens.updateWfmOrder({
+          orderId: o.id,
+          platinum: health.suggest,
+          quantity: o.quantity,
+          visible: o.visible,
+        })
+        if (res.ok) ok += 1
+        else fail += 1
+        await new Promise((r) => setTimeout(r, 350))
+      }
+      if (fail) setOrdersError(`Reprice pass: ${ok} updated, ${fail} failed`)
+      await refreshOrders()
+    } finally {
+      setRepricePassBusy(false)
+    }
+  }
+
+  const markSold = async (o: WfmOrder) => {
+    if (!window.voidlens?.addMarketTrade) return
+    setSoldBusyId(o.id)
+    setOrdersError(null)
+    try {
+      await window.voidlens.addMarketTrade({
+        side: o.orderType === 'buy' ? 'buy' : 'sell',
+        itemName: o.itemName,
+        platinum: o.platinum,
+        quantity: o.quantity,
+        note: 'From open order',
+      })
+      if (window.voidlens.deleteWfmOrder) {
+        const res = await window.voidlens.deleteWfmOrder(o.id)
+        if (!res.ok) {
+          setOrdersError(res.error || 'Logged, but cancel on WFM failed')
+          return
+        }
+      }
+      await refreshOrders()
+    } finally {
+      setSoldBusyId(null)
+    }
+  }
+
+  const copyOrderWhisper = async (o: WfmOrder) => {
+    if (!(await copyText(formatTradeWhisper(o)))) return
+    setWhisperCopiedId(o.id)
+    window.setTimeout(() => setWhisperCopiedId(null), 1400)
+  }
 
   const refreshSession = useCallback(async () => {
     try {
@@ -169,7 +298,7 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
     setError(null)
     try {
       const rows = await window.voidlens.lookupMarketPrices(watchlist)
-      setQuotes(rows)
+      setQuotes(rows as MarketQuote[])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Market lookup failed')
     } finally {
@@ -197,7 +326,7 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
   }, [orderItemQuery, session.linked])
 
   const quoteByName = useMemo(() => {
-    const m = new Map<string, QuoteRow>()
+    const m = new Map<string, MarketQuote>()
     for (const q of quotes) m.set(q.name.toLowerCase(), q)
     return m
   }, [quotes])
@@ -311,8 +440,13 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
         setUndercutHint('No live sell orders found')
         return
       }
-      setOrderPlat(String(tip.suggest))
-      setUndercutHint(`Floor ${tip.floor}p · median ~${tip.median}p · suggest ${tip.suggest}p`)
+      setOrderPlat(String(suggestSellPrice(tip.floor, minSellFor(name, mins))))
+      const min = minSellFor(name, mins)
+      const suggest = suggestSellPrice(tip.floor, min)
+      setUndercutHint(
+        `Listing assistant: floor ${tip.floor}p · median ~${tip.median}p · suggest ${suggest}p` +
+          (min != null ? ` (min ${min}p)` : ' (floor − 1)'),
+      )
     } finally {
       setUndercutBusy(false)
     }
@@ -451,6 +585,9 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
             {t.id === 'watchlist' && watchlist.length > 0 ? (
               <span className="market-tab-count">{watchlist.length}</span>
             ) : null}
+            {t.id === 'buys' && (settings.marketBuyTargets || []).length > 0 ? (
+              <span className="market-tab-count">{(settings.marketBuyTargets || []).length}</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -460,7 +597,7 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
           {tab === 'watchlist' ? (
             <Panel
               title="Watchlist"
-              subtitle="Median sell platinum (PC) — no account needed"
+              subtitle="Live floor + median sell (PC) — no account needed"
               actions={
                 <button className="btn ghost" onClick={() => void refresh()} disabled={loading}>
                   {loading ? 'Refreshing…' : 'Refresh prices'}
@@ -485,31 +622,40 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
               {watchlist.length === 0 ? (
                 <EmptyState
                   title="Watchlist empty"
-                  body="Add prime parts or sets to track median sell platinum."
+                  body="Add prime parts or sets to track live floor and median platinum."
                 />
               ) : (
-                <div className="market-table" role="table">
+                <div className="market-table market-table--watch" role="table">
                   <div className="market-table__head" role="row">
                     <span role="columnheader">Item</span>
-                    <span role="columnheader">Plat</span>
-                    <span role="columnheader">Volume</span>
+                    <span role="columnheader">Floor</span>
+                    <span role="columnheader">Median</span>
+                    <span role="columnheader">Spread</span>
+                    <span role="columnheader">Vol</span>
                     <span role="columnheader" className="market-table__actions-col">
                       Actions
                     </span>
                   </div>
                   {watchlist.map((name) => {
                     const q = quoteByName.get(name.toLowerCase())
+                    const spread = flipSpread(q)
                     return (
                       <div className="market-table__row" role="row" key={name}>
                         <span className="market-table__name" role="cell">
                           {name}
                         </span>
                         <span className="market-plat" role="cell">
-                          {q
-                            ? `~${q.platinum}p`
-                            : loading
-                              ? '…'
-                              : '—'}
+                          {q ? `${q.floor ?? q.platinum}p` : loading ? '…' : '—'}
+                        </span>
+                        <span className="muted" role="cell">
+                          {q ? `~${q.platinum}p` : '—'}
+                        </span>
+                        <span
+                          className={`muted${spread && spread.spread >= 5 ? ' market-spread--wide' : ''}`}
+                          role="cell"
+                          title="Median − floor (flip room)"
+                        >
+                          {spread ? spread.label : '—'}
                         </span>
                         <span className="muted" role="cell">
                           {q ? `${q.volume}` : '—'}
@@ -533,18 +679,54 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
             </Panel>
           ) : null}
 
+          {tab === 'buys' ? (
+            <MarketBuysPanel settings={settings} onUpdate={onUpdate} />
+          ) : null}
+
+          {tab === 'stock' ? (
+            <MarketStockPanel
+              settings={settings}
+              orders={orders}
+              linked={session.linked}
+              onOpenAccount={() => setTab('account')}
+              onUpdate={onUpdate}
+              onOrdersChanged={() => void refreshOrders()}
+            />
+          ) : null}
+
+          {tab === 'log' ? <MarketTradeLogPanel /> : null}
+
           {tab === 'orders' ? (
             <Panel
               title="Buy / sell orders"
-              subtitle="Your open warframe.market listings"
+              subtitle="Live floor health · reprice to undercut · whisper copy"
               actions={
                 session.linked ? (
-                  <button
-                    className={`btn ${showCreateOrder ? 'ghost' : 'primary'}`}
-                    onClick={() => setShowCreateOrder((v) => !v)}
-                  >
-                    {showCreateOrder ? 'Hide form' : 'New order'}
-                  </button>
+                  <div className="market-actions">
+                    <button
+                      className="btn ghost"
+                      type="button"
+                      disabled={ordersLoading}
+                      onClick={() => void refreshOrders()}
+                    >
+                      {ordersLoading ? '…' : 'Refresh'}
+                    </button>
+                    <button
+                      className="btn ghost"
+                      type="button"
+                      disabled={repricePassBusy || ordersLoading}
+                      onClick={() => void repricePass()}
+                      title="Reprice undercut & stale sells to floor − 1 (respects min)"
+                    >
+                      {repricePassBusy ? 'Repricing…' : 'Reprice pass'}
+                    </button>
+                    <button
+                      className={`btn ${showCreateOrder ? 'ghost' : 'primary'}`}
+                      onClick={() => setShowCreateOrder((v) => !v)}
+                    >
+                      {showCreateOrder ? 'Hide form' : 'New order'}
+                    </button>
+                  </div>
                 ) : null
               }
             >
@@ -635,9 +817,9 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
                           type="button"
                           disabled={undercutBusy || !orderItemQuery.trim() || orderType !== 'sell'}
                           onClick={() => void applyUndercut()}
-                          title="Set platinum to live lowest sell − 1"
+                          title="Listing assistant: set platinum to live floor − 1"
                         >
-                          {undercutBusy ? '…' : 'Undercut'}
+                          {undercutBusy ? '…' : 'Suggest'}
                         </button>
                         <button
                           className="btn primary"
@@ -672,44 +854,97 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
                     />
                   ) : (
                     <ul className="market-card-list">
-                      {orders.map((o) => (
-                        <li key={o.id} className="market-card">
-                          <div className="market-card__body">
-                            <div className="market-card__title">
-                              <span className={`market-chip market-chip--${o.orderType}`}>
-                                {o.orderType === 'sell' ? 'Sell' : 'Buy'}
-                              </span>
-                              <strong>{o.itemName}</strong>
+                      {orders.map((o) => {
+                        const q = orderQuoteBy.get(o.itemName.toLowerCase())
+                        const health = orderHealth(
+                          o,
+                          q,
+                          staleMargin,
+                          minSellFor(o.itemName, mins),
+                        )
+                        return (
+                          <li
+                            key={o.id}
+                            className={`market-card${health.undercut ? ' is-undercut' : ''}${health.stale ? ' is-stale' : ''}`}
+                          >
+                            <div className="market-card__body">
+                              <div className="market-card__title">
+                                <span className={`market-chip market-chip--${o.orderType}`}>
+                                  {o.orderType === 'sell' ? 'Sell' : 'Buy'}
+                                </span>
+                                <strong>{o.itemName}</strong>
+                                {health.undercut ? (
+                                  <span className="market-chip market-chip--warn">Undercut</span>
+                                ) : null}
+                                {health.stale ? (
+                                  <span className="market-chip market-chip--stale">Stale</span>
+                                ) : null}
+                              </div>
+                              <div className="market-card__meta muted">
+                                <span className="market-plat">{o.platinum}p</span>
+                                <span>× {o.quantity}</span>
+                                {!o.visible ? <span>Hidden</span> : null}
+                                {health.label ? <span>{health.label}</span> : null}
+                              </div>
                             </div>
-                            <div className="market-card__meta muted">
-                              <span className="market-plat">{o.platinum}p</span>
-                              <span>× {o.quantity}</span>
-                              {!o.visible ? <span>Hidden</span> : null}
-                            </div>
-                          </div>
-                          <div className="market-actions">
-                            {o.itemUrlName ? (
+                            <div className="market-actions">
                               <button
                                 className="btn ghost"
-                                onClick={() =>
-                                  void window.voidlens.openExternal(
-                                    `https://warframe.market/items/${o.itemUrlName}`,
-                                  )
-                                }
+                                type="button"
+                                onClick={() => void copyOrderWhisper(o)}
+                                title="Copy trade whisper"
                               >
-                                Open
+                                {whisperCopiedId === o.id ? 'Copied' : 'Whisper'}
                               </button>
-                            ) : null}
-                            <button
-                              className="btn ghost danger"
-                              disabled={cancelBusyId === o.id}
-                              onClick={() => void cancelOrder(o.id)}
-                            >
-                              {cancelBusyId === o.id ? '…' : 'Cancel'}
-                            </button>
-                          </div>
-                        </li>
-                      ))}
+                              <button
+                                className="btn ghost"
+                                type="button"
+                                disabled={soldBusyId === o.id}
+                                onClick={() => void markSold(o)}
+                                title="Log to trade log and cancel on WFM"
+                              >
+                                {soldBusyId === o.id
+                                  ? '…'
+                                  : o.orderType === 'sell'
+                                    ? 'Sold'
+                                    : 'Bought'}
+                              </button>
+                              {o.orderType === 'sell' &&
+                              health.suggest != null &&
+                              health.suggest !== o.platinum ? (
+                                <button
+                                  className="btn primary"
+                                  type="button"
+                                  disabled={repriceBusyId === o.id || repricePassBusy}
+                                  onClick={() => void repriceOrder(o)}
+                                  title={`Set to ${health.suggest}p`}
+                                >
+                                  {repriceBusyId === o.id ? '…' : `Reprice ${health.suggest}p`}
+                                </button>
+                              ) : null}
+                              {o.itemUrlName ? (
+                                <button
+                                  className="btn ghost"
+                                  onClick={() =>
+                                    void window.voidlens.openExternal(
+                                      `https://warframe.market/items/${o.itemUrlName}`,
+                                    )
+                                  }
+                                >
+                                  Open
+                                </button>
+                              ) : null}
+                              <button
+                                className="btn ghost danger"
+                                disabled={cancelBusyId === o.id}
+                                onClick={() => void cancelOrder(o.id)}
+                              >
+                                {cancelBusyId === o.id ? '…' : 'Cancel'}
+                              </button>
+                            </div>
+                          </li>
+                        )
+                      })}
                     </ul>
                   )}
                 </>
@@ -1022,6 +1257,101 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
                     cancel listings here; in-game trade completion still happens in Warframe.
                   </p>
                 </div>
+              )}
+            </Panel>
+          ) : null}
+
+          {tab === 'account' ? (
+            <Panel title="Listing assistant" subtitle="Stock blacklist + stale margin + alerts">
+              <label className="market-check" style={{ marginBottom: 10 }}>
+                <input
+                  type="checkbox"
+                  checked={settings.marketBuyAlertEnabled !== false}
+                  onChange={(e) => onUpdate({ marketBuyAlertEnabled: e.target.checked })}
+                />
+                Desktop alerts for buy-target hits (every ~5 min)
+              </label>
+              <label className="field">
+                <span>Stale margin (plat above floor)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={settings.marketStaleMargin ?? 3}
+                  onChange={(e) =>
+                    onUpdate({
+                      marketStaleMargin: Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                    })
+                  }
+                />
+              </label>
+              <p className="muted" style={{ fontSize: '0.78rem' }}>
+                Sell orders priced more than this above the live floor get a Stale badge. Per-item
+                min prices are set on Stock rows.
+              </p>
+              {(settings.marketMinPrices || []).length > 0 ? (
+                <p className="muted inventory-meta">
+                  {(settings.marketMinPrices || []).length} min-price floor
+                  {(settings.marketMinPrices || []).length === 1 ? '' : 's'} set on Stock
+                </p>
+              ) : null}
+              <div className="market-add" style={{ marginTop: 12 }}>
+                <input
+                  value={blacklistDraft}
+                  placeholder="Blacklist item name…"
+                  onChange={(e) => setBlacklistDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const name = blacklistDraft.trim()
+                      if (!name) return
+                      const list = settings.marketListBlacklist || []
+                      if (!list.some((x) => x.toLowerCase() === name.toLowerCase())) {
+                        onUpdate({ marketListBlacklist: [...list, name] })
+                      }
+                      setBlacklistDraft('')
+                    }
+                  }}
+                />
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={() => {
+                    const name = blacklistDraft.trim()
+                    if (!name) return
+                    const list = settings.marketListBlacklist || []
+                    if (!list.some((x) => x.toLowerCase() === name.toLowerCase())) {
+                      onUpdate({ marketListBlacklist: [...list, name] })
+                    }
+                    setBlacklistDraft('')
+                  }}
+                >
+                  Block
+                </button>
+              </div>
+              {(settings.marketListBlacklist || []).length === 0 ? (
+                <p className="muted">No blocked items — Stock won’t list these names.</p>
+              ) : (
+                <ul className="market-card-list">
+                  {(settings.marketListBlacklist || []).map((name) => (
+                    <li key={name} className="market-card">
+                      <div className="market-card__body">
+                        <strong>{name}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() =>
+                          onUpdate({
+                            marketListBlacklist: (settings.marketListBlacklist || []).filter(
+                              (x) => x !== name,
+                            ),
+                          })
+                        }
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </Panel>
           ) : null}
