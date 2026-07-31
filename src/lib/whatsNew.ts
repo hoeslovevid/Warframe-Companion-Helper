@@ -261,6 +261,10 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.61': [
     'LFG: warm hub/relic options on startup; keep tab mounted; lighter relic typeahead',
   ],
+  '0.9.62': [
+    'Linux inventory sync: use Warframe’s Proton (config_info / version / CompatToolMapping) instead of Hotfix-first wine',
+    'Run warframe-api-helper via `proton run` with matching STEAM_COMPAT_* env; fail fast with clearer gruzzle errors',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

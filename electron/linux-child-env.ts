@@ -100,13 +100,21 @@ export function sanitizeLinuxChildEnv(
   return env
 }
 
-function protonFilesRootFromWineBin(wineBin: string): string | null {
+function protonFilesRootFromCommand(command: string): string | null {
   // .../Proton X.Y/files/bin/wine64  or  .../Proton X.Y/dist/bin/wine64
-  const binDir = path.dirname(wineBin)
-  if (path.basename(binDir) !== 'bin') return null
-  const filesOrDist = path.dirname(binDir)
-  const leaf = path.basename(filesOrDist)
-  if (leaf === 'files' || leaf === 'dist') return filesOrDist
+  const binDir = path.dirname(command)
+  if (path.basename(binDir) === 'bin') {
+    const filesOrDist = path.dirname(binDir)
+    const leaf = path.basename(filesOrDist)
+    if (leaf === 'files' || leaf === 'dist') return filesOrDist
+  }
+  // .../Proton X.Y/proton  (script used by `proton run`)
+  if (path.basename(command) === 'proton') {
+    for (const leaf of ['files', 'dist']) {
+      const root = path.join(path.dirname(command), leaf)
+      if (fs.existsSync(root)) return root
+    }
+  }
   return null
 }
 
@@ -150,7 +158,7 @@ export function buildWineHelperEnv(
     env.STEAM_COMPAT_DATA_PATH = path.dirname(prefix)
   }
 
-  const protonRoot = protonFilesRootFromWineBin(wine.command)
+  const protonRoot = protonFilesRootFromCommand(wine.command)
   if (protonRoot) {
     const protonLibs = existingLibDirs(protonRoot)
     if (protonLibs.length > 0) {
