@@ -47,7 +47,7 @@ import { DeepArchimedeaPanel } from '../../modules/deepArchimedea/DeepArchimedea
 import { RivenPanel } from '../../modules/rivens/RivenPanel'
 import { FoundryPage } from '../../modules/foundry/FoundryPage'
 import { MarketPage } from '../../modules/market/MarketPage'
-import { LfgPage } from '../../modules/lfg/LfgPage'
+import { LfgPage, type LfgPrefill } from '../../modules/lfg/LfgPage'
 import { RelicPlannerPage } from '../../modules/relicPlanner/RelicPlannerPage'
 import { MasteryPage } from '../../modules/mastery/MasteryPage'
 import { InventoryPage } from '../../modules/inventory/InventoryPage'
@@ -163,6 +163,7 @@ export function CompanionApp() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [suggestDismissed, setSuggestDismissed] = useState<string | null>(null)
   const [showLinuxWizard, setShowLinuxWizard] = useState(false)
+  const [lfgPrefill, setLfgPrefill] = useState<LfgPrefill | null>(null)
   const { settings, ready, updateSettings, setModuleEnabled } = useSettings()
   const { data, loading, error, refresh } = useWorldstate()
   const { status: inventory } = useInventory()
@@ -907,7 +908,13 @@ export function CompanionApp() {
                   {enabledIds.includes('relicRecommend') ? (
                     <RelicRecommendPanel
                       onPostLfg={(relicLabel) => {
-                        pushToast(`Open LFG and post “${relicLabel}”`, 'info', 6000)
+                        setLfgPrefill({
+                          relicKey: relicLabel,
+                          title: `${relicLabel} radshare`,
+                          shareType: 'radshare',
+                          activity: 'relic',
+                        })
+                        pushToast(`LFG form ready for “${relicLabel}”`, 'ok', 4500)
                         goTab('lfg')
                       }}
                     />
@@ -1094,6 +1101,8 @@ export function CompanionApp() {
                 <LfgPage
                   settings={settings}
                   active={tab === 'lfg'}
+                  prefill={lfgPrefill}
+                  onPrefillConsumed={() => setLfgPrefill(null)}
                   onUpdate={(partial) => void updateSettings(partial)}
                 />
               </div>

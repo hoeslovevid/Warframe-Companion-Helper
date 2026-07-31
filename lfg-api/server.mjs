@@ -291,6 +291,33 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    const extendMatch = pathname.match(/^\/listings\/([^/]+)\/extend$/)
+    if (req.method === 'POST' && extendMatch) {
+      const row = store.get(extendMatch[1])
+      if (!row || Date.parse(row.expiresAt) <= Date.now()) {
+        send(res, 404, { error: 'Listing not found or expired' })
+        return
+      }
+      const body = await readBody(req)
+      const token =
+        cleanStr(req.headers['x-lfg-token'], 80) || cleanStr(body.hostToken, 80)
+      if (token !== row.hostToken) {
+        send(res, 403, { error: 'Host token required' })
+        return
+      }
+      const addMs = Math.min(
+        MAX_TTL_MS,
+        Math.max(60_000, Number(body.addMs) || 10 * 60_000),
+      )
+      const now = Date.now()
+      const base = Math.max(Date.parse(row.expiresAt) || now, now)
+      const next = Math.min(base + addMs, now + MAX_TTL_MS)
+      row.expiresAt = new Date(next).toISOString()
+      store.upsert(row)
+      send(res, 200, { listing: publicListing(row) })
+      return
+    }
+
     const delMatch = pathname.match(/^\/listings\/([^/]+)$/)
     if (req.method === 'DELETE' && delMatch) {
       const row = store.get(delMatch[1])

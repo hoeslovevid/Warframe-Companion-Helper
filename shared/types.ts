@@ -1733,6 +1733,7 @@ export type VoidLensApi = {
   getSetProgress: (opts?: {
     search?: string
     incompleteOnly?: boolean
+    completion?: 'incomplete' | 'complete' | 'all'
     limit?: number
   }) => Promise<SetProgressResult>
   getInventoryDiff: () => Promise<InventoryDiff | null>
@@ -1755,6 +1756,13 @@ export type VoidLensApi = {
   joinLfg: (input: { id: string; ign: string; clientId: string }) => Promise<LfgJoinResult>
   leaveLfg: (input: { id: string; clientId: string }) => Promise<{ ok: boolean; error?: string }>
   deleteLfg: (input: { id: string; hostToken: string }) => Promise<{ ok: boolean; error?: string }>
+  extendLfg: (input: {
+    id: string
+    hostToken: string
+    addMs?: number
+  }) => Promise<{ ok: boolean; listing?: LfgListing; error?: string }>
+  /** OS notification (used for LFG join alerts, etc.). */
+  desktopNotify: (payload: { title: string; body?: string }) => Promise<boolean>
   getMasteryHelper: (query?: MasteryHelperQuery) => Promise<MasteryHelperResult>
   getHotkeyStatus: () => Promise<HotkeyRegistration[]>
   getAppVersion: () => Promise<string>

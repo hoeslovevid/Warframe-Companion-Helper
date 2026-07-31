@@ -348,6 +348,28 @@ export async function deleteLfg(input: {
   }
 }
 
+export async function extendLfg(input: {
+  id: string
+  hostToken: string
+  addMs?: number
+}): Promise<{ ok: boolean; listing?: LfgListing; error?: string }> {
+  try {
+    const { result } = await withHubFallback((base) =>
+      fetchJson(`${base}/listings/${encodeURIComponent(input.id)}/extend`, {
+        method: 'POST',
+        headers: { 'X-LFG-Token': input.hostToken },
+        body: JSON.stringify({
+          hostToken: input.hostToken,
+          addMs: input.addMs ?? 10 * 60_000,
+        }),
+      }),
+    )
+    return { ok: true, listing: result.listing as LfgListing }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Extend failed' }
+  }
+}
+
 /** Prefetch relic options + hub listings so the LFG tab opens warm. */
 export async function warmLfg(): Promise<void> {
   try {

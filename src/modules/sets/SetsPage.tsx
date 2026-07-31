@@ -13,6 +13,8 @@ type Props = {
   onOpenFoundry?: (uniqueName: string) => void
 }
 
+type CompletionFilter = 'incomplete' | 'complete' | 'all'
+
 const SEARCH_DEBOUNCE_MS = 220
 
 function normalizeFavorite(s: string): string {
@@ -29,7 +31,7 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
   const { settings, updateSettings } = useSettings()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [incompleteOnly, setIncompleteOnly] = useState(true)
+  const [completion, setCompletion] = useState<CompletionFilter>('incomplete')
   const [rows, setRows] = useState<SetProgressRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -55,7 +57,7 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
     try {
       const next = await window.voidlens.getSetProgress({
         search: debouncedSearch,
-        incompleteOnly,
+        completion,
         limit: 250,
       })
       setRows(next.rows)
@@ -70,7 +72,7 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, incompleteOnly])
+  }, [debouncedSearch, completion])
 
   useEffect(() => {
     if (!enabled) return
@@ -128,6 +130,13 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
     )
   }
 
+  const emptyBody =
+    completion === 'incomplete'
+      ? 'All tracked Prime sets look complete — try Complete or All.'
+      : completion === 'complete'
+        ? 'No complete Prime sets yet — keep farming, or switch to Incomplete.'
+        : 'No Prime sets matched your search.'
+
   return (
     <>
       <header className="page-header">
@@ -135,7 +144,8 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
         <div className="page-title-rule" />
         <p className="page-desc">
           {loading ? 'Updating…' : `${rows.length} sets`}
-          {incompleteOnly ? '' : ` · ${completeCount} complete`}
+          {completion === 'all' ? ` · ${completeCount} complete` : ''}
+          {completion === 'complete' ? ' · completed' : ''}
           {error ? ` · ${error}` : ''}
         </p>
       </header>
@@ -146,7 +156,7 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
         onOpenInventory={onOpenSettings}
       />
 
-      <div className="planner-layout">
+      <div className="foundry-layout">
         <aside className="foundry-sidebar">
           <div className="foundry-sidebar__filters">
             <input
@@ -155,14 +165,24 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <label className="field" style={{ margin: 0, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-              <input
-                type="checkbox"
-                checked={incompleteOnly}
-                onChange={(e) => setIncompleteOnly(e.target.checked)}
-              />
-              <span style={{ fontSize: 'var(--vl-type-meta)' }}>Incomplete only</span>
-            </label>
+            <div className="vl-segment vl-segment--wrap" role="group" aria-label="Completion">
+              {(
+                [
+                  ['incomplete', 'Incomplete'],
+                  ['complete', 'Complete'],
+                  ['all', 'All'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`vl-segment__btn ${completion === id ? 'is-on' : ''}`}
+                  onClick={() => setCompletion(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           <ul className="foundry-list vl-stagger">
             {rows.map((row) => (
@@ -178,6 +198,7 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
                       {row.ownedParts}/{row.totalParts}
                     </span>
                     <span className="vl-pill">{row.percent}%</span>
+                    {row.complete ? <span className="vl-pill is-ok">Done</span> : null}
                     {row.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
                   </span>
                 </button>
@@ -185,14 +206,7 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
             ))}
             {!loading && rows.length === 0 ? (
               <li style={{ padding: '8px 12px' }}>
-                <EmptyState
-                  title="No sets"
-                  body={
-                    incompleteOnly
-                      ? 'All tracked Prime sets look complete — uncheck Incomplete only.'
-                      : 'No Prime sets matched your search.'
-                  }
-                />
+                <EmptyState title="No sets" body={emptyBody} />
               </li>
             ) : null}
           </ul>
@@ -209,6 +223,7 @@ export function SetsPage({ enabled, onOpenSettings, onOpenFoundry }: Props) {
                 <span className={`vl-pill ${detail.complete ? 'is-ok' : 'is-warn'}`}>
                   {detail.percent}% · {detail.ownedParts}/{detail.totalParts}
                 </span>
+                {detail.complete ? <span className="vl-pill is-ok">Complete</span> : null}
                 {detail.vaulted ? <span className="vl-pill is-warn">Vaulted</span> : null}
               </div>
               <div className="foundry-section-title">Parts</div>

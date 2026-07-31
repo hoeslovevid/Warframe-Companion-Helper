@@ -55,6 +55,51 @@
   color: var(--vl-teal-bright, #5fd0c5);
 }
 
+.lfg-sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 28%, transparent);
+  background: color-mix(in srgb, var(--vl-panel, #121820) 92%, #000);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.lfg-sticky-bar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lfg-sticky-bar__info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lfg-sticky-bar__info strong {
+  font-size: 0.88rem;
+}
+
+.lfg-sticky-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lfg-sticky-bar__actions .btn {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+}
+
 .lfg-advanced-toggle {
   width: 100%;
   margin-top: 4px;
@@ -107,11 +152,44 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
-.lfg-filters input {
+.lfg-filters input[type='text'],
+.lfg-filters input:not([type]),
+.lfg-filters select {
   flex: 1 1 140px;
   min-width: 120px;
+}
+
+.lfg-open-seats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lfg-filter-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--vl-border, #3a4a58) 75%, transparent);
+  background: rgba(0, 0, 0, 0.16);
+  font-size: 0.78rem;
+  color: var(--vl-mist, #9db4c4);
+}
+
+.lfg-filter-chip .btn {
+  font-size: 0.72rem;
+  padding: 2px 8px;
 }
 
 .lfg-you-badge {
@@ -127,8 +205,98 @@
   background: var(--vl-teal-bright, #5fd0c5);
 }
 
+.lfg-owned-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #d8c48a;
+  border: 1px solid rgba(216, 196, 138, 0.4);
+  background: rgba(216, 196, 138, 0.12);
+}
+
 .lfg-card--mine {
   outline: 1px solid color-mix(in srgb, var(--vl-teal-bright, #5fd0c5) 28%, transparent);
+}
+
+.lfg-card--owned:not(.lfg-card--mine) {
+  outline: 1px solid rgba(216, 196, 138, 0.22);
+}
+
+.lfg-card--urgent {
+  outline-color: rgba(220, 140, 100, 0.45);
+}
+
+.lfg-card__body {
+  display: grid;
+  gap: 4px;
+}
+
+.lfg-card__head {
+  display: grid;
+  gap: 4px;
+}
+
+.lfg-card__primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+}
+
+.lfg-card__host {
+  font-weight: 600;
+  color: var(--vl-text, #e8eef2);
+}
+
+.lfg-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 0.74rem;
+}
+
+.lfg-card__notes,
+.lfg-card__members {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+}
+
+.lfg-eta {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.lfg-eta--soon {
+  color: #e0c070;
+  opacity: 1;
+}
+
+.lfg-eta--urgent,
+.lfg-eta--expired {
+  color: #e8a090;
+  opacity: 1;
+}
+
+.lfg-eta--urgent {
+  animation: lfg-eta-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes lfg-eta-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
 .lfg-slots {
@@ -148,6 +316,48 @@
 .lfg-slots__dot.is-filled {
   background: var(--vl-teal-bright, #5fd0c5);
   border-color: var(--vl-teal-bright, #5fd0c5);
+}
+
+.lfg-skeleton-list {
+  pointer-events: none;
+}
+
+.lfg-skeleton {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  opacity: 0.7;
+}
+
+.lfg-skeleton__line {
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(157, 180, 196, 0.08),
+    rgba(157, 180, 196, 0.18),
+    rgba(157, 180, 196, 0.08)
+  );
+  background-size: 200% 100%;
+  animation: lfg-skel 1.2s ease-in-out infinite;
+}
+
+.lfg-skeleton__line--title {
+  width: 55%;
+  height: 14px;
+}
+
+.lfg-skeleton__line--short {
+  width: 35%;
+}
+
+@keyframes lfg-skel {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 .lfg-search-select__wrap {

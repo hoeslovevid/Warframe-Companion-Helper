@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { AppSettings, InventoryStatus, WorldstateSnapshot } from '../../shared/types'
 import { formatCountdown } from '../lib/time'
 import './OverlayMissionStrip.css'
@@ -11,7 +12,7 @@ type Props = {
 }
 
 /**
- * Compact overlay cue: next useful fissure / inventory stale / Baro.
+ * Compact overlay cue: next useful fissure / inventory stale / Baro / open LFG seats.
  * Shown above the layout stage when overlay is live.
  */
 export function OverlayMissionStrip({
@@ -21,6 +22,33 @@ export function OverlayMissionStrip({
   now = Date.now(),
   onSyncInventory,
 }: Props) {
+  const [lfgOpen, setLfgOpen] = useState<number | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const tick = async () => {
+      if (!window.voidlens?.listLfg) return
+      try {
+        const res = await window.voidlens.listLfg({
+          region: settings.lfgRegion || 'all',
+          platform: settings.lfgPlatform || undefined,
+          activity: 'all',
+        })
+        if (cancelled) return
+        const open = (res.listings || []).filter((l) => l.slotsOpen > 0).length
+        setLfgOpen(open)
+      } catch {
+        if (!cancelled) setLfgOpen(null)
+      }
+    }
+    void tick()
+    const id = window.setInterval(() => void tick(), 60_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [settings.lfgRegion, settings.lfgPlatform])
+
   const bits: string[] = []
   let action: { label: string; run?: () => void } | null = null
 
@@ -47,6 +75,10 @@ export function OverlayMissionStrip({
         `${next.tier} ${next.missionType}${next.isHard ? ' SP' : ''} · ${formatCountdown(next.expiry, now)}`,
       )
     }
+  }
+
+  if (lfgOpen != null && lfgOpen > 0) {
+    bits.push(`${lfgOpen} LFG open`)
   }
 
   if (settings.activePlayProfile) {

@@ -275,6 +275,12 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Linux inventory sync: block overlapping helper runs, kill stale Wine processes, pulse Enter so Proton does not hang for 90s',
     'Prefer matching Proton wine64 (keeps cwd) over proton run; pick up inventory.json from alternate Wine write paths',
   ],
+  '0.9.65': [
+    'LFG: sticky Your squad bar, filter chip + Show all, open-seats filter, card hierarchy, expiry urgency, skeletons',
+    'LFG: host +10m extend, join desktop notify, owned-relic badge, copy squad IGNs, Relic Recommend form prefill',
+    'Overlay mission strip shows open LFG seat count for your region/platform',
+    'Sets: scrollable list with pinned filters; Incomplete / Complete / All completion filter',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

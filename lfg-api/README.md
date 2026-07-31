@@ -104,6 +104,7 @@ Mount durable storage at that path, then set **Hub URL** in the app to `https://
 | POST | `/listings` | Create (returns `hostToken`) |
 | POST | `/listings/:id/join` | Join squad |
 | POST | `/listings/:id/leave` | Leave |
+| POST | `/listings/:id/extend` | Host add TTL (`X-LFG-Token`, default +10m) |
 | DELETE | `/listings/:id` | Host close (`X-LFG-Token`) |
 
 No Overwolf / in-game invite automation — clients copy `/w` whisper lines into Warframe.

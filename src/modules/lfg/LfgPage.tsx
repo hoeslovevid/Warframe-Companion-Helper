@@ -3,25 +3,49 @@ import type { AppSettings, FissureInfo, LfgListing } from '../../../shared/types
 import { EmptyState } from '../../components/EmptyState'
 import { Panel } from '../../components/Panel'
 import { useWorldstate } from '../../hooks/useVoidLens'
+import { pushToast } from '../../lib/toast'
 import { copyText } from '../../lib/tradeClipboard'
 import '../market/market.css'
 import './lfg.css'
 import { LfgSearchSelect, type LfgSearchOption } from './LfgSearchSelect'
+
+type ActivityId = 'relic' | 'fissure' | 'farm' | 'boss' | 'custom'
+
+export type LfgPrefill = {
+  relicKey: string
+  title?: string
+  shareType?: 'radshare' | 'intactshare' | 'any'
+  activity?: ActivityId
+}
 
 type Props = {
   settings: AppSettings
   onUpdate: (partial: Partial<AppSettings>) => void
   /** When false (parked tab), pause board polling to save hub traffic. */
   active?: boolean
+  /** One-shot form fill from Relic Recommend (etc.). */
+  prefill?: LfgPrefill | null
+  onPrefillConsumed?: () => void
 }
 
-type ActivityId = 'relic' | 'fissure' | 'farm' | 'boss' | 'custom'
+function etaMs(expiresAt: string, nowMs: number) {
+  const ms = Date.parse(expiresAt) - nowMs
+  return Number.isFinite(ms) ? ms : 0
+}
 
 function etaLabel(expiresAt: string, nowMs: number) {
-  const ms = Date.parse(expiresAt) - nowMs
-  if (!Number.isFinite(ms) || ms <= 0) return 'expired'
+  const ms = etaMs(expiresAt, nowMs)
+  if (ms <= 0) return 'expired'
   const m = Math.ceil(ms / 60_000)
   return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`
+}
+
+function etaUrgency(expiresAt: string, nowMs: number): 'ok' | 'soon' | 'urgent' | 'expired' {
+  const ms = etaMs(expiresAt, nowMs)
+  if (ms <= 0) return 'expired'
+  if (ms < 3 * 60_000) return 'urgent'
+  if (ms < 8 * 60_000) return 'soon'
+  return 'ok'
 }
 
 function SlotDots({ filled, total }: { filled: number; total: number }) {
@@ -106,9 +130,31 @@ const PRESETS: Array<{
   },
 ]
 
-export function LfgPage({ settings, onUpdate, active = true }: Props) {
+function regionLabel(r: string) {
+  return r.toUpperCase()
+}
+
+function platformLabel(p: string) {
+  const map: Record<string, string> = {
+    pc: 'PC',
+    psn: 'PlayStation',
+    xbox: 'Xbox',
+    switch: 'Switch',
+    mobile: 'Mobile',
+  }
+  return map[p] || p.toUpperCase()
+}
+
+export function LfgPage({
+  settings,
+  onUpdate,
+  active = true,
+  prefill = null,
+  onPrefillConsumed,
+}: Props) {
   const { data } = useWorldstate()
   const titleInputRef = useRef<HTMLInputElement | null>(null)
+  const memberSnapshotRef = useRef<Map<string, string[]>>(new Map())
   const [listings, setListings] = useState<LfgListing[]>([])
   const [baseUrl, setBaseUrl] = useState('')
   const [hubOk, setHubOk] = useState(false)
@@ -118,12 +164,14 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null)
+  const [copiedIgns, setCopiedIgns] = useState<string | null>(null)
   const [hubAdvanced, setHubAdvanced] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
+  const [openSeatsOnly, setOpenSeatsOnly] = useState(true)
 
   const [filterActivity, setFilterActivity] = useState('all')
-  const [filterRegion, setFilterRegion] = useState(() => settings.lfgRegion || 'all')
-  const [filterPlatform, setFilterPlatform] = useState(() => settings.lfgPlatform || 'all')
+  const [filterRegion, setFilterRegion] = useState<string>(() => settings.lfgRegion || 'all')
+  const [filterPlatform, setFilterPlatform] = useState<string>(() => settings.lfgPlatform || 'all')
   const [qInput, setQInput] = useState('')
   const [qDebounced, setQDebounced] = useState('')
 
@@ -148,6 +196,22 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
     window.setTimeout(() => setToast(null), 2200)
   }, [])
 
+  const ownedRelicKeys = useMemo(() => {
+    const set = new Set<string>()
+    for (const o of relicOptions) {
+      if (Number(o.meta?.owned) > 0 && o.value) set.add(String(o.value).toLowerCase())
+    }
+    return set
+  }, [relicOptions])
+
+  const ownsRelic = useCallback(
+    (key: string | null | undefined) => {
+      if (!key) return false
+      return ownedRelicKeys.has(key.trim().toLowerCase())
+    },
+    [ownedRelicKeys],
+  )
+
   useEffect(() => {
     if (settings.lfgClientId?.trim()) return
     const id =
@@ -158,7 +222,7 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
   }, [settings.lfgClientId, onUpdate])
 
   useEffect(() => {
-    const t = window.setInterval(() => setNowMs(Date.now()), 30_000)
+    const t = window.setInterval(() => setNowMs(Date.now()), 15_000)
     return () => window.clearInterval(t)
   }, [])
 
@@ -166,6 +230,21 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
     const t = window.setTimeout(() => setQDebounced(qInput.trim()), 300)
     return () => window.clearTimeout(t)
   }, [qInput])
+
+  useEffect(() => {
+    if (!prefill?.relicKey) return
+    setActivity(prefill.activity || 'relic')
+    setRelicKey(prefill.relicKey)
+    setShareType(prefill.shareType || 'radshare')
+    setRefinement('radiant')
+    setTitle(prefill.title?.trim() || `${prefill.relicKey} radshare`)
+    setSteelPath(false)
+    onPrefillConsumed?.()
+    window.setTimeout(() => {
+      titleInputRef.current?.focus()
+      titleInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 80)
+  }, [prefill, onPrefillConsumed])
 
   useEffect(() => {
     if (!window.voidlens?.getLfgRelicOptions) return
@@ -284,15 +363,73 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
     return 'community' as const
   }, [settings.lfgApiBaseUrl, baseUrl])
 
+  const filtersNarrowed = useMemo(() => {
+    const regionMine = filterRegion === settings.lfgRegion
+    const platformMine = filterPlatform === settings.lfgPlatform
+    return (
+      (filterRegion !== 'all' && regionMine) ||
+      (filterPlatform !== 'all' && platformMine) ||
+      filterRegion !== 'all' ||
+      filterPlatform !== 'all' ||
+      filterActivity !== 'all' ||
+      openSeatsOnly
+    )
+  }, [
+    filterRegion,
+    filterPlatform,
+    filterActivity,
+    openSeatsOnly,
+    settings.lfgRegion,
+    settings.lfgPlatform,
+  ])
+
+  const showingMineScope =
+    filterRegion === settings.lfgRegion && filterPlatform === settings.lfgPlatform
+
+  const detectJoins = useCallback(
+    (next: LfgListing[]) => {
+      const prev = memberSnapshotRef.current
+      const nextMap = new Map<string, string[]>()
+      for (const l of next) {
+        const isHost = Boolean(hostTokens[l.id])
+        const igns = l.members.map((m) => m.ign)
+        nextMap.set(l.id, igns)
+        if (!isHost) continue
+        const before = prev.get(l.id)
+        if (!before) continue
+        const newcomers = igns.filter((ign) => !before.includes(ign))
+        for (const ign of newcomers) {
+          const msg = `${ign} joined “${l.title}”`
+          showToast(msg)
+          pushToast(msg, 'ok', 5000)
+          void window.voidlens?.desktopNotify?.({
+            title: 'LFG — squad join',
+            body: msg,
+          })
+        }
+      }
+      memberSnapshotRef.current = nextMap
+    },
+    [hostTokens, showToast],
+  )
+
   const sortedListings = useMemo(() => {
     const mine = (l: LfgListing) =>
       Boolean(hostTokens[l.id]) || l.members.some((m) => m.clientId === clientId)
-    return [...listings].sort((a, b) => {
+    let rows = [...listings]
+    if (openSeatsOnly) rows = rows.filter((l) => l.slotsOpen > 0 || mine(l))
+    return rows.sort((a, b) => {
       const am = mine(a) ? 0 : 1
       const bm = mine(b) ? 0 : 1
       if (am !== bm) return am - bm
       return Date.parse(b.createdAt) - Date.parse(a.createdAt)
     })
+  }, [listings, hostTokens, clientId, openSeatsOnly])
+
+  const mySquads = useMemo(() => {
+    return listings.filter(
+      (l) => Boolean(hostTokens[l.id]) || l.members.some((m) => m.clientId === clientId),
+    )
   }, [listings, hostTokens, clientId])
 
   const refresh = useCallback(async (): Promise<boolean> => {
@@ -306,6 +443,7 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
         platform: filterPlatform === 'all' ? undefined : filterPlatform,
       })
       setListings(res.listings)
+      detectJoins(res.listings)
       setBaseUrl(res.baseUrl)
       setHubOk(!res.error)
       if (res.error) {
@@ -322,7 +460,7 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [filterActivity, filterRegion, filterPlatform, qDebounced])
+  }, [filterActivity, filterRegion, filterPlatform, qDebounced, detectJoins])
 
   useEffect(() => {
     if (!active) return
@@ -349,6 +487,14 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
   const focusPostForm = () => {
     titleInputRef.current?.focus()
     titleInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  const showAllFilters = () => {
+    setFilterRegion('all')
+    setFilterPlatform('all')
+    setFilterActivity('all')
+    setOpenSeatsOnly(false)
+    setQInput('')
   }
 
   const applyPreset = (id: string) => {
@@ -446,6 +592,7 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
   const closeListing = async (listing: LfgListing) => {
     const token = hostTokens[listing.id]
     if (!token || !window.voidlens?.deleteLfg) return
+    if (!window.confirm(`Close “${listing.title}”?`)) return
     setBusyId(listing.id)
     try {
       await window.voidlens.deleteLfg({ id: listing.id, hostToken: token })
@@ -453,6 +600,27 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
       delete next[listing.id]
       onUpdate({ lfgHostTokens: next })
       showToast('Listing closed')
+      await refresh()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const extendListing = async (listing: LfgListing) => {
+    const token = hostTokens[listing.id]
+    if (!token || !window.voidlens?.extendLfg) return
+    setBusyId(`extend-${listing.id}`)
+    try {
+      const res = await window.voidlens.extendLfg({
+        id: listing.id,
+        hostToken: token,
+        addMs: 10 * 60_000,
+      })
+      if (!res.ok) {
+        setError(res.error || 'Extend failed')
+        return
+      }
+      showToast('Extended +10m')
       await refresh()
     } finally {
       setBusyId(null)
@@ -468,6 +636,15 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
     } finally {
       setBusyId(null)
     }
+  }
+
+  const copyIgns = async (listing: LfgListing) => {
+    const line = listing.members.map((m) => m.ign).join(', ')
+    const ok = await copyText(line)
+    if (!ok) return
+    setCopiedIgns(listing.id)
+    window.setTimeout(() => setCopiedIgns(null), 1400)
+    showToast('Squad IGNs copied')
   }
 
   const applyFissure = (f: FissureInfo) => {
@@ -505,6 +682,136 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
     }
   }
 
+  const renderCardActions = (l: LfgListing) => {
+    const isHost = Boolean(hostTokens[l.id])
+    const inSquad = l.members.some((m) => m.clientId === clientId)
+    return (
+      <div className="market-actions">
+        <button
+          className="btn ghost"
+          type="button"
+          onClick={() =>
+            void copyText(l.whisper).then((ok) => {
+              if (!ok) return
+              setCopied(l.id)
+              window.setTimeout(() => setCopied(null), 1400)
+              showToast('Whisper copied')
+            })
+          }
+        >
+          {copied === l.id ? 'Copied' : 'Whisper'}
+        </button>
+        <button
+          className="btn ghost"
+          type="button"
+          onClick={() =>
+            void copyText(l.inviteHint || `/invite ${l.hostIgn}`).then((ok) => {
+              if (!ok) return
+              setCopiedInvite(l.id)
+              window.setTimeout(() => setCopiedInvite(null), 1400)
+              showToast('Invite line copied')
+            })
+          }
+        >
+          {copiedInvite === l.id ? 'Copied' : 'Invite'}
+        </button>
+        <button className="btn ghost" type="button" onClick={() => void copyIgns(l)}>
+          {copiedIgns === l.id ? 'Copied' : 'IGNs'}
+        </button>
+        {!inSquad && l.slotsOpen > 0 ? (
+          <button
+            className="btn primary"
+            type="button"
+            disabled={busyId === l.id}
+            onClick={() => void join(l)}
+          >
+            {busyId === l.id ? '…' : 'Join'}
+          </button>
+        ) : null}
+        {inSquad && !isHost ? (
+          <button
+            className="btn ghost"
+            type="button"
+            disabled={busyId === l.id}
+            onClick={() => void leave(l)}
+          >
+            Leave
+          </button>
+        ) : null}
+        {isHost ? (
+          <>
+            <button
+              className="btn ghost"
+              type="button"
+              disabled={busyId === `extend-${l.id}`}
+              onClick={() => void extendListing(l)}
+              title="Add 10 minutes"
+            >
+              {busyId === `extend-${l.id}` ? '…' : '+10m'}
+            </button>
+            <button
+              className="btn ghost danger"
+              type="button"
+              disabled={busyId === l.id}
+              onClick={() => void closeListing(l)}
+            >
+              Close
+            </button>
+          </>
+        ) : null}
+      </div>
+    )
+  }
+
+  const renderListingCard = (l: LfgListing) => {
+    const isHost = Boolean(hostTokens[l.id])
+    const inSquad = l.members.some((m) => m.clientId === clientId)
+    const isMine = isHost || inSquad
+    const activityClass = ['relic', 'fissure', 'farm', 'boss', 'custom'].includes(l.activity)
+      ? l.activity
+      : 'custom'
+    const urgency = etaUrgency(l.expiresAt, nowMs)
+    const owned = ownsRelic(l.relicKey)
+    return (
+      <li
+        key={l.id}
+        className={`market-card lfg-card ${isMine ? 'lfg-card--mine' : ''} ${
+          urgency === 'urgent' || urgency === 'expired' ? 'lfg-card--urgent' : ''
+        } ${owned ? 'lfg-card--owned' : ''}`}
+      >
+        <div className="market-card__body lfg-card__body">
+          <div className="lfg-card__head">
+            <div className="market-card__title">
+              <span className={`market-chip market-chip--${activityClass}`}>{l.activity}</span>
+              <strong>{l.title}</strong>
+              {l.steelPath ? <span className="market-chip market-chip--warn">SP</span> : null}
+              {owned ? <span className="lfg-owned-badge">Owned</span> : null}
+              {isMine ? <span className="lfg-you-badge">You</span> : null}
+            </div>
+            <div className="lfg-card__primary">
+              <span className="lfg-card__host" title="Host">
+                {l.hostIgn}
+              </span>
+              <SlotDots filled={l.members.length} total={l.slotsTotal} />
+              <span className={`lfg-eta lfg-eta--${urgency}`}>{etaLabel(l.expiresAt, nowMs)}</span>
+            </div>
+          </div>
+          <div className="lfg-card__meta muted">
+            <span>{platformLabel(l.platform)}</span>
+            <span>{regionLabel(l.region)}</span>
+            {l.relicKey ? <span>{l.relicKey}</span> : null}
+            {l.shareType ? <span>{l.shareType}</span> : null}
+            {l.refinement ? <span>{l.refinement}</span> : null}
+            {l.missionHint ? <span>{l.missionHint}</span> : null}
+          </div>
+          {l.notes ? <p className="lfg-card__notes muted">{l.notes}</p> : null}
+          <p className="lfg-card__members muted">{l.members.map((m) => m.ign).join(' · ')}</p>
+        </div>
+        {renderCardActions(l)}
+      </li>
+    )
+  }
+
   return (
     <>
       <header className="page-header">
@@ -526,6 +833,78 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
       {toast ? (
         <div className="lfg-toast" role="status">
           {toast}
+        </div>
+      ) : null}
+
+      {mySquads.length ? (
+        <div className="lfg-sticky-bar" role="region" aria-label="Your active squads">
+          {mySquads.map((l) => {
+            const isHost = Boolean(hostTokens[l.id])
+            const urgency = etaUrgency(l.expiresAt, nowMs)
+            return (
+              <div key={l.id} className="lfg-sticky-bar__row">
+                <div className="lfg-sticky-bar__info">
+                  <span className="lfg-you-badge">{isHost ? 'Hosting' : 'Joined'}</span>
+                  <strong>{l.title}</strong>
+                  <SlotDots filled={l.members.length} total={l.slotsTotal} />
+                  <span className={`lfg-eta lfg-eta--${urgency}`}>{etaLabel(l.expiresAt, nowMs)}</span>
+                </div>
+                <div className="lfg-sticky-bar__actions">
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() =>
+                      void copyText(l.whisper).then((ok) => {
+                        if (ok) showToast('Whisper copied')
+                      })
+                    }
+                  >
+                    Whisper
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() =>
+                      void copyText(l.inviteHint || `/invite ${l.hostIgn}`).then((ok) => {
+                        if (ok) showToast('Invite line copied')
+                      })
+                    }
+                  >
+                    Invite
+                  </button>
+                  {isHost ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        disabled={busyId === `extend-${l.id}`}
+                        onClick={() => void extendListing(l)}
+                      >
+                        +10m
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost danger"
+                        disabled={busyId === l.id}
+                        onClick={() => void closeListing(l)}
+                      >
+                        Close
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      disabled={busyId === l.id}
+                      onClick={() => void leave(l)}
+                    >
+                      Leave
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
       ) : null}
 
@@ -796,131 +1175,83 @@ export function LfgPage({ settings, onUpdate, active = true }: Props) {
                 <option value="switch">Switch</option>
                 <option value="mobile">Mobile</option>
               </select>
+              <label className="lfg-open-seats">
+                <input
+                  type="checkbox"
+                  checked={openSeatsOnly}
+                  onChange={(e) => setOpenSeatsOnly(e.target.checked)}
+                />
+                Open seats
+              </label>
             </div>
+
+            {filtersNarrowed ? (
+              <div className="lfg-filter-chip" role="status">
+                <span>
+                  Showing
+                  {showingMineScope
+                    ? ` ${regionLabel(settings.lfgRegion)} · ${platformLabel(settings.lfgPlatform)}`
+                    : [
+                        filterRegion !== 'all' ? regionLabel(filterRegion) : null,
+                        filterPlatform !== 'all' ? platformLabel(filterPlatform) : null,
+                        filterActivity !== 'all' ? filterActivity : null,
+                      ]
+                        .filter(Boolean)
+                        .map((x) => ` ${x}`)
+                        .join(' ·') || ' filtered'}
+                  {openSeatsOnly ? ' · open seats' : ''}
+                </span>
+                <button type="button" className="btn ghost" onClick={showAllFilters}>
+                  Show all
+                </button>
+              </div>
+            ) : null}
+
             {error ? <p className="market-error">{error}</p> : null}
-            {sortedListings.length === 0 ? (
+
+            {loading && listings.length === 0 ? (
+              <ul className="market-card-list lfg-skeleton-list" aria-hidden>
+                {[0, 1, 2].map((i) => (
+                  <li key={i} className="market-card lfg-skeleton">
+                    <div className="lfg-skeleton__line lfg-skeleton__line--title" />
+                    <div className="lfg-skeleton__line" />
+                    <div className="lfg-skeleton__line lfg-skeleton__line--short" />
+                  </li>
+                ))}
+              </ul>
+            ) : sortedListings.length === 0 ? (
               <EmptyState
                 title="No open queues"
                 body={
                   hubOk
-                    ? 'Be the first — post a squad and others can join from this board.'
+                    ? showingMineScope
+                      ? `Nothing for ${regionLabel(settings.lfgRegion)} · ${platformLabel(
+                          settings.lfgPlatform,
+                        )} right now — try Show all, or post a squad.`
+                      : 'Be the first — post a squad and others can join from this board.'
                     : 'Hub unreachable. Check Advanced hub settings, or set Hub URL to local.'
                 }
                 actions={
-                  hubOk ? (
-                    <button className="btn primary" type="button" onClick={focusPostForm}>
-                      Post your first squad
-                    </button>
-                  ) : null
+                  <>
+                    {hubOk && filtersNarrowed ? (
+                      <button className="btn ghost" type="button" onClick={showAllFilters}>
+                        Show all regions
+                      </button>
+                    ) : null}
+                    {hubOk ? (
+                      <button className="btn primary" type="button" onClick={focusPostForm}>
+                        Post your first squad
+                      </button>
+                    ) : (
+                      <button className="btn primary" type="button" onClick={() => void refresh()}>
+                        Retry hub
+                      </button>
+                    )}
+                  </>
                 }
               />
             ) : (
-              <ul className="market-card-list">
-                {sortedListings.map((l) => {
-                  const isHost = Boolean(hostTokens[l.id])
-                  const inSquad = l.members.some((m) => m.clientId === clientId)
-                  const isMine = isHost || inSquad
-                  const activityClass = ['relic', 'fissure', 'farm', 'boss', 'custom'].includes(
-                    l.activity,
-                  )
-                    ? l.activity
-                    : 'custom'
-                  return (
-                    <li key={l.id} className={`market-card ${isMine ? 'lfg-card--mine' : ''}`}>
-                      <div className="market-card__body">
-                        <div className="market-card__title">
-                          <span className={`market-chip market-chip--${activityClass}`}>
-                            {l.activity}
-                          </span>
-                          <strong>{l.title}</strong>
-                          {l.steelPath ? (
-                            <span className="market-chip market-chip--warn">SP</span>
-                          ) : null}
-                          {isMine ? <span className="lfg-you-badge">You</span> : null}
-                        </div>
-                        <div className="market-card__meta muted">
-                          <span>{l.hostIgn}</span>
-                          <SlotDots filled={l.members.length} total={l.slotsTotal} />
-                          <span>{l.platform.toUpperCase()}</span>
-                          <span>{l.region.toUpperCase()}</span>
-                          <span>{etaLabel(l.expiresAt, nowMs)}</span>
-                          {l.relicKey ? <span>{l.relicKey}</span> : null}
-                          {l.shareType ? <span>{l.shareType}</span> : null}
-                          {l.missionHint ? <span>{l.missionHint}</span> : null}
-                        </div>
-                        {l.notes ? (
-                          <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.8rem' }}>
-                            {l.notes}
-                          </p>
-                        ) : null}
-                        <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.75rem' }}>
-                          {l.members.map((m) => m.ign).join(' · ')}
-                        </p>
-                      </div>
-                      <div className="market-actions">
-                        <button
-                          className="btn ghost"
-                          type="button"
-                          onClick={() =>
-                            void copyText(l.whisper).then((ok) => {
-                              if (!ok) return
-                              setCopied(l.id)
-                              window.setTimeout(() => setCopied(null), 1400)
-                              showToast('Whisper copied')
-                            })
-                          }
-                        >
-                          {copied === l.id ? 'Copied' : 'Whisper'}
-                        </button>
-                        <button
-                          className="btn ghost"
-                          type="button"
-                          onClick={() =>
-                            void copyText(l.inviteHint || `/invite ${l.hostIgn}`).then((ok) => {
-                              if (!ok) return
-                              setCopiedInvite(l.id)
-                              window.setTimeout(() => setCopiedInvite(null), 1400)
-                              showToast('Invite line copied')
-                            })
-                          }
-                        >
-                          {copiedInvite === l.id ? 'Copied' : 'Invite'}
-                        </button>
-                        {!inSquad && l.slotsOpen > 0 ? (
-                          <button
-                            className="btn primary"
-                            type="button"
-                            disabled={busyId === l.id}
-                            onClick={() => void join(l)}
-                          >
-                            {busyId === l.id ? '…' : 'Join'}
-                          </button>
-                        ) : null}
-                        {inSquad && !isHost ? (
-                          <button
-                            className="btn ghost"
-                            type="button"
-                            disabled={busyId === l.id}
-                            onClick={() => void leave(l)}
-                          >
-                            Leave
-                          </button>
-                        ) : null}
-                        {isHost ? (
-                          <button
-                            className="btn ghost danger"
-                            type="button"
-                            disabled={busyId === l.id}
-                            onClick={() => void closeListing(l)}
-                          >
-                            Close
-                          </button>
-                        ) : null}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+              <ul className="market-card-list">{sortedListings.map(renderListingCard)}</ul>
             )}
           </Panel>
         </section>
