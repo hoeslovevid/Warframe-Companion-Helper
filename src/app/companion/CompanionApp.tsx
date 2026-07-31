@@ -31,6 +31,7 @@ import { WhatsNew } from '../../components/WhatsNew'
 import { NowProvider } from '../../hooks/NowContext'
 import { useInventory } from '../../hooks/useInventory'
 import { useRelicScan } from '../../hooks/useRelicScan'
+import { useRivenScan } from '../../hooks/useRivenScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
 import { PLAY_PROFILES, PlayProfileId, applyPlayProfile } from '../../lib/playProfiles'
 import { CyclesPanel } from '../../modules/cycles/CyclesPanel'
@@ -52,6 +53,14 @@ import { MasteryPage } from '../../modules/mastery/MasteryPage'
 import { InventoryPage } from '../../modules/inventory/InventoryPage'
 import { SetsPage } from '../../modules/sets/SetsPage'
 import { LinuxCaptureWizard } from '../../components/LinuxCaptureWizard'
+import { ToastHost } from '../../components/ToastHost'
+import { CommandPalette, CommandAction } from '../../components/CommandPalette'
+import {
+  PlayProfileSwitcher,
+  suggestPlayProfile,
+} from '../../components/PlayProfileSwitcher'
+import { LinuxHealthCard } from '../../components/LinuxHealthCard'
+import { pushToast } from '../../lib/toast'
 import { LayoutEditor } from './LayoutEditor'
 import { prettyHotkey } from '../../lib/hotkey'
 import { playScanSound } from '../../lib/sounds'
@@ -151,10 +160,14 @@ export function CompanionApp() {
   const [hotkeyStatus, setHotkeyStatus] = useState<HotkeyRegistration[]>([])
   const [overlayCue, setOverlayCue] = useState<'on' | 'off' | null>(null)
   const [displays, setDisplays] = useState<DisplayChoice[]>([])
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [suggestDismissed, setSuggestDismissed] = useState<string | null>(null)
+  const [showLinuxWizard, setShowLinuxWizard] = useState(false)
   const { settings, ready, updateSettings, setModuleEnabled } = useSettings()
   const { data, loading, error, refresh } = useWorldstate()
   const { status: inventory } = useInventory()
   const { state: relicScan, ackCelebration } = useRelicScan()
+  const { state: rivenScan } = useRivenScan()
   useColorTheme(settings.colorTheme, settings.customPalette)
   const [playerDucats, setPlayerDucats] = useState<number | null>(null)
   const [playerCredits, setPlayerCredits] = useState<number | null>(null)
@@ -227,6 +240,126 @@ export function CompanionApp() {
     },
     [settings.onboarding, patchOnboarding],
   )
+
+  const syncInventoryNow = useCallback(async () => {
+    if (!window.voidlens?.syncInventoryFromGame) return
+    pushToast('Syncing inventory…', 'info', 2500)
+    const res = await window.voidlens.syncInventoryFromGame()
+    if (res.ok) {
+      pushToast('Inventory synced', 'ok')
+      if (!settings.onboarding.inventoryTouched) {
+        patchOnboarding({ inventoryTouched: true })
+      }
+    } else {
+      pushToast(res.error || 'Inventory sync failed', 'error', 7000)
+    }
+  }, [settings.onboarding.firstInventorySyncAck, patchOnboarding])
+
+  const profileSuggest = useMemo(() => {
+    const hit = suggestPlayProfile({
+      relicActive: relicScan.active,
+      rivenActive: rivenScan.active,
+      baroActive: Boolean(data.baro?.active),
+      inventory,
+      data,
+    })
+    if (!hit) return null
+    if (suggestDismissed === hit.id) return null
+    return hit
+  }, [relicScan.active, rivenScan.active, data, inventory, suggestDismissed])
+
+  const commandActions = useMemo((): CommandAction[] => {
+    const tabs: Array<{ id: Tab; label: string }> = [
+      { id: 'dashboard', label: 'Dashboard' },
+      { id: 'modules', label: 'Modules' },
+      { id: 'foundry', label: 'Foundry' },
+      { id: 'sets', label: 'Sets' },
+      { id: 'relicPlanner', label: 'Relic Planner' },
+      { id: 'mastery', label: 'Mastery' },
+      { id: 'inventory', label: 'Inventory' },
+      { id: 'market', label: 'Market' },
+      { id: 'lfg', label: 'LFG' },
+      { id: 'layout', label: 'Layout' },
+      { id: 'settings', label: 'Settings' },
+      { id: 'help', label: 'Help' },
+    ]
+    const actions: CommandAction[] = tabs.map((t) => ({
+      id: `tab-${t.id}`,
+      label: t.label,
+      group: 'Navigate',
+      keywords: 'tab page go',
+      run: () => goTab(t.id),
+    }))
+    actions.push(
+      {
+        id: 'act-refresh',
+        label: 'Refresh worldstate',
+        group: 'Actions',
+        run: () => void refresh(),
+      },
+      {
+        id: 'act-overlay',
+        label: 'Toggle overlay',
+        group: 'Actions',
+        run: () => void window.voidlens?.toggleOverlay(),
+      },
+      {
+        id: 'act-sync',
+        label: 'Sync inventory',
+        group: 'Actions',
+        keywords: 'gruzzle helper',
+        run: () => void syncInventoryNow(),
+      },
+      {
+        id: 'act-scan-relic',
+        label: 'Scan relic rewards',
+        group: 'Actions',
+        run: () => void window.voidlens?.scanRelicRewards(),
+      },
+      {
+        id: 'act-hotkeys',
+        label: 'Hotkey cheat sheet',
+        group: 'Help',
+        run: () => setHotkeysOpen(true),
+      },
+    )
+    for (const profile of PLAY_PROFILES) {
+      actions.push({
+        id: `profile-${profile.id}`,
+        label: `Profile: ${profile.label}`,
+        group: 'Profiles',
+        hint: profile.description,
+        run: () => void updateSettings(applyPlayProfile(settings, profile.id as PlayProfileId)),
+      })
+    }
+    return actions
+  }, [goTab, refresh, syncInventoryNow, settings, updateSettings])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    if (!settings.inventoryRemindWhenRunning) return
+    if (!inventory?.consent || !inventory.stale || !inventory.warframeRunning) return
+    const key = `inv-stale-${inventory.lastSynced || 'never'}`
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+    pushToast('Inventory stale while Warframe is running — click Sync on the status chip', 'warn', 8000)
+  }, [
+    settings.inventoryRemindWhenRunning,
+    inventory?.consent,
+    inventory?.stale,
+    inventory?.warframeRunning,
+    inventory?.lastSynced,
+  ])
 
   const toggleBaroWish = useCallback(
     (item: string) => {
@@ -576,16 +709,6 @@ export function CompanionApp() {
                   onStartTour={() => setTourOpen(true)}
                 />
 
-                {typeof navigator !== 'undefined' &&
-                /linux/i.test(navigator.userAgent) &&
-                !settings.onboarding.linuxCaptureAck ? (
-                  <LinuxCaptureWizard
-                    settings={settings}
-                    displays={displays}
-                    onUpdate={(partial) => void updateSettings(partial)}
-                  />
-                ) : null}
-
                 {relicScan.celebration && !settings.onboarding.firstRelicSuccessAck ? (
                   <section className="getting-started" style={{ marginBottom: 16 }}>
                     <div className="getting-started__header">
@@ -603,6 +726,41 @@ export function CompanionApp() {
                   </section>
                 ) : null}
 
+                {inventory.loaded &&
+                settings.onboarding.firstInventorySyncAck === false &&
+                inventory.revision > 0 ? (
+                  <section className="getting-started" style={{ marginBottom: 16 }}>
+                    <div className="getting-started__header">
+                      <div>
+                        <h3 className="getting-started__title">Inventory sync unlocked</h3>
+                        <p className="getting-started__sub">
+                          Foundry, Sets, and Relic Recommend can now use your owned counts.
+                        </p>
+                      </div>
+                      <button
+                        className="btn ghost"
+                        onClick={() => patchOnboarding({ firstInventorySyncAck: true })}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </section>
+                ) : null}
+
+                {showLinuxWizard ||
+                (typeof navigator !== 'undefined' &&
+                  /linux/i.test(navigator.userAgent) &&
+                  !settings.onboarding.linuxCaptureAck) ? (
+                  <LinuxCaptureWizard
+                    settings={settings}
+                    displays={displays}
+                    onUpdate={(partial) => {
+                      void updateSettings(partial)
+                      setShowLinuxWizard(false)
+                    }}
+                  />
+                ) : null}
+
                 <StatusStrip
                   settings={settings}
                   inventory={inventory}
@@ -612,13 +770,33 @@ export function CompanionApp() {
                   onDetectEeLog={() => void window.voidlens?.detectEeLogPath()}
                   onRefreshWorldstate={() => void refresh()}
                   onGoSettings={() => goTab('settings')}
+                  onSyncInventory={() => void syncInventoryNow()}
+                />
+
+                <PlayProfileSwitcher
+                  settings={settings}
+                  suggestedId={profileSuggest?.id ?? null}
+                  suggestReason={profileSuggest?.reason}
+                  onApply={(partial) => void updateSettings(partial)}
+                  onDismissSuggest={() =>
+                    setSuggestDismissed(profileSuggest?.id ?? null)
+                  }
                 />
 
                 <div style={{ marginBottom: 16 }}>
                   <EconomyTrendPanel />
                 </div>
 
-                <TodaySummary data={data} settings={settings} />
+                <TodaySummary
+                  data={data}
+                  settings={settings}
+                  inventoryStale={Boolean(inventory.stale)}
+                  onNavigate={(t) => goTab(t as Tab)}
+                  onSyncInventory={() => void syncInventoryNow()}
+                  onApplyBaroProfile={() =>
+                    void updateSettings(applyPlayProfile(settings, 'baro-day'))
+                  }
+                />
 
                 <div className="toolbar" data-tour="toolbar-hotkeys">
                   <button className="btn primary" onClick={() => void refresh()}>
@@ -641,22 +819,9 @@ export function CompanionApp() {
                   <button className="btn ghost" onClick={() => setHotkeysOpen(true)}>
                     Hotkeys (?)
                   </button>
-                  {PLAY_PROFILES.map((profile) => (
-                    <button
-                      key={profile.id}
-                      className={`btn ghost ${
-                        settings.activePlayProfile === profile.id ? 'is-active' : ''
-                      }`}
-                      title={profile.description}
-                      onClick={() =>
-                        void updateSettings(
-                          applyPlayProfile(settings, profile.id as PlayProfileId),
-                        )
-                      }
-                    >
-                      {profile.label}
-                    </button>
-                  ))}
+                  <button className="btn ghost" onClick={() => setPaletteOpen(true)} title="Ctrl+K">
+                    Jump…
+                  </button>
                   <span className="pill muted">
                     {loading
                       ? 'Updating…'
@@ -739,7 +904,14 @@ export function CompanionApp() {
                   {enabledIds.includes('deepArchimedea') ? (
                     <DeepArchimedeaPanel deepArchimedea={data.deepArchimedea} />
                   ) : null}
-                  {enabledIds.includes('relicRecommend') ? <RelicRecommendPanel /> : null}
+                  {enabledIds.includes('relicRecommend') ? (
+                    <RelicRecommendPanel
+                      onPostLfg={(relicLabel) => {
+                        pushToast(`Open LFG and post “${relicLabel}”`, 'info', 6000)
+                        goTab('lfg')
+                      }}
+                    />
+                  ) : null}
                 </div>
               </>
             ) : null}
@@ -905,6 +1077,12 @@ export function CompanionApp() {
                   setHelpScrollTo('help-wfm-jwt')
                   goTab('help')
                 }}
+                onFirstListCelebration={() => {
+                  if (!settings.onboarding.firstMarketListAck) {
+                    patchOnboarding({ firstMarketListAck: true })
+                    pushToast('First market listing — track it in the Log tab.', 'ok', 6000)
+                  }
+                }}
               />
             ) : null}
 
@@ -963,6 +1141,14 @@ export function CompanionApp() {
                     powers “needed for set” relic tags.
                   </p>
                 </header>
+
+                <LinuxHealthCard
+                  settings={settings}
+                  inventory={inventory}
+                  onDetectEeLog={() => void window.voidlens?.detectEeLogPath()}
+                  onSyncInventory={() => void syncInventoryNow()}
+                  onOpenCaptureWizard={() => setShowLinuxWizard(true)}
+                />
 
                 <Panel
                   title="Appearance"
@@ -1365,6 +1551,48 @@ export function CompanionApp() {
                       checked={settings.inventoryAutoSync}
                       onChange={(enabled) => void updateSettings({ inventoryAutoSync: enabled })}
                     />
+                    <ToggleRow
+                      label="Remind when inventory is stale"
+                      description="Toast when Warframe is running and inventory looks old"
+                      checked={settings.inventoryRemindWhenRunning}
+                      onChange={(enabled) =>
+                        void updateSettings({ inventoryRemindWhenRunning: enabled })
+                      }
+                    />
+                    <ToggleRow
+                      label="Baro arrival notification"
+                      description="Desktop alert when Baro lands at a relay"
+                      checked={settings.baroArrivalNotify}
+                      onChange={(enabled) => void updateSettings({ baroArrivalNotify: enabled })}
+                    />
+                    <div className="toolbar" style={{ marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() =>
+                          void window.voidlens?.exportSettings?.().then((r) => {
+                            if (r.ok) pushToast(`Exported settings`, 'ok')
+                            else if (r.error && r.error !== 'cancelled')
+                              pushToast(r.error, 'error')
+                          })
+                        }
+                      >
+                        Export settings
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() =>
+                          void window.voidlens?.importSettings?.().then((r) => {
+                            if (r.ok) pushToast('Settings imported', 'ok')
+                            else if (r.error && r.error !== 'cancelled')
+                              pushToast(r.error, 'error')
+                          })
+                        }
+                      >
+                        Import settings
+                      </button>
+                    </div>
                     <button
                       type="button"
                       className="btn ghost"
@@ -1675,6 +1903,12 @@ export function CompanionApp() {
       />
 
       <WhatsNew version={appVersion} open={whatsNewOpen} onDismiss={dismissWhatsNew} />
+      <ToastHost />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        actions={commandActions}
+      />
     </NowProvider>
   )
 }

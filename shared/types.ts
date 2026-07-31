@@ -511,6 +511,14 @@ export type AppSettings = {
   navCollapsed: boolean
   /** Auto-resync inventory while Warframe is running. */
   inventoryAutoSync: boolean
+  /** Toast when inventory is stale and Warframe is running. */
+  inventoryRemindWhenRunning: boolean
+  /** Desktop notification when Baro arrives at a relay. */
+  baroArrivalNotify: boolean
+  /** Last Baro visit key we already notified for (departure/arrival). */
+  baroArrivalNotifiedKey: string
+  /** Hide Market session guide. */
+  marketSessionGuideDismissed: boolean
   /** Last app version for which “What’s new” was dismissed. */
   lastSeenVersion: string
   /** First-run checklist + tour state */
@@ -523,6 +531,8 @@ export type AppSettings = {
     tourCompleted: boolean
     trayTipShown: boolean
     firstRelicSuccessAck: boolean
+    firstInventorySyncAck: boolean
+    firstMarketListAck: boolean
     /** Linux: finished or skipped the screen-capture wizard. */
     linuxCaptureAck: boolean
   }
@@ -741,6 +751,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   quietMode: false,
   navCollapsed: false,
   inventoryAutoSync: true,
+  inventoryRemindWhenRunning: true,
+  baroArrivalNotify: true,
+  baroArrivalNotifiedKey: '',
+  marketSessionGuideDismissed: false,
   lastSeenVersion: '',
   onboarding: {
     checklistDismissed: false,
@@ -751,6 +765,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     tourCompleted: false,
     trayTipShown: false,
     firstRelicSuccessAck: false,
+    firstInventorySyncAck: false,
+    firstMarketListAck: false,
     linuxCaptureAck: false,
   },
 }
@@ -1750,6 +1766,8 @@ export type VoidLensApi = {
   pickBugScreenshots: () => Promise<{ stagingDir: string; count: number } | null>
   openBugDebugFolders: () => Promise<string[]>
   getUninstallInfo: () => Promise<UninstallInfo>
+  exportSettings: () => Promise<{ ok: boolean; path?: string; error?: string }>
+  importSettings: () => Promise<{ ok: boolean; error?: string }>
   launchUninstaller: () => Promise<{ ok: boolean; error?: string }>
   openWindowsAppsSettings: () => Promise<{ ok: boolean; error?: string }>
   openUserDataFolder: () => Promise<{ ok: boolean; error?: string }>

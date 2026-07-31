@@ -424,10 +424,41 @@ function mergeSettings(raw: Partial<AppSettings> | null | undefined): AppSetting
         ? (raw as { overlayOnlyInWarframe: boolean }).overlayOnlyInWarframe
         : base.overlayOnlyInWarframe,
     inventoryAutoSync: raw.inventoryAutoSync ?? base.inventoryAutoSync,
+    inventoryRemindWhenRunning:
+      typeof (raw as { inventoryRemindWhenRunning?: boolean }).inventoryRemindWhenRunning ===
+      'boolean'
+        ? (raw as { inventoryRemindWhenRunning: boolean }).inventoryRemindWhenRunning
+        : base.inventoryRemindWhenRunning,
+    baroArrivalNotify:
+      typeof (raw as { baroArrivalNotify?: boolean }).baroArrivalNotify === 'boolean'
+        ? (raw as { baroArrivalNotify: boolean }).baroArrivalNotify
+        : base.baroArrivalNotify,
+    baroArrivalNotifiedKey:
+      typeof (raw as { baroArrivalNotifiedKey?: string }).baroArrivalNotifiedKey === 'string'
+        ? (raw as { baroArrivalNotifiedKey: string }).baroArrivalNotifiedKey
+        : base.baroArrivalNotifiedKey,
+    marketSessionGuideDismissed:
+      typeof (raw as { marketSessionGuideDismissed?: boolean }).marketSessionGuideDismissed ===
+      'boolean'
+        ? (raw as { marketSessionGuideDismissed: boolean }).marketSessionGuideDismissed
+        : base.marketSessionGuideDismissed,
     lastSeenVersion: raw.lastSeenVersion ?? base.lastSeenVersion,
     onboarding: {
       ...base.onboarding,
       ...(raw.onboarding ?? {}),
+      // New celebration flags: don't spam existing installs that already synced / used market.
+      firstInventorySyncAck:
+        typeof (raw.onboarding as { firstInventorySyncAck?: boolean } | undefined)
+          ?.firstInventorySyncAck === 'boolean'
+          ? Boolean(
+              (raw.onboarding as { firstInventorySyncAck: boolean }).firstInventorySyncAck,
+            )
+          : Boolean(raw.inventoryLastSynced || raw.onboarding?.inventoryTouched),
+      firstMarketListAck:
+        typeof (raw.onboarding as { firstMarketListAck?: boolean } | undefined)
+          ?.firstMarketListAck === 'boolean'
+          ? Boolean((raw.onboarding as { firstMarketListAck: boolean }).firstMarketListAck)
+          : true,
     },
   }
 }

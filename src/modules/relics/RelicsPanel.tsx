@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { relicStripLayout } from '../../../shared/captureGeometry'
 import { RewardEval } from '../../../shared/types'
 import { Panel } from '../../components/Panel'
 import { useRelicScan } from '../../hooks/useRelicScan'
+import { useSettings } from '../../hooks/useVoidLens'
 import { copyText, formatBestPickTradeLine, formatRelicTradeLine } from '../../lib/tradeClipboard'
+import { pushToast } from '../../lib/toast'
 import '../cycles/module.css'
 import '../baro/baro.css'
 import './relics.css'
@@ -49,7 +51,24 @@ function ownershipLabel(reward: RewardEval, compact?: boolean) {
   return `Owned ×${reward.owned}`
 }
 
-function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean }) {
+function marketUrlFor(name: string) {
+  const slug = name
+    .toLowerCase()
+    .replace(/['']/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+  return `https://warframe.market/items/${slug}`
+}
+
+function RewardCard({
+  reward,
+  compact,
+  onOpenMarket,
+}: {
+  reward: RewardEval
+  compact?: boolean
+  onOpenMarket?: (name: string) => void
+}) {
   const needed = reward.needed
   const lowConf = reward.matchScore > 0 && reward.matchScore < 0.55
   const priceBits: string[] = []
@@ -91,11 +110,31 @@ function RewardCard({ reward, compact }: { reward: RewardEval; compact?: boolean
           Set parts owned {reward.setOwnedParts}/{reward.setTotalParts}
         </div>
       ) : null}
+      {!compact && reward.bestPick && reward.name ? (
+        <div className="relic-card__actions">
+          <button
+            type="button"
+            className="btn ghost"
+            style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+            onClick={() => onOpenMarket?.(reward.name)}
+          >
+            Market
+          </button>
+        </div>
+      ) : null}
     </li>
   )
 }
 
-function RewardRow({ rewards, compact }: { rewards: RewardEval[]; compact?: boolean }) {
+function RewardRow({
+  rewards,
+  compact,
+  onOpenMarket,
+}: {
+  rewards: RewardEval[]
+  compact?: boolean
+  onOpenMarket?: (name: string) => void
+}) {
   const cols = Math.min(4, Math.max(1, rewards.length))
   return (
     <ul
@@ -103,7 +142,12 @@ function RewardRow({ rewards, compact }: { rewards: RewardEval[]; compact?: bool
       style={compact ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } : undefined}
     >
       {rewards.map((reward) => (
-        <RewardCard key={reward.slot} reward={reward} compact={compact} />
+        <RewardCard
+          key={reward.slot}
+          reward={reward}
+          compact={compact}
+          onOpenMarket={onOpenMarket}
+        />
       ))}
     </ul>
   )
@@ -119,19 +163,32 @@ export function RelicsPanel({
   layoutWidth,
 }: Props) {
   const { state, scan, clear } = useRelicScan()
+  const { settings, updateSettings } = useSettings()
   const rewards = previewMode && previewRewards ? previewRewards : state.rewards
   const scanning = previewMode ? false : state.scanning
   const stripW = stripWidthPx(layoutWidth)
   const [copied, setCopied] = useState(false)
 
+  const weakScan = useMemo(() => {
+    if (scanning || previewMode || !rewards.length) return false
+    const unmatched = rewards.filter((r) => !r.name || r.matchScore < 0.45).length
+    return unmatched >= Math.ceil(rewards.length / 2) || Boolean(state.error)
+  }, [rewards, scanning, previewMode, state.error])
+
   const copyTrade = async (bestOnly = false) => {
     const text = bestOnly ? formatBestPickTradeLine(rewards) : formatRelicTradeLine(rewards)
     if (!(await copyText(text))) return
     setCopied(true)
+    pushToast(bestOnly ? 'Copied Best pick WTS' : 'Copied trade lines', 'ok')
     window.setTimeout(() => setCopied(false), 1600)
   }
 
+  const openMarket = (name: string) => {
+    void window.voidlens?.openExternal?.(marketUrlFor(name))
+  }
+
   if (compact || previewMode) {
+    const best = rewards.find((r) => r.bestPick && r.name)
     return (
       <div className="relic-strip" style={{ opacity, width: stripW }} data-relic-strip>
         {scanning ? <p className="relic-strip__status">Scanning…</p> : null}
@@ -139,7 +196,32 @@ export function RelicsPanel({
           <p className="relic-strip__error">{state.error}</p>
         ) : null}
         {rewards.length > 0 ? (
-          <RewardRow rewards={rewards} compact />
+          <>
+            <RewardRow rewards={rewards} compact />
+            {best && !scanning ? (
+              <div className="relic-strip__next">
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => void copyTrade(true)}
+                  title="Copy Best pick WTS"
+                >
+                  Copy WTS
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => openMarket(best.name)}
+                  title="Open Best pick on warframe.market"
+                >
+                  Market
+                </button>
+                <button type="button" className="btn ghost" onClick={() => void scan()}>
+                  Retry
+                </button>
+              </div>
+            ) : null}
+          </>
         ) : scanning ? null : (
           <p className="relic-strip__status">Waiting for rewards</p>
         )}
@@ -193,7 +275,68 @@ export function RelicsPanel({
           </p>
         ) : null}
         {state.error ? <p className="mod-empty">Error: {state.error}</p> : null}
-        {state.scanMeta && !scanning ? (
+        {weakScan ? (
+          <div className="getting-started" style={{ padding: '10px 12px', marginBottom: 8 }}>
+            <p className="getting-started__sub" style={{ margin: '0 0 8px' }}>
+              Weak OCR read — retry, check monitor, or force slot count.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <button className="btn primary" disabled={scanning} onClick={() => void scan()}>
+                Retry scan
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() =>
+                  void updateSettings({
+                    ocrDisplayId: null,
+                  }).then(() => pushToast('OCR display reset to primary — retry scan', 'info'))
+                }
+              >
+                Reset monitor
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() =>
+                  void updateSettings({ relicSquadSizeOverride: 3 }).then(() => {
+                    pushToast('Forced 3 reward slots', 'info')
+                    void scan()
+                  })
+                }
+              >
+                Force 3 slots
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() =>
+                  void updateSettings({ relicSquadSizeOverride: 4 }).then(() => {
+                    pushToast('Forced 4 reward slots', 'info')
+                    void scan()
+                  })
+                }
+              >
+                Force 4 slots
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() =>
+                  void updateSettings({ relicSquadSizeOverride: null }).then(() =>
+                    pushToast('Slot override cleared', 'info'),
+                  )
+                }
+              >
+                Auto slots
+              </button>
+            </div>
+            {state.scanMeta ? (
+              <p className="mod-empty" style={{ fontSize: '0.72rem', marginTop: 8 }}>
+                Last: theme {state.scanMeta.theme || '—'}
+                {state.scanMeta.slotHint != null ? ` · ${state.scanMeta.slotHint} slots` : ''}
+                {settings.ocrDisplayId != null ? ` · display ${settings.ocrDisplayId}` : ''}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {state.scanMeta && !scanning && !weakScan ? (
           <p className="mod-empty" style={{ fontSize: '0.75rem', margin: 0 }}>
             OCR: theme {state.scanMeta.theme || '—'}
             {state.scanMeta.slotHint != null ? ` · ${state.scanMeta.slotHint} slots` : ''}
@@ -213,7 +356,7 @@ export function RelicsPanel({
             </button>
           </div>
         ) : (
-          <RewardRow rewards={rewards} />
+          <RewardRow rewards={rewards} onOpenMarket={openMarket} />
         )}
       </div>
     </Panel>

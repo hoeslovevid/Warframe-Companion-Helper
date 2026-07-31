@@ -1,0 +1,78 @@
+.play-profiles {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg)) 70%, transparent);
+}
+
+.play-profiles__title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.play-profiles__sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.play-profiles__suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #6af) 14%, transparent);
+  font-size: 0.85rem;
+}
+
+.play-profiles__suggest-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.play-profiles__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.play-profiles__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.play-profiles__card:hover {
+  border-color: color-mix(in srgb, var(--accent, #6af) 50%, var(--border));
+}
+
+.play-profiles__card.is-active {
+  border-color: var(--accent, #6af);
+  background: color-mix(in srgb, var(--accent, #6af) 12%, transparent);
+}
+
+.play-profiles__card-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.play-profiles__card-desc {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.3;
+}

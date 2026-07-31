@@ -11,6 +11,8 @@ type Props = {
   onToggleOverlay?: () => void
   onDetectEeLog?: () => void
   onRefreshWorldstate?: () => void
+  /** Prefer sync when inventory is stale / empty and Warframe is running. */
+  onSyncInventory?: () => void
 }
 
 type Health = {
@@ -31,9 +33,16 @@ export function StatusStrip({
   onToggleOverlay,
   onDetectEeLog,
   onRefreshWorldstate,
+  onSyncInventory,
 }: Props) {
   const eeOk = Boolean(settings.eeLogPath)
   const invOk = Boolean(inventory?.loaded)
+  const invStale = Boolean(inventory?.stale || (inventory?.consent && !inventory?.loaded))
+  const canSync =
+    Boolean(onSyncInventory) &&
+    Boolean(inventory?.consent) &&
+    (invStale || !invOk) &&
+    Boolean(inventory?.warframeRunning)
   const overlayOn = settings.overlayVisible
 
   const items: Health[] = [
@@ -64,10 +73,28 @@ export function StatusStrip({
     {
       id: 'inventory',
       label: 'Inventory',
-      detail: invOk ? 'synced' : 'sync',
-      state: invOk ? 'ok' : 'off',
-      onClick: onGoSettings,
-      title: 'Inventory settings',
+      detail: !inventory?.consent
+        ? 'consent'
+        : canSync
+          ? 'sync now'
+          : invOk
+            ? inventory?.stale
+              ? 'stale'
+              : 'synced'
+            : 'empty',
+      state: !inventory?.consent
+        ? 'off'
+        : canSync || inventory?.stale
+          ? 'warn'
+          : invOk
+            ? 'ok'
+            : 'off',
+      onClick: canSync ? onSyncInventory : onGoSettings,
+      title: canSync
+        ? 'Sync inventory from Warframe'
+        : inventory?.stale
+          ? 'Inventory stale — open Settings or launch Warframe to sync'
+          : 'Inventory settings',
     },
   ]
 

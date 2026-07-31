@@ -6,11 +6,17 @@ const FISSURE_STALE_MS = 45 * 60_000
 type Props = {
   inventory: InventoryStatus
   onOpenInventory?: () => void
+  onSyncInventory?: () => void
   /** Tighter threshold for fissure / farm loops. */
   fissureMode?: boolean
 }
 
-export function InventoryStaleBanner({ inventory, onOpenInventory, fissureMode }: Props) {
+export function InventoryStaleBanner({
+  inventory,
+  onOpenInventory,
+  onSyncInventory,
+  fissureMode,
+}: Props) {
   if (!inventory.loaded || !inventory.consent) return null
   const age = inventory.staleAgeMs
   const stale =
@@ -19,11 +25,19 @@ export function InventoryStaleBanner({ inventory, onOpenInventory, fissureMode }
   if (!stale) return null
 
   const mins = age != null ? Math.max(1, Math.round(age / 60_000)) : null
+  const canSync = Boolean(onSyncInventory && inventory.warframeRunning)
   return (
     <p className="market-buy-hit" role="status" style={{ marginBottom: 12 }}>
       Inventory looks stale{mins != null ? ` (~${mins}m old)` : ''}. Sync after extraction so
       ownership / recommend stay accurate.
-      {onOpenInventory ? (
+      {canSync ? (
+        <>
+          {' '}
+          <button type="button" className="linkish" onClick={onSyncInventory}>
+            Sync now
+          </button>
+        </>
+      ) : onOpenInventory ? (
         <>
           {' '}
           <button type="button" className="linkish" onClick={onOpenInventory}>

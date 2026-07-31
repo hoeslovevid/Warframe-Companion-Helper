@@ -12,6 +12,7 @@ import '../cycles/module.css'
 type Props = {
   opacity?: number
   compact?: boolean
+  onPostLfg?: (relicLabel: string, tier: string) => void
 }
 
 function openFissuresForTier(
@@ -35,7 +36,7 @@ function openFissuresForTier(
     .slice(0, 2)
 }
 
-export function RelicRecommendPanel({ opacity, compact }: Props) {
+export function RelicRecommendPanel({ opacity, compact, onPostLfg }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const { settings } = useSettings()
   const { data } = useWorldstate()
@@ -209,6 +210,16 @@ export function RelicRecommendPanel({ opacity, compact }: Props) {
                         No open {row.tier} fissure
                       </span>
                     )}
+                    {onPostLfg && !compact ? (
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        style={{ marginTop: 4, fontSize: '0.7rem', padding: '2px 8px' }}
+                        onClick={() => onPostLfg(row.name, row.tier)}
+                      >
+                        Post LFG
+                      </button>
+                    ) : null}
                   </span>
                 </li>
               )

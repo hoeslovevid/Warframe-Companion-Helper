@@ -7,6 +7,7 @@ import { useInventory } from '../../hooks/useInventory'
 import { useRelicScan } from '../../hooks/useRelicScan'
 import { useRivenScan } from '../../hooks/useRivenScan'
 import { useSettings, useWorldstate } from '../../hooks/useVoidLens'
+import { OverlayMissionStrip } from '../../components/OverlayMissionStrip'
 import { prettyHotkey } from '../../lib/hotkey'
 import { playScanSound } from '../../lib/sounds'
 import '../../styles/overlay.css'
@@ -175,6 +176,17 @@ export function OverlayApp() {
         onPanelMoved={dismissDragHint}
       />
       {cue}
+      <OverlayMissionStrip
+        settings={settings}
+        data={data}
+        inventory={inventory}
+        onSyncInventory={() => {
+          void window.voidlens?.syncInventoryFromGame?.().then((r) => {
+            // Overlay has no toast host; result surfaces via inventory status.
+            void r
+          })
+        }}
+      />
     </NowProvider>
   )
 }

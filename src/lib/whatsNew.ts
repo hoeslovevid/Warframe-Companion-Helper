@@ -265,6 +265,12 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Linux inventory sync: use Warframe’s Proton (config_info / version / CompatToolMapping) instead of Hotfix-first wine',
     'Run warframe-api-helper via `proton run` with matching STEAM_COMPAT_* env; fail fast with clearer gruzzle errors',
   ],
+  '0.9.63': [
+    'UX pass: Ctrl+K jump palette, session profile cards, inventory sync from status chip, global toasts',
+    'Overlay mission strip; relic OCR recovery (retry / slots / monitor); Best-pick Copy WTS + Market',
+    'Market session guide; Baro arrival notify; Linux health card; settings export/import; Today “What next”',
+    'Jump palette solid contrast; Relic Planner list scrolls while search/filters stay pinned',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

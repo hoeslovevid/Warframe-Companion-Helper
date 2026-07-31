@@ -172,7 +172,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
   const inventoryReady = inventory.loaded && inventory.uniqueCount > 0
 
   return (
-    <>
+    <div className="planner-page">
       <header className="page-header">
         <h2 className="page-title">Relic Planner</h2>
         <div className="page-title-rule" />
@@ -464,6 +464,6 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
           )}
         </section>
       </div>
-    </>
+    </div>
   )
 }

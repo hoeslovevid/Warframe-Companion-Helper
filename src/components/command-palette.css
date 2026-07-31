@@ -1,0 +1,124 @@
+.cmd-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  background: rgba(0, 0, 0, 0.72);
+  display: grid;
+  place-items: start center;
+  padding: 12vh 16px 16px;
+}
+
+.cmd-palette {
+  width: min(520px, 100%);
+  border-radius: 12px;
+  border: 1px solid var(--vl-panel-border, rgba(127, 150, 166, 0.22));
+  /* Prefer solid panel token — --bg/--bg-elevated can be translucent. */
+  background: var(--vl-panel-solid, #05090d);
+  color: var(--vl-frost, #c5d4de);
+  box-shadow: var(--vl-elev-3, 0 18px 48px rgba(0, 0, 0, 0.65));
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.cmd-palette__input {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--vl-panel-border, rgba(127, 150, 166, 0.18));
+  background: var(--vl-void-850, #0a1016);
+  color: var(--vl-frost, #c5d4de);
+  font: inherit;
+  font-size: 1rem;
+  padding: 14px 16px;
+  outline: none;
+}
+
+.cmd-palette__input::placeholder {
+  color: var(--vl-mist-dim, #5a6f7e);
+}
+
+.cmd-palette__list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: min(360px, 50vh);
+  overflow: auto;
+  background: var(--vl-panel-solid, #05090d);
+}
+
+.cmd-palette__item {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--vl-frost, #c5d4de);
+  font: inherit;
+  text-align: left;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.cmd-palette__item.is-active,
+.cmd-palette__item:hover {
+  background: color-mix(in srgb, var(--vl-teal, #2f8f88) 22%, var(--vl-void-800, #101820));
+}
+
+.cmd-palette__label {
+  color: var(--vl-frost, #c5d4de);
+}
+
+.cmd-palette__hint {
+  color: var(--vl-mist, #7f96a6);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.cmd-palette__empty {
+  padding: 16px;
+  color: var(--vl-mist, #7f96a6);
+  font-size: 0.9rem;
+}
+
+.cmd-palette__foot {
+  margin: 0;
+  padding: 8px 14px 12px;
+  font-size: 0.7rem;
+  color: var(--vl-mist-dim, #5a6f7e);
+  border-top: 1px solid var(--vl-panel-border, rgba(127, 150, 166, 0.18));
+  background: var(--vl-void-900, #060a0e);
+}
+
+/* Light themes: keep the dialog opaque and high-contrast. */
+[data-theme='snow'] .cmd-palette,
+[data-theme='parchment'] .cmd-palette,
+[data-theme='mist'] .cmd-palette,
+[data-theme='harbor'] .cmd-palette {
+  background: var(--vl-panel-solid, #f4f6f8);
+  color: var(--vl-frost, #1a2228);
+}
+
+[data-theme='snow'] .cmd-palette__input,
+[data-theme='parchment'] .cmd-palette__input,
+[data-theme='mist'] .cmd-palette__input,
+[data-theme='harbor'] .cmd-palette__input,
+[data-theme='snow'] .cmd-palette__list,
+[data-theme='parchment'] .cmd-palette__list,
+[data-theme='mist'] .cmd-palette__list,
+[data-theme='harbor'] .cmd-palette__list,
+[data-theme='snow'] .cmd-palette__foot,
+[data-theme='parchment'] .cmd-palette__foot,
+[data-theme='mist'] .cmd-palette__foot,
+[data-theme='harbor'] .cmd-palette__foot {
+  background: var(--vl-panel-solid, #f4f6f8);
+  color: inherit;
+}
+
+[data-theme='snow'] .cmd-palette__item,
+[data-theme='parchment'] .cmd-palette__item,
+[data-theme='mist'] .cmd-palette__item,
+[data-theme='harbor'] .cmd-palette__item {
+  color: inherit;
+}

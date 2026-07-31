@@ -21,6 +21,12 @@
   overflow: hidden;
 }
 
+/* Filters stay up top; relic/foundry list scrolls inside the panel. */
+.foundry-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
 .foundry-sidebar::before,
 .foundry-detail::before {
   content: '';
@@ -115,7 +121,9 @@
   flex: 1 1 auto;
   min-height: 0;
   overscroll-behavior: contain;
-  scrollbar-gutter: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--vl-accent) 80%, white) transparent;
 }
 
 .foundry-list li button {
@@ -462,6 +470,40 @@
 }
 
 /* ---------- Relic Planner hero ---------- */
+.planner-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  height: 100%;
+  max-height: 100%;
+}
+
+/* Relic Planner owns vertical scroll inside the list — don't nest another page scroll. */
+.companion-main:has(> div > .planner-page),
+.companion-main:has(> .planner-page) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+}
+
+.companion-main > div:has(> .planner-page) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.planner-page > .page-header,
+.planner-page > .planner-hero,
+.planner-page > .set-farm,
+.planner-page > .vl-panel {
+  flex-shrink: 0;
+}
+
 .planner-hero {
   margin-bottom: 14px;
   padding: 18px 20px;
@@ -516,24 +558,29 @@
   display: grid;
   grid-template-columns: minmax(260px, 300px) 1fr;
   gap: 14px;
-  min-height: 360px;
-  height: min(68vh, calc(100vh - 280px));
-  max-height: calc(100vh - 240px);
+  flex: 1 1 auto;
+  min-height: 280px;
   align-items: stretch;
   min-width: 0;
 }
 
 @media (max-width: 960px) {
+  .planner-page {
+    height: auto;
+    max-height: none;
+  }
+
   .foundry-layout,
   .planner-layout {
     grid-template-columns: 1fr;
     height: auto;
     max-height: none;
+    flex: none;
   }
 
   .foundry-sidebar {
-    max-height: min(42vh, 360px);
-    height: min(42vh, 360px);
+    max-height: min(52vh, 420px);
+    height: min(52vh, 420px);
   }
 
   .foundry-detail {

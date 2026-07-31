@@ -17,6 +17,20 @@
   box-sizing: border-box;
 }
 
+.relic-strip__next {
+  pointer-events: auto;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.relic-strip__next .btn {
+  pointer-events: auto;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+
 .relic-strip__status {
   margin: 0 0 8px;
   text-align: center;

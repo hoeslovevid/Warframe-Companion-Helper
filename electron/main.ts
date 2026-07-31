@@ -414,6 +414,12 @@ async function refreshWorldstate(force = false): Promise<WorldstateSnapshot> {
     }
   }
   broadcastWorldstate(worldstateCache)
+  try {
+    const { checkBaroArrivalNotify } = await import('./services/baro-arrival')
+    checkBaroArrivalNotify(worldstateCache)
+  } catch {
+    // ignore
+  }
   scheduleWorldstateExpiryCheck()
   return worldstateCache
 }
@@ -1069,6 +1075,47 @@ function getPrimaryDisplayInfo() {
 
 function registerIpc() {
   ipcMain.handle('settings:get', () => loadSettings())
+  ipcMain.handle('settings:export', async () => {
+    const settings = loadSettings()
+    const result = await dialog.showSaveDialog({
+      title: 'Export Everything Warframe settings',
+      defaultPath: `everything-warframe-settings-${settings.lastSeenVersion || 'backup'}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    if (result.canceled || !result.filePath) return { ok: false, error: 'cancelled' }
+    try {
+      // Strip secrets that shouldn't leave the machine casually.
+      const { ...safe } = settings
+      const payload = {
+        ...safe,
+        // Keep JWT out of exports — re-link WFM after import.
+        _note: 'warframe.market JWT is not included; re-link Account after import.',
+      }
+      fs.writeFileSync(result.filePath, JSON.stringify(payload, null, 2), 'utf8')
+      return { ok: true, path: result.filePath }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Export failed' }
+    }
+  })
+  ipcMain.handle('settings:import', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Import Everything Warframe settings',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    })
+    if (result.canceled || !result.filePaths[0]) return { ok: false, error: 'cancelled' }
+    try {
+      const raw = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf8')) as Partial<AppSettings>
+      delete (raw as { _note?: string })._note
+      const next = updateSettings(raw)
+      broadcastSettings(next)
+      registerHotkeys()
+      syncOverlayWindowVisibility({ silent: true })
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Import failed' }
+    }
+  })
   ipcMain.handle('settings:update', (e, partial: Partial<AppSettings>) => {
     const next = updateSettings(partial)
     if (partial.hotkeys) registerHotkeys()

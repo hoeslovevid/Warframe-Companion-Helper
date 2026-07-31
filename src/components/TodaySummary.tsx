@@ -12,6 +12,10 @@ import './today-summary.css'
 type Props = {
   data: WorldstateSnapshot
   settings: AppSettings
+  inventoryStale?: boolean
+  onNavigate?: (tab: string) => void
+  onSyncInventory?: () => void
+  onApplyBaroProfile?: () => void
 }
 
 function matchesPath(f: FissureInfo, settings: AppSettings) {
@@ -20,7 +24,14 @@ function matchesPath(f: FissureInfo, settings: AppSettings) {
   return true
 }
 
-export function TodaySummary({ data, settings }: Props) {
+export function TodaySummary({
+  data,
+  settings,
+  inventoryStale,
+  onNavigate,
+  onSyncInventory,
+  onApplyBaroProfile,
+}: Props) {
   const now = useNow()
   const done = new Set(settings.nightwaveDoneIds || [])
 
@@ -94,6 +105,23 @@ export function TodaySummary({ data, settings }: Props) {
                 meta: 'Enable modules or refresh when something looks off',
               }
 
+  const nextActions: Array<{ label: string; run: () => void }> = []
+  if (inventoryStale && onSyncInventory) {
+    nextActions.push({ label: 'Sync inventory', run: onSyncInventory })
+  }
+  if (baro?.active && settings.baroWishlist.length && onApplyBaroProfile) {
+    nextActions.push({ label: 'Baro day profile', run: onApplyBaroProfile })
+  }
+  if (dailies.length > 0 && onNavigate) {
+    nextActions.push({ label: 'Nightwave focus', run: () => onNavigate('dashboard') })
+  }
+  if (settings.modules.relicRecommend && onNavigate) {
+    nextActions.push({ label: 'Relic recommend', run: () => onNavigate('relicPlanner') })
+  }
+  if (settings.modules.market && onNavigate) {
+    nextActions.push({ label: 'Market session', run: () => onNavigate('market') })
+  }
+
   return (
     <Panel title="Today" subtitle="What matters this session" className="today-panel">
       <div className="today-brief">
@@ -101,6 +129,18 @@ export function TodaySummary({ data, settings }: Props) {
           <div className="today-brief__label">{brief.label}</div>
           <p className="today-brief__value">{brief.value}</p>
           <p className="today-brief__meta">{brief.meta}</p>
+          {nextActions.length ? (
+            <div className="today-next" style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <span className="today-cell__label" style={{ width: '100%' }}>
+                What next
+              </span>
+              {nextActions.slice(0, 4).map((a) => (
+                <button key={a.label} type="button" className="btn ghost" onClick={a.run}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="today-grid">

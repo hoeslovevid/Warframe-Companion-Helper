@@ -1,0 +1,65 @@
+.market-session {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg)) 65%, transparent);
+}
+
+.market-session__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.market-session__title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.market-session__sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.market-session__steps {
+  list-style: none;
+  margin: 12px 0 8px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.market-session__step {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.market-session__step.is-active {
+  border-color: var(--accent, #6af);
+  background: color-mix(in srgb, var(--accent, #6af) 14%, transparent);
+}
+
+.market-session__step.is-done {
+  opacity: 0.7;
+}
+
+.market-session__body {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.market-session__actions {
+  display: flex;
+  gap: 8px;
+}

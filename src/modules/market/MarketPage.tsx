@@ -5,6 +5,8 @@ import { Panel } from '../../components/Panel'
 import { useRelicScan } from '../../hooks/useRelicScan'
 import { useRivenScan } from '../../hooks/useRivenScan'
 import { copyText } from '../../lib/tradeClipboard'
+import { MarketSessionGuide } from '../../components/MarketSessionGuide'
+import { pushToast } from '../../lib/toast'
 import { MarketBuysPanel } from './MarketBuysPanel'
 import { MarketDealsPanel } from './MarketDealsPanel'
 import { MarketRivenStockPanel } from './MarketRivenStockPanel'
@@ -26,6 +28,7 @@ type Props = {
   enabled: boolean
   onUpdate: (partial: Partial<AppSettings>) => void
   onOpenHelp?: () => void
+  onFirstListCelebration?: () => void
 }
 
 type MarketTab =
@@ -77,7 +80,7 @@ function contractKindLabel(kind: WfmContract['kind']) {
   return 'Auction'
 }
 
-export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
+export function MarketPage({ settings, enabled, onUpdate, onOpenHelp, onFirstListCelebration }: Props) {
   const [tab, setTab] = useState<MarketTab>('watchlist')
   const [draft, setDraft] = useState('')
   const [quotes, setQuotes] = useState<MarketQuote[]>([])
@@ -437,6 +440,8 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
       setOrderItemQuery('')
       setOrderItemId('')
       setShowCreateOrder(false)
+      pushToast('Market order listed', 'ok')
+      onFirstListCelebration?.()
       await refreshOrders()
     } finally {
       setOrderBusy(false)
@@ -580,6 +585,12 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp }: Props) {
           </>
         )}
       </section>
+
+      <MarketSessionGuide
+        dismissed={settings.marketSessionGuideDismissed}
+        onDismiss={() => onUpdate({ marketSessionGuideDismissed: true })}
+        onGoTab={(id) => setTab(id as MarketTab)}
+      />
 
       <div className="vl-segment vl-segment--wrap market-tabs" role="tablist" aria-label="Market sections">
         {TABS.map((t) => (
