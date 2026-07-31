@@ -728,30 +728,49 @@ export async function deleteWfmContract(
   const id = String(contractId || '').trim()
   if (!id) return { ok: false, error: 'Missing contract id' }
 
+  // WFM auction cancel is v1 PUT (DELETE on /auctions/entry returns 405).
+  // Prefer /close; then mark closed; hide/private as soft fallbacks.
   const attempts: Array<{ url: string; method: string; body?: string }> = [
-    { url: `${API_V2}/auction/${encodeURIComponent(id)}`, method: 'DELETE' },
-    { url: `${API_V2}/contract/${encodeURIComponent(id)}`, method: 'DELETE' },
+    {
+      url: `${API_V1}/auctions/entry/${encodeURIComponent(id)}/close`,
+      method: 'PUT',
+      body: JSON.stringify({}),
+    },
+    {
+      url: `${API_V1}/auctions/entry/${encodeURIComponent(id)}`,
+      method: 'PUT',
+      body: JSON.stringify({ closed: true }),
+    },
+    {
+      url: `${API_V1}/auctions/entry/${encodeURIComponent(id)}`,
+      method: 'PUT',
+      body: JSON.stringify({ private: true }),
+    },
     {
       url: `${API_V1}/auctions/entry/${encodeURIComponent(id)}`,
       method: 'PUT',
       body: JSON.stringify({ visible: false }),
     },
+    { url: `${API_V2}/auction/${encodeURIComponent(id)}`, method: 'DELETE' },
+    { url: `${API_V2}/auction/${encodeURIComponent(id)}/close`, method: 'POST', body: '{}' },
+  ]
+
+  const headerSets: Record<string, string>[] = [
+    {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Platform: 'pc',
+      Language: 'en',
+      Authorization: `JWT ${token}`,
+      Cookie: `JWT=${token}`,
+      'User-Agent': 'EverythingWarframe/market',
+    },
+    authHeaders(token),
   ]
 
   let lastError = 'Cancel failed'
   for (const attempt of attempts) {
-    for (const headers of [
-      authHeaders(token),
-      {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        Platform: 'pc',
-        Language: 'en',
-        Authorization: `JWT ${token}`,
-        Cookie: `JWT=${token}`,
-        'User-Agent': 'EverythingWarframe/market',
-      },
-    ]) {
+    for (const headers of headerSets) {
       try {
         const res = await fetch(attempt.url, {
           method: attempt.method,
@@ -760,14 +779,15 @@ export async function deleteWfmContract(
         })
         const body = await res.text()
         if (res.ok) return { ok: true }
-        if (res.status === 404 || res.status === 405) {
-          lastError = apiErrorMessage(res.status, body)
-          break
-        }
         lastError = apiErrorMessage(res.status, body)
-        if (res.status !== 401 && res.status !== 403) {
-          return { ok: false, error: lastError }
-        }
+        // Wrong route / method — try the next attempt.
+        if (res.status === 404 || res.status === 405) break
+        // Auth style mismatch — try the other header set.
+        if (res.status === 401 || res.status === 403) continue
+        // Validation error on this payload — try the next attempt shape.
+        if (res.status === 400 || res.status === 422) break
+        // Unexpected hard failure — still try remaining routes once.
+        break
       } catch (err) {
         lastError = err instanceof Error ? err.message : 'Cancel failed'
       }

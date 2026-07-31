@@ -285,6 +285,9 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Linux health: detect YAMA ptrace_scope, copy fix command for gruzzle failures, clearer inventory sync tips',
     'Gruzzle / open-process errors on Linux point at Memory access instead of running the AppImage as root',
   ],
+  '0.9.67': [
+    'Market: fix cancelling warframe.market contracts (use auction /close API; clearer cancel toasts)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

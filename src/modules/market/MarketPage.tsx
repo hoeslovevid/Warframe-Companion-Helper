@@ -412,8 +412,10 @@ export function MarketPage({ settings, enabled, onUpdate, onOpenHelp, onFirstLis
       const res = await window.voidlens.deleteWfmContract(id)
       if (!res.ok) {
         setContractsError(res.error || 'Cancel failed')
+        pushToast(res.error || 'Cancel failed', 'error', 6000)
         return
       }
+      pushToast('Contract cancelled', 'ok')
       await refreshContracts()
     } finally {
       setCancelContractBusyId(null)
