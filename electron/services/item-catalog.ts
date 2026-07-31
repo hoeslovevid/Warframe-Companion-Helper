@@ -379,6 +379,11 @@ export function ensureItemCatalog(): Promise<void> {
   return ready
 }
 
+/** True when the in-memory item catalog maps are populated. */
+export function isItemCatalogReady(): boolean {
+  return byUnique.size > 0
+}
+
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0
   if (!a.length) return b.length

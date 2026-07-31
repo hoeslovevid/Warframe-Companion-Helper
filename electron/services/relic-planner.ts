@@ -21,6 +21,13 @@ import type {
 
 export type { RelicPlannerSort, RelicPlannerReward, RelicPlannerRow, RelicPlannerResult } from '../../shared/types'
 
+type CacheEntry = {
+  key: string
+  result: RelicPlannerResult
+}
+
+let lastCache: CacheEntry | null = null
+
 function normalizeFavorite(s: string): string {
   return s
     .toUpperCase()
@@ -66,6 +73,25 @@ function rowTouchesFavorite(
     }
   }
   return false
+}
+
+function entryHasPrimeReward(entry: RelicCatalogEntry): boolean {
+  return entry.rewards.some((r) => /prime/i.test(r.name) && !/^forma\b/i.test(r.name))
+}
+
+function entryMatchesSearch(
+  entry: RelicCatalogEntry,
+  search: string,
+  prime: FoundryPrimeFilter,
+): boolean {
+  if (entry.key.toLowerCase().includes(search)) return true
+  return entry.rewards.some((rw) => {
+    const name = rw.name.toLowerCase()
+    if (!name.includes(search)) return false
+    if (prime === 'prime' && !/prime/i.test(rw.name)) return false
+    if (prime === 'normal' && /prime/i.test(rw.name)) return false
+    return true
+  })
 }
 
 function buildRow(
@@ -115,8 +141,24 @@ function buildRow(
   }
 }
 
-function relicHasPrimeReward(row: RelicPlannerRow): boolean {
-  return row.rewards.some((r) => /prime/i.test(r.name) && !/^forma\b/i.test(r.name))
+function cacheKey(
+  opts: RelicPlannerQuery | undefined,
+  ownedTypes: number,
+  favorites: string[],
+  indexSize: number,
+): string {
+  return [
+    opts?.ownedOnly !== false ? '1' : '0',
+    opts?.sort || 'missing',
+    opts?.tier || 'all',
+    opts?.prime || 'any',
+    (opts?.search || '').trim().toLowerCase(),
+    opts?.favoritesFirst !== false ? '1' : '0',
+    opts?.limit ?? '',
+    ownedTypes,
+    indexSize,
+    favorites.join('\0'),
+  ].join('|')
 }
 
 export async function getRelicPlanner(opts?: RelicPlannerQuery): Promise<RelicPlannerResult> {
@@ -134,10 +176,13 @@ export async function getRelicPlanner(opts?: RelicPlannerQuery): Promise<RelicPl
   const index = peekInventoryIndex()
   const inventoryLoaded = Object.keys(index).length > 0
   const ownedByKey = buildOwnedByKey(index)
+  const ownedRelicTypes = [...ownedByKey.values()].filter((n) => n > 0).length
   const settings = loadSettings()
-  const favoriteNorms = new Set(
-    (settings.farmFavorites || []).map(normalizeFavorite).filter(Boolean),
-  )
+  const favorites = settings.farmFavorites || []
+  const key = cacheKey(opts, ownedRelicTypes, favorites, Object.keys(index).length)
+  if (lastCache?.key === key) return lastCache.result
+
+  const favoriteNorms = new Set(favorites.map(normalizeFavorite).filter(Boolean))
   const ownedOnly = opts?.ownedOnly !== false
   const sort: RelicPlannerSort = opts?.sort || 'missing'
   const search = (opts?.search || '').trim().toLowerCase()
@@ -145,24 +190,15 @@ export async function getRelicPlanner(opts?: RelicPlannerQuery): Promise<RelicPl
   const prime: FoundryPrimeFilter = opts?.prime || 'any'
   const favoritesFirst = opts?.favoritesFirst !== false && favoriteNorms.size > 0
 
-  let rows = listIntactRelics().map((e) => buildRow(e, index, ownedByKey, favoriteNorms))
-  if (ownedOnly) rows = rows.filter((r) => r.owned > 0)
-  if (tier !== 'all') rows = rows.filter((r) => r.tier.toLowerCase() === tier.toLowerCase())
-  if (prime === 'prime') rows = rows.filter((r) => relicHasPrimeReward(r))
-  if (prime === 'normal') rows = rows.filter((r) => !relicHasPrimeReward(r))
-  if (search) {
-    rows = rows.filter(
-      (r) =>
-        r.key.toLowerCase().includes(search) ||
-        r.rewards.some((rw) => {
-          const name = rw.name.toLowerCase()
-          if (!name.includes(search)) return false
-          if (prime === 'prime' && !/prime/i.test(rw.name)) return false
-          if (prime === 'normal' && /prime/i.test(rw.name)) return false
-          return true
-        }),
-    )
-  }
+  // Filter catalog entries cheaply before building enriched reward rows.
+  let entries = listIntactRelics()
+  if (ownedOnly) entries = entries.filter((e) => (ownedByKey.get(e.key) || 0) > 0)
+  if (tier !== 'all') entries = entries.filter((e) => e.tier.toLowerCase() === tier.toLowerCase())
+  if (prime === 'prime') entries = entries.filter((e) => entryHasPrimeReward(e))
+  if (prime === 'normal') entries = entries.filter((e) => !entryHasPrimeReward(e))
+  if (search) entries = entries.filter((e) => entryMatchesSearch(e, search, prime))
+
+  let rows = entries.map((e) => buildRow(e, index, ownedByKey, favoriteNorms))
 
   const compare = (a: RelicPlannerRow, b: RelicPlannerRow) => {
     if (sort === 'platinum') {
@@ -195,10 +231,12 @@ export async function getRelicPlanner(opts?: RelicPlannerQuery): Promise<RelicPl
     rows = rows.slice(0, limit)
   }
 
-  return {
+  const result: RelicPlannerResult = {
     rows,
-    ownedRelicTypes: [...ownedByKey.values()].filter((n) => n > 0).length,
+    ownedRelicTypes,
     inventoryLoaded,
     error: null,
   }
+  lastCache = { key, result }
+  return result
 }

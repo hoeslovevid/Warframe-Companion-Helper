@@ -55,6 +55,8 @@
   gap: 12px;
   padding: 8px 0;
   border-bottom: 1px solid rgba(157, 180, 196, 0.12);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 52px;
 }
 
 .inventory-tags {

@@ -199,6 +199,13 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Relic reward OCR: Best pick modes — balanced / needed / platinum / ducats (Settings)',
     'Inventory Sellables: duplicate parts with prices + one-click warframe.market sell list',
   ],
+  '0.9.49': [
+    'Faster companion: idle-warmup catalogs; Inventory skips price lookups unless Sellables',
+    'Inventory search debounced; lighter list rendering',
+    'Relic Planner builds only matching relics; search debounced; result cache',
+    'Layout tab: enabled modules by default, lighter preview stubs, deferred OCR guides',
+    'Relic Planner + Layout stay mounted after first visit for snappier tab switches',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

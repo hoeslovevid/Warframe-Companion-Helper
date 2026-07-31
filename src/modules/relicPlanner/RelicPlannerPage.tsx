@@ -20,6 +20,7 @@ type Props = {
 }
 
 const TIERS = ['all', 'Lith', 'Meso', 'Neo', 'Axi', 'Requiem'] as const
+const SEARCH_DEBOUNCE_MS = 220
 
 function normalizeFavorite(s: string): string {
   return s
@@ -38,6 +39,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
   const [tier, setTier] = useState<string>('all')
   const [prime, setPrime] = useState<FoundryPrimeFilter>('any')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [rows, setRows] = useState<RelicPlannerRow[]>([])
   const [ownedTypes, setOwnedTypes] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -53,9 +55,14 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
     [favoritesKey, settings.farmFavorites],
   )
 
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(t)
+  }, [search])
+
   const query = useMemo<RelicPlannerQuery>(
-    () => ({ ownedOnly, sort, tier, search, prime, favoritesFirst: true }),
-    [ownedOnly, sort, tier, search, prime],
+    () => ({ ownedOnly, sort, tier, search: debouncedSearch, prime, favoritesFirst: true }),
+    [ownedOnly, sort, tier, debouncedSearch, prime],
   )
 
   const refresh = useCallback(async () => {
@@ -89,7 +96,7 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
       setSetFarm(null)
       return
     }
-    const q = search.trim()
+    const q = debouncedSearch.trim()
     if (q.length < 3) {
       setSetFarm(null)
       return
@@ -99,12 +106,12 @@ export function RelicPlannerPage({ enabled, onOpenSettings, onOpenFoundry }: Pro
       void window.voidlens!.getSetFarm({ search: q, prime }).then((next) => {
         if (!cancelled) setSetFarm(next)
       })
-    }, 180)
+    }, 80)
     return () => {
       cancelled = true
       window.clearTimeout(t)
     }
-  }, [enabled, search, prime, inventory.revision, inventory.loaded])
+  }, [enabled, debouncedSearch, prime, inventory.revision, inventory.loaded])
 
   const isFavoriteName = useCallback(
     (name: string) => {

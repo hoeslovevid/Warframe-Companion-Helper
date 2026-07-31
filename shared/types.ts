@@ -1165,6 +1165,8 @@ export type InventoryBrowseQuery = {
   kind?: InventoryBrowseKind | 'all'
   /** Only parts/BPs with excess + a known platinum (or ducats) price. */
   sellableOnly?: boolean
+  /** Attach platinum/ducats (also implied by sellableOnly). Off by default for speed. */
+  enrichPrices?: boolean
   limit?: number
 }
 

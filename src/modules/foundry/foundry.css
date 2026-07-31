@@ -129,6 +129,8 @@
   cursor: pointer;
   font: inherit;
   transition: background var(--vl-duration-fast) var(--vl-ease);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
 }
 
 .foundry-list li button:hover,

@@ -97,6 +97,12 @@ export async function ensureWfinfoPrices(force = false): Promise<void> {
   return loading
 }
 
+/** True when at least one local price is available (disk or memory). */
+export function isWfinfoPricesReady(): boolean {
+  if (!byNormalized.size) loadDisk()
+  return byNormalized.size > 0
+}
+
 /** Instant local platinum average for a catalog/OCR display name. */
 export function lookupWfinfoPlatinum(name: string): number | null {
   if (!name) return null

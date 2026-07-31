@@ -20,6 +20,7 @@ import { InvasionsPanel } from '../modules/invasions/InvasionsPanel'
 import { ArchonPanel } from '../modules/archon/ArchonPanel'
 import { DeepArchimedeaPanel } from '../modules/deepArchimedea/DeepArchimedeaPanel'
 import { RivenPanel } from '../modules/rivens/RivenPanel'
+import { Panel } from './Panel'
 import { OcrScanGuides } from './OcrScanGuides'
 import '../styles/overlay.css'
 import './OverlayLayoutStage.css'
@@ -342,6 +343,15 @@ export function OverlayLayoutStage({
             />
           )
         case 'relicRecommend':
+          if (mode === 'preview') {
+            return (
+              <Panel title="Relic Recommend" subtitle="Preview stub" opacity={op}>
+                <p className="mod-empty" style={{ margin: 0 }}>
+                  Lith G2 · Meso N11 · Neo A7
+                </p>
+              </Panel>
+            )
+          }
           return <RelicRecommendPanel opacity={op} compact />
         default:
           return null

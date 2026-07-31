@@ -222,6 +222,11 @@ export function ensureRecipeCatalog(opts?: { force?: boolean }): Promise<void> {
   return ready
 }
 
+/** True when recipe items are loaded in memory. */
+export function isRecipeCatalogReady(): boolean {
+  return items.length > 0
+}
+
 /** Drop in-memory catalog so the next ensure reloads from disk or network. */
 export function invalidateRecipeCatalog() {
   ready = null

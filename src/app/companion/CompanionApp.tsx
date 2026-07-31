@@ -136,6 +136,8 @@ const TOUR_STEPS: TourStep[] = [
 
 export function CompanionApp() {
   const [tab, setTab] = useState<Tab>('dashboard')
+  /** Heavy tabs stay mounted after first visit so revisits don't rebuild from scratch. */
+  const [keptTabs, setKeptTabs] = useState<Partial<Record<'relicPlanner' | 'layout', true>>>({})
   const [tourOpen, setTourOpen] = useState(false)
   const [hotkeysOpen, setHotkeysOpen] = useState(false)
   const [whatsNewOpen, setWhatsNewOpen] = useState(false)
@@ -197,6 +199,9 @@ export function CompanionApp() {
   const goTab = useCallback(
     (next: Tab) => {
       setTab(next)
+      if (next === 'relicPlanner' || next === 'layout') {
+        setKeptTabs((prev) => (prev[next] ? prev : { ...prev, [next]: true }))
+      }
       if (next === 'layout' && !settings.onboarding.layoutVisited) {
         patchOnboarding({ layoutVisited: true })
       }
@@ -809,12 +814,17 @@ export function CompanionApp() {
               />
             ) : null}
 
-            {tab === 'relicPlanner' ? (
-              <RelicPlannerPage
-                enabled={settings.modules.relicPlanner !== false}
-                onOpenSettings={() => goTab('settings')}
-                onOpenFoundry={() => goTab('foundry')}
-              />
+            {keptTabs.relicPlanner || tab === 'relicPlanner' ? (
+              <div
+                className={tab === 'relicPlanner' ? undefined : 'companion-tab-park'}
+                aria-hidden={tab !== 'relicPlanner'}
+              >
+                <RelicPlannerPage
+                  enabled={settings.modules.relicPlanner !== false}
+                  onOpenSettings={() => goTab('settings')}
+                  onOpenFoundry={() => goTab('foundry')}
+                />
+              </div>
             ) : null}
 
             {tab === 'mastery' ? (
@@ -841,31 +851,36 @@ export function CompanionApp() {
               />
             ) : null}
 
-            {tab === 'layout' ? (
-              <LayoutEditor
-                settingsModules={settings.modules}
-                panelAnchors={settings.panelAnchors}
-                opacity={settings.opacity}
-                moduleOpacity={settings.moduleOpacity}
-                overlayScale={settings.overlayScale}
-                fissureTiers={settings.fissureTiers}
-                fissurePathMode={settings.fissurePathMode}
-                fissureShowStorms={settings.fissureShowStorms}
-                fissureSort={settings.fissureSort}
-                baroWishlist={settings.baroWishlist}
-                nightwaveDoneIds={settings.nightwaveDoneIds}
-                interactionHotkey={prettyHotkey(settings.hotkeys.editLayout)}
-                liveData={data}
-                ocrScanRegions={settings.ocrScanRegions ?? {
-                  relicStrip: null,
-                  rivenCurrent: null,
-                  rivenReroll: null,
-                }}
-                onSaveAnchors={(panelAnchors) => void updateSettings({ panelAnchors })}
-                onSaveOcrScanRegions={(ocrScanRegions) =>
-                  void updateSettings({ ocrScanRegions })
-                }
-              />
+            {keptTabs.layout || tab === 'layout' ? (
+              <div
+                className={tab === 'layout' ? undefined : 'companion-tab-park'}
+                aria-hidden={tab !== 'layout'}
+              >
+                <LayoutEditor
+                  settingsModules={settings.modules}
+                  panelAnchors={settings.panelAnchors}
+                  opacity={settings.opacity}
+                  moduleOpacity={settings.moduleOpacity}
+                  overlayScale={settings.overlayScale}
+                  fissureTiers={settings.fissureTiers}
+                  fissurePathMode={settings.fissurePathMode}
+                  fissureShowStorms={settings.fissureShowStorms}
+                  fissureSort={settings.fissureSort}
+                  baroWishlist={settings.baroWishlist}
+                  nightwaveDoneIds={settings.nightwaveDoneIds}
+                  interactionHotkey={prettyHotkey(settings.hotkeys.editLayout)}
+                  liveData={data}
+                  ocrScanRegions={settings.ocrScanRegions ?? {
+                    relicStrip: null,
+                    rivenCurrent: null,
+                    rivenReroll: null,
+                  }}
+                  onSaveAnchors={(panelAnchors) => void updateSettings({ panelAnchors })}
+                  onSaveOcrScanRegions={(ocrScanRegions) =>
+                    void updateSettings({ ocrScanRegions })
+                  }
+                />
+              </div>
             ) : null}
 
             {tab === 'settings' ? (

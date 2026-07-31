@@ -20,6 +20,8 @@ const KIND_FILTERS: Array<{ id: InventoryBrowseKind | 'all' | 'sellable'; label:
   { id: 'other', label: 'Other' },
 ]
 
+const SEARCH_DEBOUNCE_MS = 220
+
 function formatAge(ms: number | null): string {
   if (ms == null) return 'never'
   const m = Math.floor(ms / 60_000)
@@ -50,11 +52,17 @@ function kindLabel(kind: InventoryBrowseKind): string {
 export function InventoryPage({ onOpenSettings }: Props) {
   const { status, busy, message, syncFromGame, refresh } = useInventory()
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [kind, setKind] = useState<InventoryBrowseKind | 'all' | 'sellable'>('all')
   const [rows, setRows] = useState<InventoryBrowseItem[]>([])
   const [loading, setLoading] = useState(false)
   const [listBusy, setListBusy] = useState<string | null>(null)
   const [listMsg, setListMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(t)
+  }, [search])
 
   const load = useCallback(async () => {
     if (!window.voidlens?.browseInventory) return
@@ -62,16 +70,17 @@ export function InventoryPage({ onOpenSettings }: Props) {
     try {
       const sellableOnly = kind === 'sellable'
       const next = await window.voidlens.browseInventory({
-        search,
+        search: debouncedSearch,
         kind: sellableOnly ? 'all' : kind,
         sellableOnly,
-        limit: sellableOnly ? 200 : 800,
+        enrichPrices: sellableOnly,
+        limit: sellableOnly ? 200 : 400,
       })
       setRows(next)
     } finally {
       setLoading(false)
     }
-  }, [search, kind])
+  }, [debouncedSearch, kind])
 
   useEffect(() => {
     if (!status.loaded) {
@@ -208,7 +217,7 @@ export function InventoryPage({ onOpenSettings }: Props) {
         <p className="muted inventory-meta">
           Showing {totals.stacks} stacks ({totals.units} units)
           {kind === 'sellable' ? ` · ${totals.excess} excess` : ''}
-          {loading ? ' · loading…' : ''}
+          {loading || search.trim() !== debouncedSearch ? ' · loading…' : ''}
         </p>
         <ul className="inventory-list">
           {rows.length === 0 ? (
@@ -238,8 +247,7 @@ export function InventoryPage({ onOpenSettings }: Props) {
                   </div>
                 </div>
                 <div className="inventory-row-actions">
-                  {(kind === 'sellable' || (r.excess > 0 && r.platinum != null)) &&
-                  r.platinum != null ? (
+                  {kind === 'sellable' && r.platinum != null ? (
                     <button
                       type="button"
                       className="btn ghost"

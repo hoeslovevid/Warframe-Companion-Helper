@@ -283,6 +283,11 @@ export function ensureRelicCatalog(opts?: { force?: boolean }): Promise<void> {
   return ready
 }
 
+/** True when relic entries are loaded in memory. */
+export function isRelicCatalogReady(): boolean {
+  return byKey.size > 0
+}
+
 export function getRelicKeys(): string[] {
   return [...byKey.keys()]
 }

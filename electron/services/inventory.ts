@@ -987,6 +987,7 @@ export function browseInventory(
     .toLowerCase()
   const kindFilter = query?.kind || 'all'
   const sellableOnly = Boolean(query?.sellableOnly)
+  const enrichPrices = sellableOnly || Boolean(query?.enrichPrices)
   const limit = Math.min(Math.max(Number(query?.limit) || 500, 1), 5000)
   const rows: import('../../shared/types').InventoryBrowseItem[] = []
 
@@ -1004,18 +1005,23 @@ export function browseInventory(
       if (!hay.includes(search)) continue
     }
 
-    const catalog =
-      findCatalogItemByUnique(uniqueName) || findCatalogItemByName(displayName)
-    const platDirect = lookupWfinfoPlatinum(displayName)
-    const platAlt =
-      catalog?.name && catalog.name !== displayName
-        ? lookupWfinfoPlatinum(catalog.name)
-        : null
-    const platinum = platDirect ?? platAlt
-    const ducats = catalog?.ducats ?? null
     // Keep one of each prime part/BP; extras are sell/ducat candidates.
     const keepOne = kind === 'part' || isBlueprint || isComponent
     const excess = keepOne ? Math.max(0, count - 1) : 0
+
+    let platinum: number | null = null
+    let ducats: number | null = null
+    if (enrichPrices) {
+      const catalog =
+        findCatalogItemByUnique(uniqueName) || findCatalogItemByName(displayName)
+      const platDirect = lookupWfinfoPlatinum(displayName)
+      const platAlt =
+        catalog?.name && catalog.name !== displayName
+          ? lookupWfinfoPlatinum(catalog.name)
+          : null
+      platinum = platDirect ?? platAlt
+      ducats = catalog?.ducats ?? null
+    }
 
     if (sellableOnly) {
       if (kind === 'relic' || kind === 'currency' || kind === 'resource' || kind === 'gear') {

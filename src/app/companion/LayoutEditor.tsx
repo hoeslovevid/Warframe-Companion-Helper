@@ -73,8 +73,9 @@ export function LayoutEditor({
 }: Props) {
   const shellRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0.45)
-  const [showAll, setShowAll] = useState(true)
+  const [showAll, setShowAll] = useState(false)
   const [editOcrAreas, setEditOcrAreas] = useState(true)
+  const [ocrGuidesReady, setOcrGuidesReady] = useState(false)
   const [anchors, setAnchors] = useState(panelAnchors)
   const [ocrRegions, setOcrRegions] = useState(ocrScanRegions)
   const [display, setDisplay] = useState<PrimaryDisplayInfo>(FALLBACK_DISPLAY)
@@ -86,6 +87,17 @@ export function LayoutEditor({
   useEffect(() => {
     setOcrRegions(ocrScanRegions)
   }, [ocrScanRegions])
+
+  // Defer OCR guides one frame so panel chrome paints first.
+  useEffect(() => {
+    if (!editOcrAreas) {
+      setOcrGuidesReady(false)
+      return
+    }
+    setOcrGuidesReady(false)
+    const t = window.setTimeout(() => setOcrGuidesReady(true), 60)
+    return () => window.clearTimeout(t)
+  }, [editOcrAreas])
 
   useEffect(() => {
     let cancelled = false
@@ -223,7 +235,7 @@ export function LayoutEditor({
       <div style={{ marginBottom: 14, maxWidth: 560, display: 'grid', gap: 10 }}>
         <ToggleRow
           label="Show all modules"
-          description="Include disabled modules so you can place them before enabling"
+          description="Include disabled modules so you can place them before enabling (heavier preview)"
           checked={showAll}
           onChange={setShowAll}
         />
@@ -270,8 +282,8 @@ export function LayoutEditor({
               designHeight={designH}
               relicPreviewRewards={MOCK_RELIC_REWARDS}
               rivenPreviewState={MOCK_RIVEN_SCAN}
-              showOcrGuides={editOcrAreas}
-              ocrGuidesEditable={editOcrAreas}
+              showOcrGuides={editOcrAreas && ocrGuidesReady}
+              ocrGuidesEditable={editOcrAreas && ocrGuidesReady}
               ocrScanRegions={ocrRegions}
               onOcrScanRegionsChange={setOcrRegions}
               onOcrScanRegionsCommit={commitOcr}

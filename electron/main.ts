@@ -36,7 +36,7 @@ import {
   openUserDataFolder,
   openWindowsAppsSettings,
 } from './services/uninstall'
-import { ensureWfinfoPrices } from './services/wfinfo-prices'
+import { ensureWfinfoPrices, isWfinfoPricesReady } from './services/wfinfo-prices'
 import { defaultRivenAnchor } from '../shared/captureGeometry'
 import { fetchWorldstate, hasExpiredWorldstate, nextWorldstateExpiryMs } from './services/worldstate'
 import { detectEeLogPath } from './services/log-path'
@@ -328,6 +328,39 @@ async function warmFoundryAfterInventorySync() {
     await ensureRecipeCatalog({ force: getRecipeItems().length === 0 })
   } catch (err) {
     console.warn('[Everything Warframe] Recipe catalog refresh after sync failed', err)
+  }
+}
+
+/** Prefetch companion catalogs so Inventory / Foundry / Relic Planner open warm. */
+async function warmCompanionCatalogs() {
+  console.info('[Everything Warframe] Warming companion catalogs…')
+  try {
+    const [{ ensureRecipeCatalog }, { ensureItemCatalog }, { ensureRelicCatalog: ensureRelics }] =
+      await Promise.all([
+        import('./services/recipe-catalog'),
+        import('./services/item-catalog'),
+        import('./services/relic-catalog'),
+      ])
+    await Promise.all([
+      ensureRecipeCatalog().catch((err) =>
+        console.warn('[Everything Warframe] Recipe catalog warmup failed', err),
+      ),
+      ensureItemCatalog().catch((err) =>
+        console.warn('[Everything Warframe] Item catalog warmup failed', err),
+      ),
+      ensureRelics().catch((err) =>
+        console.warn('[Everything Warframe] Relic catalog warmup failed', err),
+      ),
+      ensureWfinfoPrices().catch((err) =>
+        console.warn('[Everything Warframe] WFInfo price warmup failed', err),
+      ),
+    ])
+    console.info('[Everything Warframe] Companion catalogs warm')
+  } catch (err) {
+    console.warn(
+      '[Everything Warframe] Companion catalog warmup failed',
+      err instanceof Error ? err.message : err,
+    )
   }
 }
 
@@ -1157,15 +1190,25 @@ function registerIpc() {
   })
   ipcMain.handle('inventory:index', () => getInventoryIndex())
   ipcMain.handle('inventory:browse', async (_e, query) => {
-    await Promise.all([
-      import('./services/recipe-catalog')
-        .then((m) => m.ensureRecipeCatalog())
-        .catch(() => {}),
-      import('./services/item-catalog')
-        .then((m) => m.ensureItemCatalog())
-        .catch(() => {}),
-      ensureWfinfoPrices().catch(() => {}),
-    ])
+    const sellableOnly = Boolean(query?.sellableOnly)
+    const enrichPrices = sellableOnly || Boolean(query?.enrichPrices)
+    const [{ ensureRecipeCatalog, isRecipeCatalogReady }, { ensureItemCatalog, isItemCatalogReady }] =
+      await Promise.all([
+        import('./services/recipe-catalog'),
+        import('./services/item-catalog'),
+      ])
+
+    // Prefer sync path when already warm. Only await missing pieces; never refetch
+    // prices on every keystroke once the DB is in memory.
+    const tasks: Promise<unknown>[] = []
+    if (!isRecipeCatalogReady()) {
+      tasks.push(ensureRecipeCatalog().catch(() => {}))
+    }
+    if (enrichPrices) {
+      if (!isItemCatalogReady()) tasks.push(ensureItemCatalog().catch(() => {}))
+      if (!isWfinfoPricesReady()) tasks.push(ensureWfinfoPrices().catch(() => {}))
+    }
+    if (tasks.length) await Promise.all(tasks)
     return browseInventory(query)
   })
   ipcMain.handle('relics:get', () => getRelicScanState())
@@ -1426,6 +1469,11 @@ app.whenReady().then(async () => {
     console.error('Initial worldstate fetch failed', err)
   }
 
+  // Prefetch companion catalogs early so Inventory / Foundry / Planner aren't cold.
+  setTimeout(() => {
+    void warmCompanionCatalogs()
+  }, 1200)
+
   // Prefetch prices + warm OCR/catalog while idle so the first scan isn't cold.
   // Delayed so launch stays snappy; still finishes before a typical mission load.
   if (loadSettings().modules.relics || loadSettings().modules.rivens) {
@@ -1454,12 +1502,6 @@ app.whenReady().then(async () => {
         }
       })()
     }, 3500)
-  }
-
-  if (loadSettings().modules.relics) {
-    setTimeout(() => {
-      void ensureWfinfoPrices().catch(() => {})
-    }, 2500)
   }
 
   // Linux/Wayland: only warm the PipeWire share after the user has authorized
