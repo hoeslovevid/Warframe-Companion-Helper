@@ -271,6 +271,10 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Market session guide; Baro arrival notify; Linux health card; settings export/import; Today “What next”',
     'Jump palette solid contrast; Relic Planner list scrolls while search/filters stay pinned',
   ],
+  '0.9.64': [
+    'Linux inventory sync: block overlapping helper runs, kill stale Wine processes, pulse Enter so Proton does not hang for 90s',
+    'Prefer matching Proton wine64 (keeps cwd) over proton run; pick up inventory.json from alternate Wine write paths',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

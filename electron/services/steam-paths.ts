@@ -300,16 +300,28 @@ export function findWarframeWineLauncher(): WineLauncher | null {
     if (!fs.existsSync(bin)) continue
     const protonRoot = protonRootFromWineBin(bin)
     const label = protonRoot ? path.basename(protonRoot) : path.basename(bin)
-    const proton = protonRoot ? protonScriptForRoot(protonRoot) : null
-    if (proton && compat) {
-      // `proton run` attaches to the game's Steam compat environment correctly.
+    // Prefer wine64/wine against the game's WINEPREFIX so we share the running
+    // wineserver and keep the Linux cwd (inventory.json lands where we watch).
+    // `proton run` is a fallback when only the proton script is available.
+    return { command: bin, args: [], label }
+  }
+
+  // No wine bins discovered — try proton script from config/version/mapping roots.
+  if (compat) {
+    const roots = [
+      ...protonRootsFromConfigInfo(compat),
+      ...protonRootsMatchingVersionFile(compat),
+      ...protonRootsFromCompatToolMapping(),
+    ]
+    for (const root of roots) {
+      const proton = protonScriptForRoot(root)
+      if (!proton) continue
       return {
         command: proton,
         args: ['run'],
-        label: `${label} (proton run)`,
+        label: `${path.basename(root)} (proton run)`,
       }
     }
-    return { command: bin, args: [], label }
   }
 
   return findWineLauncher()

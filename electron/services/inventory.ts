@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import https from 'node:https'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { app } from 'electron'
 import {
   InventoryCandidate,
@@ -681,7 +681,102 @@ async function waitForNewFile(
   return false
 }
 
-export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
+/** Prevent overlapping syncs from stacking Wine/Proton helpers. */
+let syncInFlight: Promise<InventorySyncResult> | null = null
+let activeHelper: ChildProcess | null = null
+
+export function isInventorySyncInFlight(): boolean {
+  return syncInFlight != null
+}
+
+function stopActiveHelper(opts?: { clearOrphans?: boolean }) {
+  const child = activeHelper
+  activeHelper = null
+  if (child) {
+    try {
+      child.stdin?.write('\r\n')
+      child.stdin?.end()
+    } catch {
+      // ignore
+    }
+    try {
+      child.kill('SIGTERM')
+    } catch {
+      // ignore
+    }
+    // Wine/Proton children often ignore SIGTERM on the parent script.
+    setTimeout(() => {
+      try {
+        if (!child.killed) child.kill('SIGKILL')
+      } catch {
+        // ignore
+      }
+    }, 400)
+  }
+  if (opts?.clearOrphans !== false && process.platform === 'linux') {
+    try {
+      // Best-effort: clear orphaned helper.exe left by prior timed-out syncs.
+      execFileSync('pkill', ['-f', 'warframe-api-helper.exe'], {
+        stdio: 'ignore',
+        timeout: 1500,
+      })
+    } catch {
+      // pkill exits 1 when nothing matched
+    }
+  }
+}
+
+/** Candidate paths where the helper may drop inventory.json under Wine/Proton. */
+function inventoryOutputCandidates(workDir: string): string[] {
+  const names = ['inventory.json']
+  const out: string[] = []
+  for (const name of names) {
+    out.push(path.join(workDir, name))
+    out.push(path.join(toolsDir(), name))
+  }
+  const protonLocal = warframeProtonLocalAppData()
+  if (protonLocal) {
+    out.push(path.join(protonLocal, 'inventory.json'))
+    out.push(path.join(protonLocal, 'Warframe', 'inventory.json'))
+  }
+  return [...new Set(out)]
+}
+
+function findFreshInventoryFile(candidates: string[], notBeforeMs: number): string | null {
+  let best: { path: string; mtime: number } | null = null
+  for (const p of candidates) {
+    try {
+      if (!fs.existsSync(p)) continue
+      const st = fs.statSync(p)
+      if (st.size <= 100 || st.mtimeMs < notBeforeMs - 2000) continue
+      if (!best || st.mtimeMs > best.mtime) best = { path: p, mtime: st.mtimeMs }
+    } catch {
+      // ignore
+    }
+  }
+  return best?.path ?? null
+}
+
+function helperFailureMessage(cleaned: string): string {
+  if (/Process not found/i.test(cleaned)) {
+    return 'Inventory helper could not see Warframe.x64.exe in the Proton prefix. Stay logged into Warframe via Steam, then sync again. If this keeps failing, import inventory.json manually.'
+  }
+  if (/Failed to gruzzle the crumbs/i.test(cleaned)) {
+    return 'Inventory helper found Warframe but could not read account credentials from memory (gruzzle failed). Stay on the orbiter / logged in, then retry. If it keeps failing after an update, import inventory.json manually.'
+  }
+  if (/Failed to open process/i.test(cleaned)) {
+    return 'Inventory helper found Warframe but could not open the process. Try syncing again while logged in; avoid running the helper under a different Proton than the game.'
+  }
+  if (/Request failed/i.test(cleaned)) {
+    return 'Inventory download failed after reading account credentials (HTTPS under Wine). Stay logged into Warframe, check network access to mobile.warframe.com, then try again.'
+  }
+  if (cleaned) return cleaned.slice(0, 400)
+  return process.platform === 'linux'
+    ? 'Timed out waiting for inventory.json under Proton. Stay logged in on the orbiter, then sync once — overlapping syncs are blocked now. Or import a file manually.'
+    : 'Timed out waiting for inventory.json. Stay logged into Warframe and try again.'
+}
+
+async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
   const settings = loadSettings()
   if (!settings.inventoryConsent) {
     return {
@@ -701,21 +796,26 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
     }
   }
 
+  // Never stack helpers — kill any leftover Wine process from a prior timeout.
+  stopActiveHelper()
+
+  let stdinPulse: ReturnType<typeof setInterval> | null = null
   try {
     const exe = await ensureHelperDownloaded()
     const work = inventoryWorkDir()
     fs.mkdirSync(work, { recursive: true })
-    // Helper always writes ./inventory.json in cwd. Delete any leftover so we
-    // don't treat a Wine-locked stale file as a successful new sync.
+    const candidates = inventoryOutputCandidates(work)
     const legacyOut = path.join(work, 'inventory.json')
-    try {
-      if (fs.existsSync(legacyOut)) fs.unlinkSync(legacyOut)
-    } catch {
-      // ignore locked files — waitForNewFile still checks mtime
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) fs.unlinkSync(p)
+      } catch {
+        // ignore locked files — freshness check still uses mtime
+      }
     }
 
     const startedAt = Date.now()
-    let child
+    let child: ChildProcess
     if (process.platform === 'linux') {
       const wine = findWarframeWineLauncher()
       const pfx = warframeProtonPrefix()
@@ -739,15 +839,12 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       const env = buildWineHelperEnv(wine, pfx)
       const compat = warframeCompatDataDir()
       if (compat) env.STEAM_COMPAT_DATA_PATH = compat
-      // Help `proton run` locate the Steam client that owns this prefix.
       const steamRoot = warframeSteamClientRoot()
       if (steamRoot) {
         env.STEAM_COMPAT_CLIENT_INSTALL_PATH = steamRoot
       }
       env.SteamAppId = WARFRAME_STEAM_APP_ID
       env.SteamGameId = WARFRAME_STEAM_APP_ID
-      // Never inherit Electron/AppImage LD_LIBRARY_PATH / FONTCONFIG_* — that loads
-      // the AppImage's older fontconfig into Wine and breaks HTTPS after auth.
       child = spawn(wine.command, [...wine.args, exe], {
         cwd: work,
         env,
@@ -761,6 +858,8 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       })
     }
 
+    activeHelper = child
+
     let stderr = ''
     child.stderr?.on('data', (d) => {
       stderr += String(d)
@@ -769,58 +868,91 @@ export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
       stderr += String(d)
     })
 
+    // Helper waits for Enter after (or before) finishing — pulse stdin immediately
+    // so Proton/Wine does not sit for the full timeout with no inventory.json.
+    const nudgeStdin = () => {
+      try {
+        child.stdin?.write('\r\n')
+      } catch {
+        // ignore
+      }
+    }
+    nudgeStdin()
+    stdinPulse = setInterval(nudgeStdin, 1500)
+
     const childExit = new Promise<number | null>((resolve) => {
       child.on('exit', (code) => resolve(code))
-      child.on('error', () => resolve(null))
+      child.on('error', (err) => {
+        stderr += `\n${err instanceof Error ? err.message : String(err)}`
+        resolve(null)
+      })
     })
 
-    const appeared = await waitForNewFile(legacyOut, startedAt, 90_000, childExit)
+    const appearedPrimary = await waitForNewFile(legacyOut, startedAt, 55_000, childExit)
+    let foundPath = appearedPrimary
+      ? legacyOut
+      : findFreshInventoryFile(candidates, startedAt)
+
+    if (stdinPulse) {
+      clearInterval(stdinPulse)
+      stdinPulse = null
+    }
     try {
       child.stdin?.write('\r\n')
       child.stdin?.end()
     } catch {
       // ignore
     }
-    try {
-      child.kill()
-    } catch {
-      // ignore
+    stopActiveHelper()
+    // Give Wine a moment to flush a late write after kill/Enter.
+    if (!foundPath) {
+      await new Promise((r) => setTimeout(r, 600))
+      foundPath = findFreshInventoryFile(candidates, startedAt)
     }
 
-    if (!appeared) {
+    if (!foundPath) {
       const cleaned = scrubWineHelperOutput(stderr)
       console.warn(
         '[Everything Warframe] Inventory helper failed or timed out:',
         cleaned.slice(0, 800) || '(no helper output)',
       )
-      let error =
-        cleaned.slice(0, 400) ||
-        (process.platform === 'linux'
-          ? 'Timed out waiting for inventory.json under Proton. Stay logged in, or import a file manually.'
-          : 'Timed out waiting for inventory.json. Stay logged into Warframe and try again.')
-      if (/Process not found/i.test(cleaned)) {
-        error =
-          'Inventory helper could not see Warframe.x64.exe in the Proton prefix. Stay logged into Warframe via Steam, then sync again. If this keeps failing, import inventory.json manually.'
-      } else if (/Failed to gruzzle the crumbs/i.test(cleaned)) {
-        error =
-          'Inventory helper found Warframe but could not read account credentials from memory (gruzzle failed). Stay on the orbiter / logged in, then retry. If it keeps failing after an update, import inventory.json manually.'
-      } else if (/Failed to open process/i.test(cleaned)) {
-        error =
-          'Inventory helper found Warframe but could not open the process. Try syncing again while logged in; avoid running the helper under a different Proton than the game.'
-      } else if (/Request failed/i.test(cleaned)) {
-        error =
-          'Inventory download failed after reading account credentials (HTTPS under Wine). Stay logged into Warframe, check network access to mobile.warframe.com, then try again.'
-      }
-      return { ok: false, error }
+      return { ok: false, error: helperFailureMessage(cleaned) }
     }
 
-    return useInventoryFile(legacyOut, 'helper')
+    if (foundPath !== legacyOut) {
+      try {
+        fs.mkdirSync(work, { recursive: true })
+        fs.copyFileSync(foundPath, legacyOut)
+        foundPath = legacyOut
+      } catch (err) {
+        console.warn(
+          '[Everything Warframe] Could not copy helper inventory into managed path',
+          err instanceof Error ? err.message : err,
+        )
+      }
+    }
+
+    return useInventoryFile(foundPath, 'helper')
   } catch (err) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Inventory sync failed',
     }
+  } finally {
+    if (stdinPulse) clearInterval(stdinPulse)
+    if (activeHelper) stopActiveHelper()
   }
+}
+
+export async function syncInventoryFromGame(): Promise<InventorySyncResult> {
+  if (syncInFlight) {
+    console.info('[Everything Warframe] Inventory sync already running — joining in-flight attempt')
+    return syncInFlight
+  }
+  syncInFlight = syncInventoryFromGameUnlocked().finally(() => {
+    syncInFlight = null
+  })
+  return syncInFlight
 }
 
 function computeInventoryDiff(

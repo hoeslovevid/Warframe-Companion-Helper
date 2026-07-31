@@ -51,6 +51,7 @@ import {
   reloadConfiguredInventory,
   setInventoryConsent,
   syncInventoryFromGame,
+  isInventorySyncInFlight,
   useInventoryFile,
 } from './services/inventory'
 import { LogWatcher } from './services/log-watcher'
@@ -1664,6 +1665,7 @@ app.whenReady().then(async () => {
     void (async () => {
       const settings = loadSettings()
       if (!settings.inventoryAutoSync || !settings.inventoryConsent) return
+      if (isInventorySyncInFlight()) return
       const running = await isWarframeRunning()
       if (!running) return
       const last = Date.parse(settings.inventoryLastSynced || '') || 0
