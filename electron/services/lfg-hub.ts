@@ -347,3 +347,19 @@ export async function deleteLfg(input: {
     return { ok: false, error: err instanceof Error ? err.message : 'Delete failed' }
   }
 }
+
+/** Prefetch relic options + hub listings so the LFG tab opens warm. */
+export async function warmLfg(): Promise<void> {
+  try {
+    const { getLfgRelicOptions } = await import('./lfg-relic-options')
+    await getLfgRelicOptions().catch(() => [])
+  } catch {
+    // ignore
+  }
+  try {
+    await ensureLocalLfgHub()
+    await listLfg({ region: 'all', activity: 'all' }).catch(() => null)
+  } catch {
+    // ignore — tab can still open cold
+  }
+}

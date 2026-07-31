@@ -58,6 +58,7 @@ const api: VoidLensApi = {
   getEconomyTrend: () => ipcRenderer.invoke('economy:trend'),
   lfgHealth: () => ipcRenderer.invoke('lfg:health'),
   listLfg: (opts) => ipcRenderer.invoke('lfg:list', opts),
+  getLfgRelicOptions: () => ipcRenderer.invoke('lfg:relicOptions'),
   createLfg: (input) => ipcRenderer.invoke('lfg:create', input),
   joinLfg: (input) => ipcRenderer.invoke('lfg:join', input),
   leaveLfg: (input) => ipcRenderer.invoke('lfg:leave', input),

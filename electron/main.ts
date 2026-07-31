@@ -365,6 +365,12 @@ async function warmCompanionCatalogs() {
       ),
     ])
     console.info('[Everything Warframe] Companion catalogs warm')
+    void import('./services/lfg-hub')
+      .then((m) => m.warmLfg())
+      .then(() => console.info('[Everything Warframe] LFG hub warm'))
+      .catch((err) =>
+        console.warn('[Everything Warframe] LFG warmup failed', err instanceof Error ? err.message : err),
+      )
   } catch (err) {
     console.warn(
       '[Everything Warframe] Companion catalog warmup failed',
@@ -1291,6 +1297,10 @@ function registerIpc() {
   ipcMain.handle('lfg:list', async (_e, opts) => {
     const { listLfg } = await import('./services/lfg-hub')
     return listLfg(opts || {})
+  })
+  ipcMain.handle('lfg:relicOptions', async () => {
+    const { getLfgRelicOptions } = await import('./services/lfg-relic-options')
+    return getLfgRelicOptions()
   })
   ipcMain.handle('lfg:create', async (_e, input) => {
     const { createLfg } = await import('./services/lfg-hub')

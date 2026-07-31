@@ -142,7 +142,7 @@ const TOUR_STEPS: TourStep[] = [
 export function CompanionApp() {
   const [tab, setTab] = useState<Tab>('dashboard')
   /** Heavy tabs stay mounted after first visit so revisits don't rebuild from scratch. */
-  const [keptTabs, setKeptTabs] = useState<Partial<Record<'relicPlanner' | 'layout', true>>>({})
+  const [keptTabs, setKeptTabs] = useState<Partial<Record<'relicPlanner' | 'layout' | 'lfg', true>>>({})
   const [tourOpen, setTourOpen] = useState(false)
   const [hotkeysOpen, setHotkeysOpen] = useState(false)
   const [whatsNewOpen, setWhatsNewOpen] = useState(false)
@@ -215,7 +215,7 @@ export function CompanionApp() {
   const goTab = useCallback(
     (next: Tab) => {
       setTab(next)
-      if (next === 'relicPlanner' || next === 'layout') {
+      if (next === 'relicPlanner' || next === 'layout' || next === 'lfg') {
         setKeptTabs((prev) => (prev[next] ? prev : { ...prev, [next]: true }))
       }
       if (next === 'layout' && !settings.onboarding.layoutVisited) {
@@ -908,8 +908,17 @@ export function CompanionApp() {
               />
             ) : null}
 
-            {tab === 'lfg' ? (
-              <LfgPage settings={settings} onUpdate={(partial) => void updateSettings(partial)} />
+            {keptTabs.lfg || tab === 'lfg' ? (
+              <div
+                className={tab === 'lfg' ? undefined : 'companion-tab-park'}
+                aria-hidden={tab !== 'lfg'}
+              >
+                <LfgPage
+                  settings={settings}
+                  active={tab === 'lfg'}
+                  onUpdate={(partial) => void updateSettings(partial)}
+                />
+              </div>
             ) : null}
 
             {keptTabs.layout || tab === 'layout' ? (

@@ -1729,6 +1729,10 @@ export type VoidLensApi = {
     activity?: string
     q?: string
   }) => Promise<LfgListResult>
+  /** Lightweight relic names for LFG typeahead (cached; no planner enrichment). */
+  getLfgRelicOptions: () => Promise<
+    Array<{ id: string; label: string; value: string; detail: string; owned: number }>
+  >
   createLfg: (
     input: LfgCreateInput,
   ) => Promise<{ ok: boolean; listing?: LfgListing; hostToken?: string; error?: string }>

@@ -258,6 +258,9 @@ export const WHATS_NEW: Record<string, string[]> = {
     'LFG polish: searchable relic/mission pickers, presets, whisper preview, and smarter board UX',
     'LFG: My squads pin, slot dots, invite copy, hub status pill, and toast feedback',
   ],
+  '0.9.61': [
+    'LFG: warm hub/relic options on startup; keep tab mounted; lighter relic typeahead',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

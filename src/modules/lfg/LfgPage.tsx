@@ -11,6 +11,8 @@ import { LfgSearchSelect, type LfgSearchOption } from './LfgSearchSelect'
 type Props = {
   settings: AppSettings
   onUpdate: (partial: Partial<AppSettings>) => void
+  /** When false (parked tab), pause board polling to save hub traffic. */
+  active?: boolean
 }
 
 type ActivityId = 'relic' | 'fissure' | 'farm' | 'boss' | 'custom'
@@ -104,7 +106,7 @@ const PRESETS: Array<{
   },
 ]
 
-export function LfgPage({ settings, onUpdate }: Props) {
+export function LfgPage({ settings, onUpdate, active = true }: Props) {
   const { data } = useWorldstate()
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [listings, setListings] = useState<LfgListing[]>([])
@@ -166,29 +168,22 @@ export function LfgPage({ settings, onUpdate }: Props) {
   }, [qInput])
 
   useEffect(() => {
-    if (activity !== 'relic' || !window.voidlens?.getRelicPlanner) return
+    if (!window.voidlens?.getLfgRelicOptions) return
     let cancelled = false
     setRelicsLoading(true)
     void window.voidlens
-      .getRelicPlanner({ ownedOnly: false, sort: 'name', limit: 500 })
-      .then((res) => {
+      .getLfgRelicOptions()
+      .then((rows) => {
         if (cancelled) return
-        const opts: LfgSearchOption[] = (res.rows || []).map((r) => ({
-          id: r.key,
-          label: r.name || r.key,
-          value: r.name || r.key,
-          detail: [r.tier, r.vaulted ? 'vaulted' : null, r.owned > 0 ? `owned ×${r.owned}` : null]
-            .filter(Boolean)
-            .join(' · '),
-          meta: { key: r.key, tier: r.tier, owned: r.owned },
-        }))
-        opts.sort((a, b) => {
-          const ao = Number(a.meta?.owned || 0) > 0 ? 0 : 1
-          const bo = Number(b.meta?.owned || 0) > 0 ? 0 : 1
-          if (ao !== bo) return ao - bo
-          return a.label.localeCompare(b.label)
-        })
-        setRelicOptions(opts)
+        setRelicOptions(
+          (rows || []).map((r) => ({
+            id: r.id,
+            label: r.label,
+            value: r.value,
+            detail: r.detail,
+            meta: { owned: r.owned },
+          })),
+        )
       })
       .catch(() => {
         if (!cancelled) setRelicOptions([])
@@ -199,7 +194,7 @@ export function LfgPage({ settings, onUpdate }: Props) {
     return () => {
       cancelled = true
     }
-  }, [activity])
+  }, [])
 
   const openFissures = useMemo(() => {
     return (data.fissures || []).filter((f) => !steelPath || f.isHard)
@@ -330,6 +325,7 @@ export function LfgPage({ settings, onUpdate }: Props) {
   }, [filterActivity, filterRegion, filterPlatform, qDebounced])
 
   useEffect(() => {
+    if (!active) return
     let cancelled = false
     let timer: number | undefined
     let delay = 20_000
@@ -346,7 +342,7 @@ export function LfgPage({ settings, onUpdate }: Props) {
       cancelled = true
       if (timer) window.clearTimeout(timer)
     }
-  }, [refresh])
+  }, [refresh, active])
 
   const saveProfile = (partial: Partial<AppSettings>) => onUpdate(partial)
 
