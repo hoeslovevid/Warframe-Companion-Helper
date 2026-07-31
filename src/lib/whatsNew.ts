@@ -248,6 +248,9 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.57': [
     'LFG hub: Railway-friendly SQLite via built-in node:sqlite (no native build deps)',
   ],
+  '0.9.58': [
+    'LFG: fix HTTP 429 on hosted hub — per-client rate limits and gentler board polling',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {
