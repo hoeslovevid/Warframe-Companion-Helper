@@ -202,7 +202,8 @@ export function LinuxHealthCard({
       ) : ptrace?.permissive ? (
         <p className="linux-health__hint muted">
           Memory access looks open. Sync while fully logged into Warframe (Orbiter), not the
-          launcher.
+          launcher. AppImage builds enable PipeWire capture flags automatically — no manual
+          --no-sandbox launch needed unless capture still fails (then set EW_NO_SANDBOX=1).
         </p>
       ) : null}
     </section>

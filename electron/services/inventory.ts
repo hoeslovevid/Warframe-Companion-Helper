@@ -692,22 +692,39 @@ export function isInventorySyncInFlight(): boolean {
 function stopActiveHelper(opts?: { clearOrphans?: boolean }) {
   const child = activeHelper
   activeHelper = null
-  if (child) {
+  if (child?.pid) {
     try {
       child.stdin?.write('\r\n')
       child.stdin?.end()
     } catch {
       // ignore
     }
+    const pid = child.pid
     try {
-      child.kill('SIGTERM')
+      // Detached Wine/Proton gets its own process group — signal the group.
+      if (process.platform === 'linux') {
+        try {
+          process.kill(-pid, 'SIGTERM')
+        } catch {
+          child.kill('SIGTERM')
+        }
+      } else {
+        child.kill('SIGTERM')
+      }
     } catch {
       // ignore
     }
-    // Wine/Proton children often ignore SIGTERM on the parent script.
     setTimeout(() => {
       try {
-        if (!child.killed) child.kill('SIGKILL')
+        if (process.platform === 'linux') {
+          try {
+            process.kill(-pid, 'SIGKILL')
+          } catch {
+            if (!child.killed) child.kill('SIGKILL')
+          }
+        } else if (!child.killed) {
+          child.kill('SIGKILL')
+        }
       } catch {
         // ignore
       }
@@ -715,8 +732,8 @@ function stopActiveHelper(opts?: { clearOrphans?: boolean }) {
   }
   if (opts?.clearOrphans !== false && process.platform === 'linux') {
     try {
-      // Best-effort: clear orphaned helper.exe left by prior timed-out syncs.
-      execFileSync('pkill', ['-f', 'warframe-api-helper.exe'], {
+      // Narrow pattern — never pkill the AppImage / Electron parent.
+      execFileSync('pkill', ['-f', 'warframe-api-helper\\.exe'], {
         stdio: 'ignore',
         timeout: 1500,
       })
@@ -849,11 +866,18 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
       }
       env.SteamAppId = WARFRAME_STEAM_APP_ID
       env.SteamGameId = WARFRAME_STEAM_APP_ID
+      // Detach so Wine/Proton death or SIGKILL cannot take down the AppImage.
       child = spawn(wine.command, [...wine.args, exe], {
         cwd: work,
         env,
         stdio: ['pipe', 'pipe', 'pipe'],
+        detached: true,
       })
+      try {
+        child.unref()
+      } catch {
+        // ignore
+      }
     } else {
       child = spawn(exe, [], {
         cwd: work,

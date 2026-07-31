@@ -154,6 +154,17 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('enable-transparent-visuals')
   // PipeWire capturer — needed for reliable Wayland screen share + restore tokens
   app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
+  // Keep OCR share alive across scans without re-prompting the portal every time
+  // (matches the AppImage flags Linux users found working for persistent capture).
+  app.commandLine.appendSwitch('auto-select-desktop-capture-source', 'Entire Screen')
+  app.commandLine.appendSwitch('use-fake-ui-for-media-stream')
+  // AppImage + Chromium sandbox often breaks PipeWire capture on Arch/CachyOS.
+  // Opt out with EW_ELECTRON_SANDBOX=1 if you need the sandbox.
+  if (process.env.APPIMAGE && process.env.EW_ELECTRON_SANDBOX !== '1') {
+    app.commandLine.appendSwitch('no-sandbox')
+  } else if (process.env.EW_NO_SANDBOX === '1' || process.env.EW_ELECTRON_NO_SANDBOX === '1') {
+    app.commandLine.appendSwitch('no-sandbox')
+  }
   // Pure Wayland cannot pin always-on-top above games — use XWayland for the overlay.
   // Override with ELECTRON_OZONE_PLATFORM_HINT=wayland if needed.
   if (
@@ -1249,11 +1260,30 @@ function registerIpc() {
     return result
   })
   ipcMain.handle('inventory:sync', async () => {
-    const result = await syncInventoryFromGame()
-    if (result.ok) await warmFoundryAfterInventorySync()
-    broadcastSettings(loadSettings())
-    broadcastInventory()
-    return result
+    try {
+      const result = await syncInventoryFromGame()
+      if (result.ok) {
+        // Don't block the IPC reply on Foundry warm — a throw here used to strand the UI.
+        void warmFoundryAfterInventorySync().catch((err) => {
+          console.warn(
+            '[Everything Warframe] Foundry warm after inventory sync failed',
+            err instanceof Error ? err.message : err,
+          )
+        })
+      }
+      broadcastSettings(loadSettings())
+      broadcastInventory()
+      return result
+    } catch (err) {
+      console.error(
+        '[Everything Warframe] Inventory sync crashed',
+        err instanceof Error ? err.stack || err.message : err,
+      )
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : 'Inventory sync crashed — check logs',
+      }
+    }
   })
   ipcMain.handle('inventory:clear', () => {
     const status = clearInventoryData()

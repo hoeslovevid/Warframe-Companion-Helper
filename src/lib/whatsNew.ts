@@ -288,6 +288,10 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.67': [
     'Market: fix cancelling warframe.market contracts (use auction /close API; clearer cancel toasts)',
   ],
+  '0.9.68': [
+    'Linux AppImage: bake PipeWire persistent capture flags (auto-select screen + fake UI); no-sandbox by default for AppImages',
+    'Linux inventory sync: detach Wine/Proton from the AppImage, scrub Electron env, safer helper cleanup so sync cannot take down the app',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

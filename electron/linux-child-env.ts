@@ -97,6 +97,13 @@ export function sanitizeLinuxChildEnv(
   delete env.FONTCONFIG_FILE
   delete env.FONTCONFIG_SYSROOT
 
+  // Prevent Wine/Proton from re-entering the AppImage / Chromium runtime.
+  for (const key of Object.keys(env)) {
+    if (/^(ELECTRON_|CHROME_|GOOGLE_API_)/i.test(key)) delete env[key]
+  }
+  delete env.NODE_OPTIONS
+  delete env.CHROME_DESKTOP
+
   return env
 }
 

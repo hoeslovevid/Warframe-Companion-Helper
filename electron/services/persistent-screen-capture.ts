@@ -98,15 +98,35 @@ function installDisplayMediaHandler() {
   const ses = captureSession()
 
   /**
-   * Linux/Wayland: use the PipeWire/xdg-desktop-portal system picker once.
-   * Do NOT call desktopCapturer.getSources() here — that opens a *second*
-   * portal dialog and commonly deadlocks (app freezes after “Authorize capture”).
+   * Linux: prefer auto-picking a screen (works with WebRTCPipeWireCapturer +
+   * auto-select / fake-ui flags) so OCR stays persistent. Fall back to the
+   * system PipeWire picker only when no source is available.
    *
-   * Other platforms: auto-pick the OCR monitor without a share dialog.
+   * Avoid racing a second getSources while a portal is already open — that
+   * historically deadlocked Authorize capture.
    */
   if (process.platform === 'linux') {
-    ses.setDisplayMediaRequestHandler((_request, callback) => {
-      // Empty streams → Chromium uses the system/PipeWire picker when available.
+    ses.setDisplayMediaRequestHandler(async (_request, callback) => {
+      try {
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 0, height: 0 },
+        })
+        const target = resolveOcrDisplay()
+        const preferredId = String(target.id)
+        const source =
+          sources.find((s) => s.display_id === preferredId) ||
+          sources.find((s) => Number(s.display_id) === target.id) ||
+          sources.find((s) => /entire screen|screen 1|screen/i.test(s.name)) ||
+          sources.find((s) => s.id.includes('screen')) ||
+          sources[0]
+        if (source) {
+          callback({ video: source })
+          return
+        }
+      } catch (err) {
+        console.warn('[Everything Warframe] Linux auto screen pick failed', err)
+      }
       try {
         callback({})
       } catch (err) {
