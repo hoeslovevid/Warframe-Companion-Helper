@@ -1338,12 +1338,15 @@ export type LfgListResult = {
   listings: LfgListing[]
   baseUrl: string
   error: string | null
+  /** Soft notice (e.g. Railway edge fallback to local). */
+  warning?: string | null
 }
 
 export type LfgJoinResult = {
   ok: boolean
   listing: LfgListing | null
   error: string | null
+  warning?: string | null
 }
 
 /** warframe.market auction contract (riven / lich / sister). */

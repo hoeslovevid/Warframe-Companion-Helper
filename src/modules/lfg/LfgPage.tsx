@@ -78,8 +78,9 @@ export function LfgPage({ settings, onUpdate }: Props) {
         setError(res.error)
         return /rate|429/i.test(res.error)
       }
-      setError(null)
-      return false
+      // Soft warning (e.g. Railway edge → local fallback) — not a hard failure.
+      setError(res.warning || null)
+      return Boolean(res.warning && /rate|429|Railway edge/i.test(res.warning))
     } catch (err) {
       setHubOk(false)
       const msg = err instanceof Error ? err.message : 'LFG failed'
@@ -287,7 +288,9 @@ export function LfgPage({ settings, onUpdate }: Props) {
             </label>
             <p className="muted" style={{ fontSize: '0.75rem', margin: 0 }}>
               Defaults to the public Everything Warframe board. Set to <code>local</code> for a
-              private hub on this PC, or paste another hosted URL.
+              private hub on this PC, or paste another hosted URL. If Railway edge-blocks the
+              public domain (429), the app falls back to local — generate a new Railway domain to
+              restore community matchmaking.
             </p>
           </Panel>
 

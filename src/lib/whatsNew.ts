@@ -251,6 +251,9 @@ export const WHATS_NEW: Record<string, string[]> = {
   '0.9.58': [
     'LFG: fix HTTP 429 on hosted hub — per-client rate limits and gentler board polling',
   ],
+  '0.9.59': [
+    'LFG: auto-fall back to local hub when Railway edge blocks the public domain (429)',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

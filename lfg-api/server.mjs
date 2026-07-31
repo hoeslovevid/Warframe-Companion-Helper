@@ -15,10 +15,8 @@ const DEFAULT_TTL_MS = 15 * 60_000
 const MAX_TTL_MS = 120 * 60_000
 const MIN_TTL_MS = 5 * 60_000
 const RATE_WINDOW_MS = 60_000
-/** Per-client read budget (health/list). Higher — boards poll often. */
-const RATE_MAX_READ = 180
-/** Per-client write budget (create/join/leave/delete). */
-const RATE_MAX_WRITE = 60
+/** Per-client write budget (create/join/leave/delete). Reads are unlimited — Railway edge already throttles abuse. */
+const RATE_MAX_WRITE = 120
 
 /**
  * @typedef {{
@@ -43,8 +41,6 @@ const RATE_MAX_WRITE = 60
  * }} Listing
  */
 
-/** @type {Map<string, number[]>} */
-const rateHitsRead = new Map()
 /** @type {Map<string, number[]>} */
 const rateHitsWrite = new Map()
 
@@ -156,17 +152,10 @@ const server = http.createServer(async (req, res) => {
     const isHealth = req.method === 'GET' && (pathname === '/' || pathname === '/health')
     const isWrite = req.method === 'POST' || req.method === 'DELETE'
 
-    // Do not rate-limit platform healthchecks; key reads/writes per real client IP.
-    if (!isHealth) {
-      if (isWrite) {
-        if (!rateOk(rateHitsWrite, ip, RATE_MAX_WRITE)) {
-          send(res, 429, { error: 'Too many requests — slow down a moment' })
-          return
-        }
-      } else if (!rateOk(rateHitsRead, ip, RATE_MAX_READ)) {
-        send(res, 429, { error: 'Too many requests — slow down a moment' })
-        return
-      }
+    // Reads unlimited; writes capped per real client IP. /health never rate-limited.
+    if (isWrite && !rateOk(rateHitsWrite, ip, RATE_MAX_WRITE)) {
+      send(res, 429, { error: 'Too many requests — slow down a moment' })
+      return
     }
 
     if (isHealth) {

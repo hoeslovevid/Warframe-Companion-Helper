@@ -36,6 +36,20 @@ Default DB file: `lfg-api/data/lfg.sqlite`.
    - Start command is already set via `railway.toml` / `package.json` (`node server.mjs`).
 3. **Networking** → **Generate Domain**.
 4. Confirm: `https://YOUR-DOMAIN.up.railway.app/health` returns `{ "ok": true, "store": "sqlite", ... }`.
+   Start command: `node boot.mjs` (see `railway.toml`).
+
+### Railway edge 429 (`rate limited` / `railway-hikari`)
+
+If `https://YOUR.up.railway.app/health` returns plain text `rate limited` with
+`server: railway-hikari`, the block is **Railway’s edge**, not this app — requests
+never reach the container. The desktop app will auto-fall back to a **local** board.
+
+**Fix community board:**
+
+1. Railway → service → **Networking** → remove the current domain → **Generate Domain** again  
+   (or attach a **custom domain**).
+2. Confirm the new URL’s `/health` returns JSON `{ "ok": true, ... }`.
+3. Paste that URL into Everything Warframe → LFG → **Hub URL** (or update the app default).
 
 ### 2. Volume (keep boards across redeploys)
 
