@@ -48,6 +48,24 @@
   color: var(--vl-danger);
 }
 
+.relic-strip__recovery {
+  pointer-events: auto;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: var(--vl-radius-sm);
+  border: 1px solid rgba(201, 164, 92, 0.35);
+  background: rgba(12, 18, 24, 0.78);
+}
+
+.relic-strip__recovery .relic-strip__status {
+  margin-bottom: 6px;
+}
+
+.relic-strip__recovery .relic-strip__next {
+  margin-top: 0;
+  flex-wrap: wrap;
+}
+
 .relic-grid.is-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

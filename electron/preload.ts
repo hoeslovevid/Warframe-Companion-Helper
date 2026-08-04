@@ -126,6 +126,14 @@ const api: VoidLensApi = {
     ipcRenderer.on('inventory:updated', listener)
     return () => ipcRenderer.removeListener('inventory:updated', listener)
   },
+  onInventoryProgress: (cb) => {
+    const listener = (
+      _: Electron.IpcRendererEvent,
+      progress: { stage: string; message: string },
+    ) => cb(progress)
+    ipcRenderer.on('inventory:progress', listener)
+    return () => ipcRenderer.removeListener('inventory:progress', listener)
+  },
   onRelicScanUpdated: (cb) => {
     const listener = (_: Electron.IpcRendererEvent, state: RelicScanState) => cb(state)
     ipcRenderer.on('relics:updated', listener)

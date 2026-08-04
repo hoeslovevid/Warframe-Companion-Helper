@@ -28,6 +28,7 @@ export function useInventory() {
   const [status, setStatus] = useState<InventoryStatus>(emptyStatus)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [progress, setProgress] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     if (!api()) return
@@ -36,14 +37,26 @@ export function useInventory() {
   }, [])
 
   useEffect(() => {
-    let unsub = () => {}
+    let unsubStatus = () => {}
+    let unsubProgress = () => {}
     const boot = async () => {
       if (!api()) return
       await refresh()
-      unsub = api().onInventoryUpdated(setStatus)
+      unsubStatus = api().onInventoryUpdated(setStatus)
+      if (api().onInventoryProgress) {
+        unsubProgress = api().onInventoryProgress((p) => {
+          setProgress(p.message)
+          if (p.stage === 'done' || p.stage === 'error') {
+            window.setTimeout(() => setProgress(null), 2500)
+          }
+        })
+      }
     }
     void boot()
-    return () => unsub()
+    return () => {
+      unsubStatus()
+      unsubProgress()
+    }
   }, [refresh])
 
   const setConsent = useCallback(async (consent: boolean) => {
@@ -91,6 +104,7 @@ export function useInventory() {
     if (!api()) return
     setBusy(true)
     setMessage('Syncing from Warframe… stay logged in')
+    setProgress('Starting sync…')
     try {
       const result = await api().syncInventoryFromGame()
       if (result.ok) {
@@ -136,6 +150,7 @@ export function useInventory() {
     status,
     busy,
     message,
+    progress,
     setConsent,
     detect,
     useCandidate,

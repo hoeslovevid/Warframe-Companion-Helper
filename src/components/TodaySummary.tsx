@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import {
   AppSettings,
   FissureInfo,
+  LfgListing,
+  SetProgressRow,
   WorldstateSnapshot,
 } from '../../shared/types'
 import { useNow } from '../hooks/useNow'
@@ -16,6 +19,13 @@ type Props = {
   onNavigate?: (tab: string) => void
   onSyncInventory?: () => void
   onApplyBaroProfile?: () => void
+}
+
+type LiveCue = {
+  id: string
+  label: string
+  detail: string
+  tab?: string
 }
 
 function matchesPath(f: FissureInfo, settings: AppSettings) {
@@ -34,6 +44,74 @@ export function TodaySummary({
 }: Props) {
   const now = useNow()
   const done = new Set(settings.nightwaveDoneIds || [])
+  const [nearDoneSets, setNearDoneSets] = useState<SetProgressRow[]>([])
+  const [lfgOwnedOpen, setLfgOwnedOpen] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    const tick = async () => {
+      if (!window.voidlens?.getSetProgress) return
+      try {
+        const res = await window.voidlens.getSetProgress({
+          incompleteOnly: true,
+          limit: 40,
+        })
+        if (cancelled) return
+        const near = (res.rows || [])
+          .filter((r) => !r.complete && r.totalParts > 0)
+          .filter((r) => r.percent >= 70 || r.missingParts <= 2)
+          .sort((a, b) => b.percent - a.percent || a.missingParts - b.missingParts)
+          .slice(0, 3)
+        setNearDoneSets(near)
+      } catch {
+        if (!cancelled) setNearDoneSets([])
+      }
+    }
+    void tick()
+    const id = window.setInterval(() => void tick(), 120_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const tick = async () => {
+      if (!window.voidlens?.listLfg || !window.voidlens?.getLfgRelicOptions) return
+      try {
+        const [lfg, relics] = await Promise.all([
+          window.voidlens.listLfg({
+            region: settings.lfgRegion || 'all',
+            platform: settings.lfgPlatform || undefined,
+            activity: 'all',
+          }),
+          window.voidlens.getLfgRelicOptions(),
+        ])
+        if (cancelled) return
+        const owned = new Set<string>()
+        for (const r of relics) {
+          if (r.owned > 0) {
+            if (r.value) owned.add(r.value.trim().toLowerCase())
+            if (r.id) owned.add(r.id.trim().toLowerCase())
+          }
+        }
+        const count = (lfg.listings || []).filter(
+          (l: LfgListing) =>
+            l.slotsOpen > 0 && l.relicKey && owned.has(l.relicKey.trim().toLowerCase()),
+        ).length
+        setLfgOwnedOpen(count)
+      } catch {
+        if (!cancelled) setLfgOwnedOpen(0)
+      }
+    }
+    void tick()
+    const id = window.setInterval(() => void tick(), 90_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [settings.lfgRegion, settings.lfgPlatform])
 
   const dailies = (data.nightwave?.challenges || []).filter(
     (c) =>
@@ -62,55 +140,101 @@ export function TodaySummary({
   const archon = data.archonHunt
   const soonest = fissures[0] || null
 
+  const liveCues: LiveCue[] = []
+  if (nearDoneSets.length) {
+    const top = nearDoneSets[0]
+    liveCues.push({
+      id: 'sets',
+      label: `${nearDoneSets.length} set${nearDoneSets.length === 1 ? '' : 's'} near done`,
+      detail: `${top.name} · ${top.ownedParts}/${top.totalParts} (${Math.round(top.percent)}%)`,
+      tab: 'sets',
+    })
+  }
+  if (baro?.active && settings.baroWishlist.length) {
+    liveCues.push({
+      id: 'baro',
+      label: `Baro · ${settings.baroWishlist.length} wishlist`,
+      detail: `${baro.location || 'Relay'} · leaves ${formatCountdown(baro.departure, now)}`,
+      tab: 'dashboard',
+    })
+  } else if (baro && !baro.active && settings.baroWishlist.length) {
+    liveCues.push({
+      id: 'baro-eta',
+      label: `Baro in ${formatCountdown(baro.arrival || baro.eta, now)}`,
+      detail: `${settings.baroWishlist.length} wishlisted`,
+      tab: 'dashboard',
+    })
+  }
+  if (lfgOwnedOpen > 0) {
+    liveCues.push({
+      id: 'lfg',
+      label: `${lfgOwnedOpen} LFG for owned relics`,
+      detail: 'Open seats matching relics you hold',
+      tab: 'lfg',
+    })
+  }
+
   const brief =
-    dailies.length > 0
+    liveCues[0]
       ? {
-          label: 'Session focus',
-          value: `${dailies.length} Nightwave daily${dailies.length === 1 ? '' : 's'} left`,
-          meta: weeklies.length
-            ? `${weeklies.length} weekly still open · season ${
-                data.nightwave?.expiry
-                  ? formatCountdown(data.nightwave.expiry, now)
-                  : '—'
-              }`
-            : data.nightwave?.expiry
-              ? `Season ends ${formatCountdown(data.nightwave.expiry, now)}`
-              : 'Keep an eye on weeklies when they refresh',
+          label: 'Live checklist',
+          value: liveCues[0].label,
+          meta: liveCues[0].detail,
         }
-      : soonest
+      : dailies.length > 0
         ? {
-            label: 'Next fissure',
-            value: `${soonest.tier} ${soonest.missionType}${soonest.isHard ? ' · SP' : ''}`,
-            meta: `${soonest.node} · ${formatCountdown(soonest.expiry, now)}`,
+            label: 'Session focus',
+            value: `${dailies.length} Nightwave daily${dailies.length === 1 ? '' : 's'} left`,
+            meta: weeklies.length
+              ? `${weeklies.length} weekly still open · season ${
+                  data.nightwave?.expiry
+                    ? formatCountdown(data.nightwave.expiry, now)
+                    : '—'
+                }`
+              : data.nightwave?.expiry
+                ? `Season ends ${formatCountdown(data.nightwave.expiry, now)}`
+                : 'Keep an eye on weeklies when they refresh',
           }
-        : baro?.active
+        : soonest
           ? {
-              label: 'Baro is in relay',
-              value: baro.location || 'Relay visit',
-              meta: `Leaves ${formatCountdown(baro.departure, now)}${
-                settings.baroWishlist.length
-                  ? ` · ${settings.baroWishlist.length} wishlisted`
-                  : ''
-              }`,
+              label: 'Next fissure',
+              value: `${soonest.tier} ${soonest.missionType}${soonest.isHard ? ' · SP' : ''}`,
+              meta: `${soonest.node} · ${formatCountdown(soonest.expiry, now)}`,
             }
-          : archon
+          : baro?.active
             ? {
-                label: 'Archon Hunt',
-                value: archon.boss || 'Active',
-                meta: `${archon.faction} · ${formatCountdown(archon.expiry, now)}`,
+                label: 'Baro is in relay',
+                value: baro.location || 'Relay visit',
+                meta: `Leaves ${formatCountdown(baro.departure, now)}${
+                  settings.baroWishlist.length
+                    ? ` · ${settings.baroWishlist.length} wishlisted`
+                    : ''
+                }`,
               }
-            : {
-                label: 'Session brief',
-                value: 'Worldstate quiet',
-                meta: 'Enable modules or refresh when something looks off',
-              }
+            : archon
+              ? {
+                  label: 'Archon Hunt',
+                  value: archon.boss || 'Active',
+                  meta: `${archon.faction} · ${formatCountdown(archon.expiry, now)}`,
+                }
+              : {
+                  label: 'Session brief',
+                  value: 'Worldstate quiet',
+                  meta: 'Enable modules or refresh when something looks off',
+                }
 
   const nextActions: Array<{ label: string; run: () => void }> = []
   if (inventoryStale && onSyncInventory) {
     nextActions.push({ label: 'Sync inventory', run: onSyncInventory })
   }
+  if (nearDoneSets.length && onNavigate) {
+    nextActions.push({ label: 'Near-done sets', run: () => onNavigate('sets') })
+  }
   if (baro?.active && settings.baroWishlist.length && onApplyBaroProfile) {
     nextActions.push({ label: 'Baro day profile', run: onApplyBaroProfile })
+  }
+  if (lfgOwnedOpen > 0 && onNavigate) {
+    nextActions.push({ label: 'LFG owned relics', run: () => onNavigate('lfg') })
   }
   if (dailies.length > 0 && onNavigate) {
     nextActions.push({ label: 'Nightwave focus', run: () => onNavigate('dashboard') })
@@ -129,6 +253,23 @@ export function TodaySummary({
           <div className="today-brief__label">{brief.label}</div>
           <p className="today-brief__value">{brief.value}</p>
           <p className="today-brief__meta">{brief.meta}</p>
+          {liveCues.length > 1 ? (
+            <ul className="today-checklist">
+              {liveCues.slice(1).map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    className="today-checklist__btn"
+                    onClick={() => (c.tab && onNavigate ? onNavigate(c.tab) : undefined)}
+                    disabled={!c.tab || !onNavigate}
+                  >
+                    <span className="today-checklist__label">{c.label}</span>
+                    <span className="today-checklist__detail">{c.detail}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {nextActions.length ? (
             <div className="today-next" style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               <span className="today-cell__label" style={{ width: '100%' }}>

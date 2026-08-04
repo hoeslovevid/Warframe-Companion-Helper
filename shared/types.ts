@@ -1823,6 +1823,9 @@ export type VoidLensApi = {
   onWorldstateUpdated: (cb: (data: WorldstateSnapshot) => void) => () => void
   onOverlayVisibilityChanged: (cb: (visible: boolean) => void) => () => void
   onInventoryUpdated: (cb: (status: InventoryStatus) => void) => () => void
+  onInventoryProgress: (
+    cb: (progress: { stage: string; message: string }) => void,
+  ) => () => void
   onRelicScanUpdated: (cb: (state: RelicScanState) => void) => () => void
   onRivenScanUpdated: (cb: (state: RivenScanState) => void) => () => void
   onUpdateStatus: (cb: (status: AppUpdateStatus) => void) => () => void

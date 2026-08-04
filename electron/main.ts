@@ -48,6 +48,7 @@ import {
   getInventoryStatus,
   inferInventorySource,
   onInventoryUpdated,
+  onInventorySyncProgress,
   reloadConfiguredInventory,
   setInventoryConsent,
   syncInventoryFromGame,
@@ -1590,6 +1591,11 @@ app.whenReady().then(async () => {
       win.webContents.send('inventory:updated', status)
     }
   })
+  onInventorySyncProgress((progress) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send('inventory:progress', progress)
+    }
+  })
   onRelicScanUpdated(() => broadcastRelicScan())
   onRivenScanUpdated(() => broadcastRivenScan())
 
@@ -1658,7 +1664,7 @@ app.whenReady().then(async () => {
   }, 1200)
 
   // Prefetch prices + warm OCR/catalog while idle so the first scan isn't cold.
-  // Delayed so launch stays snappy; still finishes before a typical mission load.
+  // Start soon after windows exist — warmup is async and should not block launch UI.
   if (loadSettings().modules.relics || loadSettings().modules.rivens) {
     setTimeout(() => {
       void (async () => {
@@ -1684,7 +1690,7 @@ app.whenReady().then(async () => {
           )
         }
       })()
-    }, 3500)
+    }, 500)
   }
 
   // Linux/Wayland: only warm the PipeWire share after the user has authorized

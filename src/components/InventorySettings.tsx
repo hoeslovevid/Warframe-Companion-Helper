@@ -19,6 +19,7 @@ export function InventorySettings() {
     status,
     busy,
     message,
+    progress,
     refresh,
     setConsent,
     detect,
@@ -127,6 +128,11 @@ export function InventorySettings() {
           </p>
         )}
 
+        {progress ? (
+          <p className="muted" style={{ color: 'var(--vl-teal-bright)' }}>
+            {progress}
+          </p>
+        ) : null}
         {message ? <p className="muted">{message}</p> : null}
 
         {status.candidates.length > 0 ? (

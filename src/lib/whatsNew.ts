@@ -292,6 +292,17 @@ export const WHATS_NEW: Record<string, string[]> = {
     'Linux AppImage: bake PipeWire persistent capture flags (auto-select screen + fake UI); no-sandbox by default for AppImages',
     'Linux inventory sync: detach Wine/Proton from the AppImage, scrub Electron env, safer helper cleanup so sync cannot take down the app',
   ],
+  '0.9.69': [
+    'Relic overlay strip: Retry / Force 3–4 slots / Reset monitor when OCR is weak or fails',
+    'Today: live checklist from near-done sets, Baro wishlist, and LFG seats for owned relics',
+    'Overlay mission strip: I’m hosting chip with seats, Whisper, +10m extend, and Close',
+    'Inventory sync: staged progress (helper → launch → waiting → parsing) in Settings, toasts, and overlay',
+  ],
+  '0.9.70': [
+    'OCR speed: raw RGBA prep (no PNG round-trip), dual PaddleOCR instances for concurrent slots',
+    'OCR speed: persistent screen stream on Windows too; warmup starts ~0.5s after launch',
+    'OCR speed: readiness polling for relic/riven log triggers instead of fixed animation delays',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

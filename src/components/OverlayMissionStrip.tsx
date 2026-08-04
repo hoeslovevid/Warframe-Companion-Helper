@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
-import { AppSettings, InventoryStatus, WorldstateSnapshot } from '../../shared/types'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AppSettings, InventoryStatus, LfgListing, WorldstateSnapshot } from '../../shared/types'
+import { copyText } from '../lib/tradeClipboard'
 import { formatCountdown } from '../lib/time'
+import { useSettings } from '../hooks/useVoidLens'
 import './OverlayMissionStrip.css'
 
 type Props = {
@@ -9,11 +11,12 @@ type Props = {
   inventory: InventoryStatus | null
   now?: number
   onSyncInventory?: () => void
+  syncProgress?: string | null
 }
 
 /**
- * Compact overlay cue: next useful fissure / inventory stale / Baro / open LFG seats.
- * Shown above the layout stage when overlay is live.
+ * Compact overlay cue: next useful fissure / inventory stale / Baro / open LFG seats /
+ * hosted listing controls.
  */
 export function OverlayMissionStrip({
   settings,
@@ -21,38 +24,142 @@ export function OverlayMissionStrip({
   inventory,
   now = Date.now(),
   onSyncInventory,
+  syncProgress,
 }: Props) {
+  const { updateSettings } = useSettings()
   const [lfgOpen, setLfgOpen] = useState<number | null>(null)
+  const [hosted, setHosted] = useState<LfgListing | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [whisperCopied, setWhisperCopied] = useState(false)
+
+  const hostTokens = settings.lfgHostTokens || {}
+  const hostIds = useMemo(() => Object.keys(hostTokens), [hostTokens])
+
+  const refreshLfg = useCallback(async () => {
+    if (!window.voidlens?.listLfg) return
+    try {
+      const res = await window.voidlens.listLfg({
+        region: settings.lfgRegion || 'all',
+        platform: settings.lfgPlatform || undefined,
+        activity: 'all',
+      })
+      const listings = res.listings || []
+      const open = listings.filter((l) => l.slotsOpen > 0).length
+      setLfgOpen(open)
+      const mine =
+        listings.find((l) => hostIds.includes(l.id)) ||
+        (settings.lfgIgn
+          ? listings.find(
+              (l) => l.hostIgn.trim().toLowerCase() === settings.lfgIgn.trim().toLowerCase(),
+            )
+          : undefined) ||
+        null
+      setHosted(mine)
+    } catch {
+      setLfgOpen(null)
+      setHosted(null)
+    }
+  }, [settings.lfgRegion, settings.lfgPlatform, settings.lfgIgn, hostIds])
 
   useEffect(() => {
     let cancelled = false
     const tick = async () => {
-      if (!window.voidlens?.listLfg) return
-      try {
-        const res = await window.voidlens.listLfg({
-          region: settings.lfgRegion || 'all',
-          platform: settings.lfgPlatform || undefined,
-          activity: 'all',
-        })
-        if (cancelled) return
-        const open = (res.listings || []).filter((l) => l.slotsOpen > 0).length
-        setLfgOpen(open)
-      } catch {
-        if (!cancelled) setLfgOpen(null)
-      }
+      if (cancelled) return
+      await refreshLfg()
     }
     void tick()
-    const id = window.setInterval(() => void tick(), 60_000)
+    const id = window.setInterval(() => void tick(), 30_000)
     return () => {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [settings.lfgRegion, settings.lfgPlatform])
+  }, [refreshLfg])
+
+  const copyWhisper = async () => {
+    if (!hosted?.whisper) return
+    if (!(await copyText(hosted.whisper))) return
+    setWhisperCopied(true)
+    window.setTimeout(() => setWhisperCopied(false), 1400)
+  }
+
+  const extendHosted = async () => {
+    if (!hosted) return
+    const token = hostTokens[hosted.id]
+    if (!token || !window.voidlens?.extendLfg) return
+    setBusy(true)
+    try {
+      await window.voidlens.extendLfg({
+        id: hosted.id,
+        hostToken: token,
+        addMs: 10 * 60_000,
+      })
+      await refreshLfg()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const closeHosted = async () => {
+    if (!hosted) return
+    const token = hostTokens[hosted.id]
+    if (!token || !window.voidlens?.deleteLfg) return
+    setBusy(true)
+    try {
+      await window.voidlens.deleteLfg({ id: hosted.id, hostToken: token })
+      const next = { ...hostTokens }
+      delete next[hosted.id]
+      await updateSettings({ lfgHostTokens: next })
+      setHosted(null)
+      await refreshLfg()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (hosted && hostTokens[hosted.id]) {
+    return (
+      <div className="mission-strip mission-strip--host" role="status">
+        <span className="mission-strip__badge">Hosting</span>
+        <span className="mission-strip__text">
+          {hosted.title}
+          {' · '}
+          {hosted.slotsOpen}/{hosted.slotsTotal} open
+          {hosted.expiresAt ? ` · ${formatCountdown(hosted.expiresAt, now)}` : ''}
+        </span>
+        <button
+          type="button"
+          className="mission-strip__btn"
+          disabled={busy}
+          onClick={() => void copyWhisper()}
+        >
+          {whisperCopied ? 'Copied' : 'Whisper'}
+        </button>
+        <button
+          type="button"
+          className="mission-strip__btn"
+          disabled={busy}
+          onClick={() => void extendHosted()}
+        >
+          +10m
+        </button>
+        <button
+          type="button"
+          className="mission-strip__btn mission-strip__btn--danger"
+          disabled={busy}
+          onClick={() => void closeHosted()}
+        >
+          Close
+        </button>
+      </div>
+    )
+  }
 
   const bits: string[] = []
   let action: { label: string; run?: () => void } | null = null
 
-  if (inventory?.consent && inventory.stale && inventory.warframeRunning) {
+  if (syncProgress) {
+    bits.push(syncProgress)
+  } else if (inventory?.consent && inventory.stale && inventory.warframeRunning) {
     bits.push('Inventory stale')
     action = { label: 'Sync', run: onSyncInventory }
   } else if (data.baro?.active) {

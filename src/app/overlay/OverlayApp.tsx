@@ -15,7 +15,7 @@ import '../../styles/overlay.css'
 export function OverlayApp() {
   const { settings, ready, updateSettings } = useSettings()
   const { data } = useWorldstate()
-  const { status: inventory } = useInventory()
+  const { status: inventory, progress: inventoryProgress, syncFromGame } = useInventory()
   const { state: relicScan } = useRelicScan()
   const { state: rivenScan } = useRivenScan()
   useColorTheme(settings.colorTheme, settings.customPalette)
@@ -180,11 +180,9 @@ export function OverlayApp() {
         settings={settings}
         data={data}
         inventory={inventory}
+        syncProgress={inventoryProgress}
         onSyncInventory={() => {
-          void window.voidlens?.syncInventoryFromGame?.().then((r) => {
-            // Overlay has no toast host; result surfaces via inventory status.
-            void r
-          })
+          void syncFromGame()
         }}
       />
     </NowProvider>

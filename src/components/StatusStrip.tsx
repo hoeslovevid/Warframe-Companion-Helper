@@ -13,6 +13,8 @@ type Props = {
   onRefreshWorldstate?: () => void
   /** Prefer sync when inventory is stale / empty and Warframe is running. */
   onSyncInventory?: () => void
+  /** Live staged sync message (helper → launch → waiting → parsing). */
+  inventoryProgress?: string | null
 }
 
 type Health = {
@@ -34,6 +36,7 @@ export function StatusStrip({
   onDetectEeLog,
   onRefreshWorldstate,
   onSyncInventory,
+  inventoryProgress,
 }: Props) {
   const eeOk = Boolean(settings.eeLogPath)
   const invOk = Boolean(inventory?.loaded)
@@ -44,6 +47,20 @@ export function StatusStrip({
     (invStale || !invOk) &&
     Boolean(inventory?.warframeRunning)
   const overlayOn = settings.overlayVisible
+
+  const invDetail = inventoryProgress
+    ? inventoryProgress.length > 28
+      ? `${inventoryProgress.slice(0, 26)}…`
+      : inventoryProgress
+    : !inventory?.consent
+      ? 'consent'
+      : canSync
+        ? 'sync now'
+        : invOk
+          ? inventory?.stale
+            ? 'stale'
+            : 'synced'
+          : 'empty'
 
   const items: Health[] = [
     {
@@ -73,28 +90,24 @@ export function StatusStrip({
     {
       id: 'inventory',
       label: 'Inventory',
-      detail: !inventory?.consent
-        ? 'consent'
-        : canSync
-          ? 'sync now'
-          : invOk
-            ? inventory?.stale
-              ? 'stale'
-              : 'synced'
-            : 'empty',
-      state: !inventory?.consent
-        ? 'off'
-        : canSync || inventory?.stale
-          ? 'warn'
-          : invOk
-            ? 'ok'
-            : 'off',
+      detail: invDetail,
+      state: inventoryProgress
+        ? 'warn'
+        : !inventory?.consent
+          ? 'off'
+          : canSync || inventory?.stale
+            ? 'warn'
+            : invOk
+              ? 'ok'
+              : 'off',
       onClick: canSync ? onSyncInventory : onGoSettings,
-      title: canSync
-        ? 'Sync inventory from Warframe'
-        : inventory?.stale
-          ? 'Inventory stale — open Settings or launch Warframe to sync'
-          : 'Inventory settings',
+      title: inventoryProgress
+        ? inventoryProgress
+        : canSync
+          ? 'Sync inventory from Warframe'
+          : inventory?.stale
+            ? 'Inventory stale — open Settings or launch Warframe to sync'
+            : 'Inventory settings',
     },
   ]
 

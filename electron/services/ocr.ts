@@ -37,11 +37,14 @@ type PaddleModule = {
   }
 }
 
-let paddle: PaddleOcr | null = null
-let paddleLoading: Promise<PaddleOcr | null> | null = null
+/** Two ONNX instances so slot OCR can overlap (engine is not re-entrant). */
+const PADDLE_POOL_SIZE = 2
+
+let paddlePool: PaddleOcr[] = []
+let paddleAvailable: PaddleOcr[] = []
+const paddleWaiters: Array<(engine: PaddleOcr) => void> = []
+let paddleLoading: Promise<PaddleOcr[]> | null = null
 let paddleFailed = false
-/** Serialize Paddle detect() — the ONNX engine is not safely re-entrant. */
-let paddleDetectChain: Promise<unknown> = Promise.resolve()
 
 let tessWorker: Worker | null = null
 let tessLoading: Promise<Worker> | null = null
@@ -49,15 +52,6 @@ let tessLoading: Promise<Worker> | null = null
 /** Reused scratch path if buffer detect fails (rare). */
 let paddleScratchPath: string | null = null
 let ocrPriorityDepth = 0
-
-function withPaddleDetect<T>(fn: () => Promise<T>): Promise<T> {
-  const run = paddleDetectChain.then(fn, fn)
-  paddleDetectChain = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  return run
-}
 
 const RELIC_WHITELIST =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 '&-"
@@ -103,9 +97,13 @@ export async function withOcrPriority<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function loadPaddle(): Promise<PaddleOcr | null> {
-  if (paddle) return paddle
-  if (paddleFailed) return null
+async function createPaddleInstance(create: NonNullable<PaddleModule['create']>): Promise<PaddleOcr> {
+  return create()
+}
+
+async function loadPaddlePool(): Promise<PaddleOcr[]> {
+  if (paddlePool.length) return paddlePool
+  if (paddleFailed) return []
   if (!paddleLoading) {
     paddleLoading = (async () => {
       try {
@@ -117,21 +115,65 @@ async function loadPaddle(): Promise<PaddleOcr | null> {
         }
         const create = mod.create || mod.default?.create
         if (!create) throw new Error('@repeato/ocr create() missing')
-        const instance = await create()
-        paddle = instance
-        console.info('[Everything Warframe] OCR engine: PaddleOCR (PP-OCRv4 ONNX)')
-        return instance
+
+        const first = await createPaddleInstance(create)
+        const pool: PaddleOcr[] = [first]
+        // Second instance enables concurrent relic slot OCR.
+        try {
+          const second = await createPaddleInstance(create)
+          pool.push(second)
+        } catch (err) {
+          console.warn(
+            '[Everything Warframe] Second PaddleOCR instance unavailable — serial detect only',
+            err instanceof Error ? err.message : err,
+          )
+        }
+        paddlePool = pool
+        paddleAvailable = [...pool]
+        console.info(
+          `[Everything Warframe] OCR engine: PaddleOCR (PP-OCRv4 ONNX) ×${pool.length}`,
+        )
+        return pool
       } catch (err) {
         paddleFailed = true
         console.warn(
           '[Everything Warframe] PaddleOCR unavailable — falling back to Tesseract',
           err instanceof Error ? err.message : err,
         )
-        return null
+        return []
       }
     })()
   }
   return paddleLoading
+}
+
+async function acquirePaddle(): Promise<PaddleOcr | null> {
+  const pool = await loadPaddlePool()
+  if (!pool.length) return null
+  const free = paddleAvailable.pop()
+  if (free) return free
+  return new Promise<PaddleOcr>((resolve) => {
+    paddleWaiters.push(resolve)
+  })
+}
+
+function releasePaddle(engine: PaddleOcr) {
+  const waiter = paddleWaiters.shift()
+  if (waiter) {
+    waiter(engine)
+    return
+  }
+  paddleAvailable.push(engine)
+}
+
+async function withPaddleSlot<T>(fn: (engine: PaddleOcr) => Promise<T>): Promise<T> {
+  const engine = await acquirePaddle()
+  if (!engine) throw new Error('PaddleOCR unavailable')
+  try {
+    return await fn(engine)
+  } finally {
+    releasePaddle(engine)
+  }
 }
 
 async function getTessWorker(): Promise<Worker> {
@@ -182,8 +224,38 @@ function nativeContrastPrep(png: Buffer, opts: { scale: number; harsh?: boolean 
   return out.resize({ width: tw, height: th, quality: 'best' }).toPNG()
 }
 
-/** Prep a single riven card crop: boost light UI text on dark mesh, pad, upscale. */
-async function prepareRivenCard(png: Buffer, mode: 'normal' | 'harsh' = 'normal'): Promise<Buffer> {
+async function pngToRaw(png: Buffer): Promise<ImageRawData> {
+  try {
+    const sharp = nodeRequire('sharp') as typeof import('sharp')
+    const { data, info } = await sharp(png)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    return {
+      data: new Uint8Array(data),
+      width: info.width,
+      height: info.height,
+    }
+  } catch {
+    const img = nativeImage.createFromBuffer(png)
+    const { width, height } = img.getSize()
+    const bgra = Buffer.from(img.toBitmap())
+    const rgba = new Uint8Array(width * height * 4)
+    for (let i = 0, j = 0; i + 3 < bgra.length; i += 4, j += 4) {
+      rgba[j] = bgra[i + 2]
+      rgba[j + 1] = bgra[i + 1]
+      rgba[j + 2] = bgra[i]
+      rgba[j + 3] = bgra[i + 3]
+    }
+    return { data: rgba, width, height }
+  }
+}
+
+/** Prep a riven card → raw RGBA for Paddle (no PNG round-trip). */
+async function prepareRivenRaw(
+  png: Buffer,
+  mode: 'normal' | 'harsh' = 'normal',
+): Promise<ImageRawData> {
   try {
     const sharp = nodeRequire('sharp') as typeof import('sharp')
     const meta = await sharp(png).metadata()
@@ -191,12 +263,11 @@ async function prepareRivenCard(png: Buffer, mode: 'normal' | 'harsh' = 'normal'
     const targetW = Math.max(640, Math.round(width * 2.6))
     let pipeline = sharp(png).grayscale().normalize()
     if (mode === 'harsh') {
-      // Crush midtones so faint mesh drops out and white stat text pops.
       pipeline = pipeline.linear(1.85, -40).threshold(118)
     } else {
       pipeline = pipeline.linear(1.45, -22).sharpen({ sigma: 1.0 })
     }
-    return pipeline
+    const { data, info } = await pipeline
       .extend({
         top: 32,
         bottom: 32,
@@ -205,22 +276,67 @@ async function prepareRivenCard(png: Buffer, mode: 'normal' | 'harsh' = 'normal'
         background: { r: 0, g: 0, b: 0, alpha: 1 },
       })
       .resize({ width: targetW, kernel: 'lanczos3' })
-      .png()
-      .toBuffer()
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    return {
+      data: new Uint8Array(data),
+      width: info.width,
+      height: info.height,
+    }
   } catch (err) {
     console.warn(
       '[Everything Warframe] sharp unavailable for riven prep — using native contrast fallback',
       err instanceof Error ? err.message : err,
     )
-    return nativeContrastPrep(png, { scale: 2.6, harsh: mode === 'harsh' })
+    return pngToRaw(nativeContrastPrep(png, { scale: 2.6, harsh: mode === 'harsh' }))
   }
 }
 
-/**
- * Prep relic reward name crops (WFInfo-style):
- * 1. Theme-color text isolation → black on white (drops character art)
- * 2. Upscale for Tesseract/Paddle
- */
+/** Prep relic name crop → raw RGBA for Paddle (no PNG encode/decode). */
+async function prepareRelicRaw(
+  png: Buffer,
+  scale: number,
+  theme?: WfThemeId | null,
+): Promise<ImageRawData> {
+  const filtered = theme ? filterRelicTextPng(png, theme) : png
+  try {
+    const sharp = nodeRequire('sharp') as typeof import('sharp')
+    const meta = await sharp(filtered).metadata()
+    const width = meta.width || 0
+    let pipeline = sharp(filtered).grayscale().normalize().sharpen({ sigma: 0.6 })
+    if (width > 0 && scale !== 1) {
+      pipeline = pipeline.resize({
+        width: Math.round(width * scale),
+        kernel: 'lanczos3',
+      })
+    }
+    const { data, info } = await pipeline
+      .extend({
+        top: 16,
+        bottom: 16,
+        left: 14,
+        right: 14,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    return {
+      data: new Uint8Array(data),
+      width: info.width,
+      height: info.height,
+    }
+  } catch (err) {
+    console.warn(
+      '[Everything Warframe] sharp unavailable for relic prep — using native contrast fallback',
+      err instanceof Error ? err.message : err,
+    )
+    return pngToRaw(nativeContrastPrep(filtered, { scale: Math.max(1, scale), harsh: true }))
+  }
+}
+
+/** PNG prep for Tesseract (needs an image buffer). */
 async function prepareRelicPng(
   png: Buffer,
   scale: number,
@@ -231,7 +347,6 @@ async function prepareRelicPng(
     const sharp = nodeRequire('sharp') as typeof import('sharp')
     const meta = await sharp(filtered).metadata()
     const width = meta.width || 0
-    // Already B/W from theme filter — mild sharpen + upscale is enough.
     let pipeline = sharp(filtered).grayscale().normalize().sharpen({ sigma: 0.6 })
     if (width > 0 && scale !== 1) {
       pipeline = pipeline.resize({
@@ -249,12 +364,36 @@ async function prepareRelicPng(
       })
       .png()
       .toBuffer()
-  } catch (err) {
-    console.warn(
-      '[Everything Warframe] sharp unavailable for relic prep — using native contrast fallback',
-      err instanceof Error ? err.message : err,
-    )
+  } catch {
     return nativeContrastPrep(filtered, { scale: Math.max(1, scale), harsh: true })
+  }
+}
+
+async function prepareRivenPng(png: Buffer, mode: 'normal' | 'harsh' = 'normal'): Promise<Buffer> {
+  try {
+    const sharp = nodeRequire('sharp') as typeof import('sharp')
+    const meta = await sharp(png).metadata()
+    const width = meta.width || 400
+    const targetW = Math.max(640, Math.round(width * 2.6))
+    let pipeline = sharp(png).grayscale().normalize()
+    if (mode === 'harsh') {
+      pipeline = pipeline.linear(1.85, -40).threshold(118)
+    } else {
+      pipeline = pipeline.linear(1.45, -22).sharpen({ sigma: 1.0 })
+    }
+    return pipeline
+      .extend({
+        top: 32,
+        bottom: 32,
+        left: 32,
+        right: 32,
+        background: { r: 0, g: 0, b: 0, alpha: 1 },
+      })
+      .resize({ width: targetW, kernel: 'lanczos3' })
+      .png()
+      .toBuffer()
+  } catch {
+    return nativeContrastPrep(png, { scale: 2.6, harsh: mode === 'harsh' })
   }
 }
 
@@ -311,7 +450,6 @@ function linesFromPaddle(result: PaddleResult): string[] {
       .replace(/\s+/g, ' ')
       .trim()
     if (!joined) continue
-    // If a row glued multiple ±stat pairs, split so the parser sees each.
     const parts = joined.split(/(?=[+\-]\s*\d)/).map((p) => p.trim()).filter(Boolean)
     if (parts.length > 1 && parts.every((p) => /^[+\-]\s*\d/.test(p))) {
       lines.push(...parts)
@@ -327,7 +465,6 @@ function filterRivenLines(lines: string[]): string[] {
     const t = line.trim()
     if (!t || t.length < 2) return false
     if (RIVEN_NOISE.test(t)) return false
-    // Pure kuva / credit amounts
     if (/^[?\d,\.\s]+$/.test(t) && !/%/.test(t)) return false
     return true
   })
@@ -339,34 +476,37 @@ function countRivenStatHints(lines: string[]): number {
   ).length
 }
 
-async function pngToRaw(png: Buffer): Promise<ImageRawData> {
-  const sharp = nodeRequire('sharp') as typeof import('sharp')
-  const { data, info } = await sharp(png)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-  return {
-    data: new Uint8Array(data),
-    width: info.width,
-    height: info.height,
-  }
-}
-
-async function detectPrepared(engine: PaddleOcr, prepared: Buffer): Promise<string[]> {
-  return withPaddleDetect(async () => {
-    // Prefer in-memory raw pixels — avoids temp-file write/read per detect.
+async function detectRaw(engine: PaddleOcr, raw: ImageRawData): Promise<string[]> {
+  try {
+    const result = await engine.detect(raw)
+    return linesFromPaddle(result)
+  } catch {
+    // Rare builds only accept file paths — encode once as fallback.
+    const file = getScratchPath()
+    let png: Buffer
     try {
-      const raw = await pngToRaw(prepared)
-      const result = await engine.detect(raw)
-      return linesFromPaddle(result)
+      const sharp = nodeRequire('sharp') as typeof import('sharp')
+      png = await sharp(Buffer.from(raw.data), {
+        raw: { width: raw.width, height: raw.height, channels: 4 },
+      })
+        .png()
+        .toBuffer()
     } catch {
-      // Fallback: reused scratch file (some builds only accept paths).
-      const file = getScratchPath()
-      await fs.promises.writeFile(file, prepared)
-      const result = await engine.detect(file)
-      return linesFromPaddle(result)
+      const bgra = Buffer.alloc(raw.width * raw.height * 4)
+      for (let i = 0, j = 0; j + 3 < raw.data.length; i += 4, j += 4) {
+        bgra[i] = raw.data[j + 2]
+        bgra[i + 1] = raw.data[j + 1]
+        bgra[i + 2] = raw.data[j]
+        bgra[i + 3] = raw.data[j + 3]
+      }
+      png = nativeImage
+        .createFromBitmap(bgra, { width: raw.width, height: raw.height })
+        .toPNG()
     }
-  })
+    await fs.promises.writeFile(file, png)
+    const result = await engine.detect(file)
+    return linesFromPaddle(result)
+  }
 }
 
 async function recognizeRelicsTess(
@@ -402,7 +542,7 @@ async function recognizeRivensTess(images: Buffer[]): Promise<string[]> {
   })
   const blocks: string[] = []
   for (const png of images) {
-    const prepared = await prepareRivenCard(png)
+    const prepared = await prepareRivenPng(png)
     const result = await w.recognize(prepared)
     const text = filterRivenLines(
       (result.data.text || '')
@@ -428,18 +568,16 @@ export async function recognizeRewardNames(
   theme?: WfThemeId | null,
 ): Promise<string[]> {
   return withOcrPriority(async () => {
-    const engine = await loadPaddle()
-    if (engine) {
-      return Promise.all(
-        images.map(async (png) => {
-          // 2.0× is enough for name lines and much faster than 2.4× on 4 slots.
-          const prepared = await prepareRelicPng(png, 2.0, theme)
-          const lines = await detectPrepared(engine, prepared)
-          return lines.join(' ').replace(/\s+/g, ' ').trim()
-        }),
-      )
-    }
-    return recognizeRelicsTess(images, theme)
+    const pool = await loadPaddlePool()
+    if (!pool.length) return recognizeRelicsTess(images, theme)
+
+    return Promise.all(
+      images.map(async (png) => {
+        const prepared = await prepareRelicRaw(png, 2.0, theme)
+        const lines = await withPaddleSlot((engine) => detectRaw(engine, prepared))
+        return lines.join(' ').replace(/\s+/g, ' ').trim()
+      }),
+    )
   })
 }
 
@@ -458,7 +596,6 @@ function mergeRivenPasses(passes: string[][]): string {
 }
 
 async function rivenStatsBandPasses(
-  engine: PaddleOcr,
   png: Buffer,
   bands: ReadonlyArray<{ top: number; height: number }>,
   prep: 'normal' | 'harsh' | 'both',
@@ -480,12 +617,16 @@ async function rivenStatsBandPasses(
         })
         .toBuffer()
       if (prep === 'normal' || prep === 'both') {
-        const statsPrep = await prepareRivenCard(statsPng, 'normal')
-        passes.push(filterRivenLines(await detectPrepared(engine, statsPrep)))
+        const statsPrep = await prepareRivenRaw(statsPng, 'normal')
+        passes.push(
+          filterRivenLines(await withPaddleSlot((engine) => detectRaw(engine, statsPrep))),
+        )
       }
       if (prep === 'harsh' || prep === 'both') {
-        const statsHarsh = await prepareRivenCard(statsPng, 'harsh')
-        passes.push(filterRivenLines(await detectPrepared(engine, statsHarsh)))
+        const statsHarsh = await prepareRivenRaw(statsPng, 'harsh')
+        passes.push(
+          filterRivenLines(await withPaddleSlot((engine) => detectRaw(engine, statsHarsh))),
+        )
       }
     }
   } catch {
@@ -504,28 +645,30 @@ export async function recognizeRivenBlocks(
   opts?: { deep?: boolean },
 ): Promise<string[]> {
   return withOcrPriority(async () => {
-    const engine = await loadPaddle()
-    if (!engine) return recognizeRivensTess(images)
+    const pool = await loadPaddlePool()
+    if (!pool.length) return recognizeRivensTess(images)
 
     const deep = opts?.deep === true
 
     const readOne = async (png: Buffer): Promise<string> => {
       const passes: string[][] = []
 
-      const fullPrep = await prepareRivenCard(png, 'normal')
-      const normalLines = filterRivenLines(await detectPrepared(engine, fullPrep))
+      const fullPrep = await prepareRivenRaw(png, 'normal')
+      const normalLines = filterRivenLines(
+        await withPaddleSlot((engine) => detectRaw(engine, fullPrep)),
+      )
       passes.push(normalLines)
 
       const weakNormal = countRivenStatHints(normalLines) < 2
       if (deep || weakNormal) {
-        const harshPrep = await prepareRivenCard(png, 'harsh')
-        passes.push(filterRivenLines(await detectPrepared(engine, harshPrep)))
+        const harshPrep = await prepareRivenRaw(png, 'harsh')
+        passes.push(
+          filterRivenLines(await withPaddleSlot((engine) => detectRaw(engine, harshPrep))),
+        )
       }
 
       if (deep) {
-        // Band lines often miss weapon titles — only keep clear ±stat rows.
         const bandPasses = await rivenStatsBandPasses(
-          engine,
           png,
           [
             { top: 0.3, height: 0.55 },
@@ -543,31 +686,33 @@ export async function recognizeRivenBlocks(
       return mergeRivenPasses(passes)
     }
 
-    // Cards are independent — prep in parallel; detect() stays serialized.
+    // Cards prep+detect can overlap across the pool (2 engines).
     return Promise.all(images.map((png) => readOne(png)))
   })
 }
 
-function tinyWarmupPng(): Buffer {
-  // 64×24 white strip with a dark glyph — enough to JIT detection + recognition.
+function tinyWarmupRaw(): ImageRawData {
   const w = 64
   const h = 24
-  const bitmap = Buffer.alloc(w * h * 4, 255)
+  const data = new Uint8Array(w * h * 4)
+  data.fill(255)
   for (let y = 6; y < 18; y++) {
     for (let x = 20; x < 44; x++) {
       const i = (y * w + x) * 4
-      bitmap[i] = bitmap[i + 1] = bitmap[i + 2] = 20
+      data[i] = data[i + 1] = data[i + 2] = 20
+      data[i + 3] = 255
     }
   }
-  return nativeImage.createFromBitmap(bitmap, { width: w, height: h }).toPNG()
+  return { data, width: w, height: h }
 }
 
 export async function warmupOcr(): Promise<void> {
-  const engine = await loadPaddle()
-  if (engine) {
+  const pool = await loadPaddlePool()
+  if (pool.length) {
     try {
-      await detectPrepared(engine, tinyWarmupPng())
-      console.info('[Everything Warframe] OCR warmup: Paddle ready')
+      const raw = tinyWarmupRaw()
+      await Promise.all(pool.map((engine) => detectRaw(engine, raw)))
+      console.info(`[Everything Warframe] OCR warmup: Paddle ready ×${pool.length}`)
     } catch (err) {
       console.warn(
         '[Everything Warframe] OCR warmup detect skipped',
@@ -587,7 +732,9 @@ export async function shutdownOcr(): Promise<void> {
   } catch {
     // ignore
   }
-  paddle = null
+  paddlePool = []
+  paddleAvailable = []
+  paddleWaiters.length = 0
   paddleLoading = null
   if (paddleScratchPath) {
     try {

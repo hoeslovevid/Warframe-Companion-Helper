@@ -94,6 +94,34 @@ let inventoryRevision = 0
 let lastInventoryDiff: import('../../shared/types').InventoryDiff | null = null
 const listeners = new Set<(status: InventoryStatus) => void>()
 
+export type InventorySyncProgress = {
+  stage: 'checking' | 'helper' | 'launching' | 'waiting' | 'parsing' | 'done' | 'error'
+  message: string
+}
+
+const progressListeners = new Set<(p: InventorySyncProgress) => void>()
+
+export function onInventorySyncProgress(cb: (p: InventorySyncProgress) => void) {
+  progressListeners.add(cb)
+  return () => {
+    progressListeners.delete(cb)
+  }
+}
+
+function emitSyncProgress(
+  stage: InventorySyncProgress['stage'],
+  message: string,
+) {
+  const payload = { stage, message }
+  for (const cb of progressListeners) {
+    try {
+      cb(payload)
+    } catch {
+      // ignore listener errors
+    }
+  }
+}
+
 function toolsDir() {
   return path.join(app.getPath('userData'), 'tools')
 }
@@ -800,14 +828,17 @@ function helperFailureMessage(cleaned: string): string {
 async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
   const settings = loadSettings()
   if (!settings.inventoryConsent) {
+    emitSyncProgress('error', 'Permission required')
     return {
       ok: false,
       error: 'Permission required. Accept the inventory sync risk acknowledgment first.',
     }
   }
+  emitSyncProgress('checking', 'Checking Warframe is running…')
   invalidateWarframeProcessCache()
   const running = isWarframeGameRunningSync() || (await isWarframeProcessRunning())
   if (!running) {
+    emitSyncProgress('error', 'Warframe is not running')
     return {
       ok: false,
       error:
@@ -822,6 +853,7 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
 
   let stdinPulse: ReturnType<typeof setInterval> | null = null
   try {
+    emitSyncProgress('helper', 'Preparing inventory helper…')
     const exe = await ensureHelperDownloaded()
     const work = inventoryWorkDir()
     fs.mkdirSync(work, { recursive: true })
@@ -841,6 +873,7 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
       const wine = findWarframeWineLauncher()
       const pfx = warframeProtonPrefix()
       if (!wine) {
+        emitSyncProgress('error', 'Proton/Wine not found')
         return {
           ok: false,
           error:
@@ -848,6 +881,7 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
         }
       }
       if (!pfx) {
+        emitSyncProgress('error', 'Proton prefix not found')
         return {
           ok: false,
           error:
@@ -857,6 +891,7 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
       console.info(
         `[Everything Warframe] Inventory sync via ${wine.label} (WINEPREFIX=${pfx})`,
       )
+      emitSyncProgress('launching', `Launching helper via ${wine.label}…`)
       const env = buildWineHelperEnv(wine, pfx)
       const compat = warframeCompatDataDir()
       if (compat) env.STEAM_COMPAT_DATA_PATH = compat
@@ -879,6 +914,7 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
         // ignore
       }
     } else {
+      emitSyncProgress('launching', 'Launching inventory helper…')
       child = spawn(exe, [], {
         cwd: work,
         windowsHide: true,
@@ -887,6 +923,7 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
     }
 
     activeHelper = child
+    emitSyncProgress('waiting', 'Reading session from Warframe… stay on the Orbiter')
 
     let stderr = ''
     child.stderr?.on('data', (d) => {
@@ -944,7 +981,9 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
         '[Everything Warframe] Inventory helper failed or timed out:',
         cleaned.slice(0, 800) || '(no helper output)',
       )
-      return { ok: false, error: helperFailureMessage(cleaned) }
+      const msg = helperFailureMessage(cleaned)
+      emitSyncProgress('error', msg)
+      return { ok: false, error: msg }
     }
 
     if (foundPath !== legacyOut) {
@@ -960,11 +999,23 @@ async function syncInventoryFromGameUnlocked(): Promise<InventorySyncResult> {
       }
     }
 
-    return useInventoryFile(foundPath, 'helper')
+    emitSyncProgress('parsing', 'Parsing inventory…')
+    const result = useInventoryFile(foundPath, 'helper')
+    if (result.ok) {
+      emitSyncProgress(
+        'done',
+        `Synced ${result.uniqueCount ?? 0} unique items`,
+      )
+    } else {
+      emitSyncProgress('error', result.error || 'Failed to load inventory')
+    }
+    return result
   } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Inventory sync failed'
+    emitSyncProgress('error', msg)
     return {
       ok: false,
-      error: err instanceof Error ? err.message : 'Inventory sync failed',
+      error: msg,
     }
   } finally {
     if (stdinPulse) clearInterval(stdinPulse)

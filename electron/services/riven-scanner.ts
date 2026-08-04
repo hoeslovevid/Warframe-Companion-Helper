@@ -3,6 +3,7 @@ import path from 'node:path'
 import { app } from 'electron'
 import { RivenScanState } from '../../shared/types'
 import { recognizeRivenBlocks, warmupOcr } from './ocr'
+import { waitForOcrUiReady } from './ocr-readiness'
 import { parseRivenOcr, recommendRolls } from './riven-grader'
 import { enrichRivensWithMarket } from './riven-market'
 import { captureRivenCompare } from './screen-capture'
@@ -118,10 +119,8 @@ export async function scanRivens(trigger: 'manual' | 'log' = 'manual'): Promise<
 
   try {
     if (trigger === 'log') {
-      // Compare UI animates in after kuva confirm / PleaseWait.
-      // Proton/DXVK first paint is slower — wait longer on Linux.
-      const animDelay = process.platform === 'linux' ? 2200 : 1400
-      await new Promise((r) => setTimeout(r, animDelay))
+      // Poll until Cycle cards look painted (cap = old fixed animation delay).
+      await waitForOcrUiReady('riven')
     }
 
     const capture = await captureRivenCompare()

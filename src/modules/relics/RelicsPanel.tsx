@@ -189,16 +189,69 @@ export function RelicsPanel({
 
   if (compact || previewMode) {
     const best = rewards.find((r) => r.bestPick && r.name)
+    const showRecovery = !previewMode && !scanning && (weakScan || Boolean(state.error))
     return (
       <div className="relic-strip" style={{ opacity, width: stripW }} data-relic-strip>
         {scanning ? <p className="relic-strip__status">Scanning…</p> : null}
         {!previewMode && state.error ? (
           <p className="relic-strip__error">{state.error}</p>
         ) : null}
+        {showRecovery ? (
+          <div className="relic-strip__recovery">
+            <p className="relic-strip__status">
+              Weak OCR — retry, force slots, or reset monitor
+            </p>
+            <div className="relic-strip__next">
+              <button
+                type="button"
+                className="btn primary"
+                disabled={scanning}
+                onClick={() => void scan()}
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() =>
+                  void updateSettings({ relicSquadSizeOverride: 3 }).then(() => {
+                    pushToast('Forced 3 reward slots', 'info')
+                    void scan()
+                  })
+                }
+              >
+                Force 3
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() =>
+                  void updateSettings({ relicSquadSizeOverride: 4 }).then(() => {
+                    pushToast('Forced 4 reward slots', 'info')
+                    void scan()
+                  })
+                }
+              >
+                Force 4
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() =>
+                  void updateSettings({ ocrDisplayId: null }).then(() =>
+                    pushToast('OCR display reset — retry scan', 'info'),
+                  )
+                }
+              >
+                Reset monitor
+              </button>
+            </div>
+          </div>
+        ) : null}
         {rewards.length > 0 ? (
           <>
             <RewardRow rewards={rewards} compact />
-            {best && !scanning ? (
+            {best && !scanning && !showRecovery ? (
               <div className="relic-strip__next">
                 <button
                   type="button"
@@ -222,7 +275,7 @@ export function RelicsPanel({
               </div>
             ) : null}
           </>
-        ) : scanning ? null : (
+        ) : scanning || showRecovery ? null : (
           <p className="relic-strip__status">Waiting for rewards</p>
         )}
       </div>

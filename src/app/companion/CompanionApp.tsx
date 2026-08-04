@@ -166,7 +166,7 @@ export function CompanionApp() {
   const [lfgPrefill, setLfgPrefill] = useState<LfgPrefill | null>(null)
   const { settings, ready, updateSettings, setModuleEnabled } = useSettings()
   const { data, loading, error, refresh } = useWorldstate()
-  const { status: inventory } = useInventory()
+  const { status: inventory, progress: inventoryProgress } = useInventory()
   const { state: relicScan, ackCelebration } = useRelicScan()
   const { state: rivenScan } = useRivenScan()
   useColorTheme(settings.colorTheme, settings.customPalette)
@@ -765,6 +765,7 @@ export function CompanionApp() {
                 <StatusStrip
                   settings={settings}
                   inventory={inventory}
+                  inventoryProgress={inventoryProgress}
                   worldstateOk={Boolean(data.fetchedAt) && !error}
                   worldstateStale={data.stale}
                   onToggleOverlay={() => void window.voidlens?.toggleOverlay()}

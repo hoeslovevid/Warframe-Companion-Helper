@@ -6,6 +6,7 @@ import { getInventoryIndex, ownedCountForReward } from './inventory'
 import { ensureItemCatalog, getSetParts, matchCatalogItem } from './item-catalog'
 import { lookupMarketPrices } from './market-prices'
 import { recognizeRewardNames, warmupOcr } from './ocr'
+import { waitForOcrUiReady } from './ocr-readiness'
 import { captureRewardRegionVariants, cropRelicBandsFromPng } from './screen-capture'
 import { detectRewardPlayerCount, detectUiTheme, type WfThemeId } from './wfinfo-theme'
 import { ensureWfinfoPrices, lookupWfinfoPrices } from './wfinfo-prices'
@@ -293,10 +294,8 @@ export async function scanRelicRewards(
       ensureWfinfoPrices().catch(() => {}),
     ])
     if (trigger === 'log') {
-      // Wine/Proton often buffers EE.log; UI may still be animating after the marker.
-      // Keep this short — reward pick timer is tight.
-      const delay = process.platform === 'linux' ? 900 : 450
-      await new Promise((r) => setTimeout(r, delay))
+      // Poll until the reward strip looks painted (cap = old fixed delay).
+      await waitForOcrUiReady('relic')
     }
 
     const buildRewards = async (

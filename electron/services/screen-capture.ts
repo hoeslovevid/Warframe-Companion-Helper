@@ -123,22 +123,22 @@ async function captureViaDesktopCapturer(preferred?: Electron.Display): Promise<
 }
 
 /**
- * Linux/Wayland: prefer persistent MediaStream (one portal prompt per session).
- * Windows/macOS: desktopCapturer thumbnails (no share dialog).
+ * Linux/Wayland + Windows: prefer persistent MediaStream when live (fast frame grabs).
+ * Fall back to desktopCapturer thumbnails.
  */
 async function captureDisplay(display: Electron.Display): Promise<{
   png: Buffer
   width: number
   height: number
 } | null> {
-  if (process.platform === 'linux') {
-    const persistent = await grabPersistentFrame()
-    if (persistent?.png?.length) {
-      console.info(
-        `[Everything Warframe] Capture via persistent stream ${persistent.width}×${persistent.height}`,
-      )
-      return persistent
-    }
+  // Persistent stream is much faster than full-res desktopCapturer thumbs,
+  // especially on Windows multi-monitor / 4K. Auto-picks screen via handler.
+  const persistent = await grabPersistentFrame()
+  if (persistent?.png?.length) {
+    console.info(
+      `[Everything Warframe] Capture via persistent stream ${persistent.width}×${persistent.height}`,
+    )
+    return persistent
   }
   const shot = await captureViaDesktopCapturer(display)
   if (shot) {
@@ -151,6 +151,23 @@ async function captureDisplay(display: Electron.Display): Promise<{
     )
   }
   return shot
+}
+
+/**
+ * Fast frame for readiness polling — no overlay pause.
+ * Prefers live persistent stream; otherwise one desktopCapturer thumb.
+ */
+export async function captureDisplayQuick(): Promise<{
+  png: Buffer
+  width: number
+  height: number
+} | null> {
+  if (isPersistentCaptureLive()) {
+    const persistent = await grabPersistentFrame()
+    if (persistent?.png?.length) return persistent
+  }
+  invalidateCaptureCache()
+  return captureViaDesktopCapturer(resolveOcrDisplay())
 }
 
 export async function capturePrimaryDisplay(): Promise<{
