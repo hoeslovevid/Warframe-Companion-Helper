@@ -7,16 +7,19 @@ export type LogEvent = {
   squadSize?: number | null
 }
 
-/** Markers that the fissure reward pick screen is up (AlecaFrame / WFInfo style). */
+/**
+ * Markers that the fissure reward pick screen is up (AlecaFrame / WFInfo style).
+ * Keep these specific — a bare `ProjectionRewardChoice.lua` match also hits
+ * close/select lines and used to re-trigger OCR after the pick screen was gone (#8).
+ */
 const REWARD_START_PATTERNS = [
   /ProjectionRewardChoice\.lua:\s*Relic rewards initialized/i,
   /Relic rewards initialized/i,
   // WFInfo / older builds — "Got rewards" without "screen closed"
   /Got rewards(?!\s+screen\s+closed)/i,
-  /ProjectionRewardChoice\.lua/i,
-  /Script \[Info\]:.*ProjectionRewardChoice/i,
+  /Script \[Info\]:.*ProjectionRewardChoice.*(?:initialized|open|shown|show)/i,
   // Proton / newer client variants
-  /RelicReward(?:s)?(?:Choice|Screen|UI)/i,
+  /RelicReward(?:s)?(?:Choice|Screen|UI).*(?:initialized|open|shown|show)/i,
   /UI_Open.*(?:Relic|Projection).*Reward/i,
   /ShowProjectionReward/i,
 ]
@@ -56,6 +59,15 @@ const SQUAD_SIZE_LINE =
   /(?:SquadSize|PlayersInSquad|squad of|MatchingService.*Players)\D{0,12}([1-4])\b/i
 const VOID_PROJECTION =
   /AddVoidProjection|VoidProjection|Selecting projection/i
+
+function lineIsRewardEnd(line: string): boolean {
+  return REWARD_END_PATTERNS.some((re) => re.test(line))
+}
+
+function lineIsRewardStart(line: string): boolean {
+  if (lineIsRewardEnd(line)) return false
+  return REWARD_START_PATTERNS.some((re) => re.test(line))
+}
 
 /**
  * Tail Warframe EE.log for fissure reward-screen and riven cycle markers.
@@ -177,9 +189,10 @@ export class LogWatcher extends EventEmitter {
 
       const chunk = buf.toString('utf8')
       const now = Date.now()
+      const lines = chunk.split(/\r?\n/)
 
       // Track squad size from recent lines (used when relic rewards open).
-      for (const line of chunk.split(/\r?\n/)) {
+      for (const line of lines) {
         const sizeHit = line.match(SQUAD_SIZE_LINE)
         if (sizeHit) {
           const n = Number(sizeHit[1])
@@ -194,24 +207,28 @@ export class LogWatcher extends EventEmitter {
         if (leave?.[1]) this.squadMembers.delete(leave[1].toLowerCase())
       }
 
-      if (REWARD_START_PATTERNS.some((re) => re.test(chunk))) {
-        if (now - this.lastStartEmit >= 5000) {
-          this.lastStartEmit = now
-          this.rewardScreenOpen = true
-          this.emit('event', {
-            type: 'relic_rewards',
-            squadSize: this.getSquadSizeHint(),
-          } satisfies LogEvent)
+      // Process reward markers in log order so close/select never re-arms a start (#8).
+      for (const line of lines) {
+        if (!line.trim()) continue
+        if (lineIsRewardStart(line)) {
+          if (now - this.lastStartEmit >= 5000) {
+            this.lastStartEmit = now
+            this.rewardScreenOpen = true
+            this.emit('event', {
+              type: 'relic_rewards',
+              squadSize: this.getSquadSizeHint(),
+            } satisfies LogEvent)
+          }
+        } else if (
+          this.rewardScreenOpen &&
+          lineIsRewardEnd(line) &&
+          now - this.lastEndEmit >= 2000
+        ) {
+          this.lastEndEmit = now
+          this.rewardScreenOpen = false
+          this.voidProjectionCount = 0
+          this.emit('event', { type: 'relic_rewards_end' } satisfies LogEvent)
         }
-      } else if (
-        this.rewardScreenOpen &&
-        REWARD_END_PATTERNS.some((re) => re.test(chunk)) &&
-        now - this.lastEndEmit >= 2000
-      ) {
-        this.lastEndEmit = now
-        this.rewardScreenOpen = false
-        this.voidProjectionCount = 0
-        this.emit('event', { type: 'relic_rewards_end' } satisfies LogEvent)
       }
 
       // Kuva spend confirm dialog → arm; PleaseWait / compare chrome → scan.

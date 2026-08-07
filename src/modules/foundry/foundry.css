@@ -479,18 +479,21 @@
   max-height: 100%;
 }
 
-/* Relic Planner owns vertical scroll inside the list — don't nest another page scroll. */
-.companion-main:has(> div > .planner-page),
-.companion-main:has(> .planner-page) {
+/* Relic Planner owns vertical scroll inside the list — don't nest another page scroll.
+ * Ignore parked tabs (display:none) — :has() still matches them and used to lock
+ * Help/Settings/Dashboard into overflow:hidden + flex, crushing panels. */
+.companion-main:has(> .planner-page),
+.companion-main:has(> div:not(.companion-tab-park) > .planner-page) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: 100%;
-  max-height: 100%;
+  height: auto;
+  max-height: none;
+  align-self: stretch;
 }
 
-.companion-main > div:has(> .planner-page) {
+.companion-main > div:not(.companion-tab-park):has(> .planner-page) {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;

@@ -303,6 +303,14 @@ export const WHATS_NEW: Record<string, string[]> = {
     'OCR speed: persistent screen stream on Windows too; warmup starts ~0.5s after launch',
     'OCR speed: readiness polling for relic/riven log triggers instead of fixed animation delays',
   ],
+  '0.9.71': [
+    'Fix relic OCR re-scanning after the pick screen closes (EE.log close/select was treated as a new open) (#8)',
+    'Faster EE.log poll on Windows; ignore reward-end while a scan is still running',
+    'Reset stale OCR monitor IDs when Windows remaps displays after GPU/driver changes',
+    'Companion window: scroll the whole tab page when the window is short (not only inside panels)',
+    'Companion layout: flex + absolute fill so Dashboard/Settings scroll reliably in windowed mode',
+    'Fix Help/Settings panel crush: parked Relic Planner no longer locks companion-main to overflow:hidden',
+  ],
 }
 
 export function getWhatsNewBullets(version: string): string[] {

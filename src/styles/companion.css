@@ -1,12 +1,17 @@
 .companion-root {
-  min-height: 100%;
+  position: absolute;
+  inset: 0;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   color: var(--vl-frost);
   background:
     radial-gradient(1100px 520px at 8% -8%, var(--vl-bg-spot-1), transparent 55%),
     radial-gradient(900px 480px at 100% 0%, var(--vl-bg-spot-2), transparent 52%),
     radial-gradient(700px 400px at 70% 100%, var(--vl-bg-spot-3), transparent 60%),
     linear-gradient(165deg, var(--vl-bg-base-a) 0%, var(--vl-bg-base-b) 48%, var(--vl-bg-base-c) 100%);
-  position: relative;
 }
 
 .companion-overlay-cue {
@@ -48,26 +53,34 @@
 }
 
 .companion-shell {
-  display: grid;
-  grid-template-columns: 248px 1fr;
-  min-height: 100vh;
-  height: 100vh;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 0;
+  min-width: 0;
+  height: auto;
+  max-height: none;
   position: relative;
   z-index: 1;
-  min-width: 0;
+  overflow: hidden;
 }
 
 .companion-nav {
+  flex: 0 0 248px;
+  width: 248px;
   padding: 24px 14px 20px;
   border-right: 1px solid var(--vl-nav-border);
   background: linear-gradient(180deg, var(--vl-nav-bg-a), var(--vl-nav-bg-b));
   backdrop-filter: blur(16px) saturate(1.05);
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow: auto;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  align-self: stretch;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .nav-section {
@@ -206,11 +219,9 @@
   color: var(--vl-accent);
 }
 
-.companion-shell.is-nav-collapsed {
-  grid-template-columns: 64px 1fr;
-}
-
 .companion-nav.is-collapsed {
+  flex: 0 0 64px;
+  width: 64px;
   padding: 16px 8px 12px;
   align-items: stretch;
 }
@@ -264,17 +275,35 @@
 }
 
 .companion-main {
+  flex: 1 1 auto;
   padding: 28px 36px 48px;
-  overflow: auto;
-  max-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  height: auto;
+  max-height: none;
   min-height: 0;
   min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
   animation: vlFadeUp var(--vl-duration-slow) var(--vl-ease) both;
 }
 
 /** Keep heavy tabs in the DOM after first visit without painting them. */
 .companion-tab-park {
   display: none !important;
+}
+
+/* Normal tabs scroll as a page — don't let flex leftovers crush panels. */
+.companion-main > .vl-panel,
+.companion-main > .page-header,
+.companion-main > .toolbar,
+.companion-main > .getting-started,
+.companion-main > .play-profiles,
+.companion-main > .section-gap,
+.companion-main > .grid-2,
+.companion-main > .grid-3 {
+  flex-shrink: 0;
 }
 
 .page-header {
@@ -329,37 +358,10 @@
 }
 
 /*
- * Companion-only: scroll inside each module panel instead of growing the whole page.
- * Overlay / layout-preview panels are excluded via .overlay-layout-stage.
+ * Page scroll lives on .companion-main so short/windowed companion heights
+ * can reach every section. List-heavy modules (Foundry / Planner / etc.) keep
+ * their own inner scroll via module CSS — don't trap wheel events on every panel.
  */
-.companion-main .grid-2 > .vl-panel,
-.companion-main .grid-3 > .vl-panel,
-.companion-main > .vl-panel {
-  display: flex;
-  flex-direction: column;
-  max-height: min(48vh, 420px);
-  min-height: 0;
-}
-
-.companion-main .grid-2 > .vl-panel .vl-panel__header,
-.companion-main .grid-3 > .vl-panel .vl-panel__header,
-.companion-main > .vl-panel .vl-panel__header {
-  flex-shrink: 0;
-}
-
-.companion-main .grid-2 > .vl-panel .vl-panel__body,
-.companion-main .grid-3 > .vl-panel .vl-panel__body,
-.companion-main > .vl-panel .vl-panel__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: auto;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--vl-accent) 80%, white) transparent;
-}
-
 .companion-main .overlay-layout-stage .vl-panel {
   display: block;
   max-height: none;
@@ -375,26 +377,28 @@
 @media (max-width: 980px) {
   .companion-shell,
   .companion-shell.is-nav-collapsed {
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: 100vh;
+    flex-direction: column;
+    overflow: hidden;
   }
 
-  .companion-nav {
-    position: relative;
+  .companion-nav,
+  .companion-nav.is-collapsed {
+    flex: 0 0 auto;
+    width: 100%;
     height: auto;
+    max-height: 40vh;
+    position: relative;
     border-right: none;
     border-bottom: 1px solid rgba(157, 180, 196, 0.1);
   }
 
   .companion-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
     max-height: none;
-  }
-
-  .companion-main .grid-2 > .vl-panel,
-  .companion-main .grid-3 > .vl-panel,
-  .companion-main > .vl-panel {
-    max-height: min(56vh, 380px);
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .grid-2,

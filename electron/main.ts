@@ -1622,12 +1622,21 @@ app.whenReady().then(async () => {
   logWatcher.on('event', (event) => {
     if (event.type === 'relic_rewards') {
       if (!loadSettings().modules.relics) return
+      if (getRelicScanState().scanning) {
+        console.info('[Everything Warframe] EE.log relic rewards ignored — scan already in progress')
+        return
+      }
       console.info(
         `[Everything Warframe] EE.log relic rewards detected — scanning` +
           (event.squadSize ? ` (squad≈${event.squadSize})` : ''),
       )
       void runRelicScan('log', event.squadSize)
     } else if (event.type === 'relic_rewards_end') {
+      // Don't wipe mid-OCR if a close marker arrives while the first pass is still running.
+      if (getRelicScanState().scanning) {
+        console.info('[Everything Warframe] EE.log relic end ignored — scan in progress')
+        return
+      }
       console.info('[Everything Warframe] EE.log relic rewards ended — dismissing popup')
       dismissRelicPopup()
     } else if (event.type === 'riven_reroll') {
@@ -1644,8 +1653,8 @@ app.whenReady().then(async () => {
       dismissRivenPopup()
     }
   })
-  // Faster poll on Linux — Wine/Proton log flushes are bursty around reward screens.
-  logWatcher.start(process.platform === 'linux' ? 800 : 1500)
+  // Faster poll — reward pick timer is tight; Windows was 1500ms and often late (#8).
+  logWatcher.start(process.platform === 'linux' ? 800 : 900)
 
   preferLowerProcessPriority()
   registerHotkeys()

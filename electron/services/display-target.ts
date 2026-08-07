@@ -1,14 +1,33 @@
 import { screen } from 'electron'
 import type { DisplayChoice, PrimaryDisplayInfo } from '../../shared/types'
-import { loadSettings } from '../settings'
+import { loadSettings, updateSettings } from '../settings'
+
+let warnedStaleDisplayId: number | null = null
 
 /** Display used for OCR capture and overlay placement. */
 export function resolveOcrDisplay(): Electron.Display {
   const settings = loadSettings()
   const id = settings.ocrDisplayId
+  const displays = screen.getAllDisplays()
   if (id != null) {
-    const found = screen.getAllDisplays().find((d) => d.id === id)
+    const found = displays.find((d) => d.id === id)
     if (found) return found
+
+    // Windows remaps display IDs after GPU/driver/cable changes — stale settings
+    // used to silently fall back while the UI still showed a dead monitor id (#8).
+    if (warnedStaleDisplayId !== id) {
+      warnedStaleDisplayId = id
+      console.warn(
+        `[Everything Warframe] OCR display id ${id} not found among ${displays
+          .map((d) => d.id)
+          .join(', ')} — resetting to primary`,
+      )
+    }
+    try {
+      updateSettings({ ocrDisplayId: null })
+    } catch {
+      // ignore persist failures during early boot
+    }
   }
   return screen.getPrimaryDisplay()
 }

@@ -99,6 +99,13 @@ body,
   height: 100%;
 }
 
+/* Companion fills the window; page scroll lives in .companion-main. */
+html:not(.is-overlay),
+html:not(.is-overlay) body,
+html:not(.is-overlay) #root {
+  overflow: hidden;
+}
+
 body {
   font-family: var(--vl-font-body);
   font-size: var(--vl-type-body);
